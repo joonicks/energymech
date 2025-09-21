@@ -1,7 +1,7 @@
 /*
 
     EnergyMech, IRC bot software
-    Copyright (c) 2020-2021 proton
+    Copyright (c) 2020-2024 proton
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -92,7 +92,9 @@ const char *calculate(const char *input, CalcOp *cop, char *prepin)
 	*dst = 0;
 	input = prepin;
 
+#ifdef TEST
 	printf("%s\n",prepin);
+#endif /* TEST */
 	cop_count = 0;
 	maxdeci = 0;
 	goto new_blank;
@@ -140,14 +142,21 @@ op_or_num:
 		input++;
 		goto parse_num;
 	}
-	if (*input >= '0' && *input <= '9')
+	if (*input == '*')
+	{
+		op = OPER_MUL;
+		input++;
+		para++;
+		goto parse_num;
+	}
+	if ((*input >= '0' && *input <= '9') || *input == '.')
 		goto parse_num;
 	if (*input == 0)
 		goto new_op_or_num;
 	goto parsing_error;
 
 parse_num:
-	if (*input == '-' || *input == '+')
+	if (*input == '-' || *input == '+' || *input == '*')
 	{
 		goto new_op_or_num;
 	}
@@ -176,7 +185,7 @@ parsing_error:
 calculate_result:
 	x = 20;
 	/* find most decimals and convert all other numbers */
-	for(i=0;i<=cop_count;i++)
+/*	for(i=0;i<=cop_count;i++)
 	{
 		if (cop[i].decimals < maxdeci)
 		{
@@ -188,6 +197,7 @@ calculate_result:
 			cop[i].decimals = maxdeci;
 		}
 	}
+*/
 	r = 0;
 iterate:
 	/* find highest paralevel */
@@ -195,7 +205,8 @@ iterate:
 	for(i=0;i<=cop_count;i++)
 	{
 		if (cop[i].paralevel >= 0)
-			printf("number %lli, operation %i, decimals %i, paralevel %i\n",cop[i].number,cop[i].operation,cop[i].decimals,cop[i].paralevel);
+			printf("number %lu, operation %i, decimals %i, paralevel %i\n",
+				cop[i].number,cop[i].operation,cop[i].decimals,cop[i].paralevel);
 		if (cop[i].paralevel >= para)
 			para = cop[i].paralevel;
 	}
@@ -208,6 +219,18 @@ iterate:
 			if (cop[i].paralevel == para && op == 2 && cop[i].operation == OPER_ADD)
 			{
 				r += cop[i].number;
+				cop[i].paralevel = -1;
+			}
+			if (cop[i].paralevel == para && op == 2 && cop[i].operation == OPER_MUL)
+			{
+				cop[i-1].number = cop[i-1].number * cop[i].number;
+/*				if (cop[i-1].decimals > cop[i].decimals)*/
+				{
+#ifdef TEST
+	printf("decimals adjust %i > %i\n",cop[i-1].decimals,cop[i].decimals);
+#endif /* TEST */
+/*					cop[i-1].number /= decival[cop[i-1].decimals - cop[i].decimals];*/
+				}
 				cop[i].paralevel = -1;
 			}
 		}
@@ -230,21 +253,6 @@ return_result:
 		dst[1] = '.';
 	}
 	return(prepin);
-}
-
-void do_calc(COMMAND_ARGS)
-{
-	CalcOp	cop[MAX_COP];
-	int	cp = 0;
-
-	memset(&cop,0,sizeof(cop));
-
-	/* start with a numeral, or '-' */
-	if (*rest != '-' && (attrtab[(uchar)*rest] & NUM) == 0)
-	{
-		/* malformed */
-		return;
-	}
 }
 
 void mkbin(char *dst, int num, int bits)
@@ -316,6 +324,23 @@ int bas2int(const char *src, int base)
 */
 
 #if !defined(TEST)
+
+void do_calc(COMMAND_ARGS)
+{
+	char	prep[MSGLEN];
+	CalcOp	cop[MAX_COP];
+	int	cp = 0;
+
+	memset(&cop,0,sizeof(cop));
+
+	/* start with a numeral, or '.', or '-' */
+	if (*rest != '-' && *rest != '.' && (attrtab[(uchar)*rest] & NUM) == 0)
+	{
+		/* malformed */
+		return;
+	}
+	to_user_q(from,"%s",calculate(rest,cop,prep));
+}
 
 void do_convert(COMMAND_ARGS)
 {
@@ -416,7 +441,7 @@ void do_convert(COMMAND_ARGS)
 		if (dst != output)
 			*(dst++) = ' ';
 
-		sprintf(dst,"oct 0%o",num,num);
+		sprintf(dst,"oct 0%o",num);
 	}
 
 	if (tohex)
@@ -461,8 +486,11 @@ void do_convert(COMMAND_ARGS)
 const char *test[] = {
 	"1 - .2 + .03 - .004",
 	"2.008 + 9 + .992",
-/*	"999 - 555.66",
-	"1+2-3+4-5+6-7+8-9",*/
+	"999 - 555.66",
+	"1+2-3+4-5+6-7+8-9",
+	"100*200",
+	"10-10*10+10",
+	".001*1000",
 	NULL
 };
 
@@ -470,7 +498,6 @@ int main(int argc, char **argv, char **envp)
 {
 	char	prep[MSGLEN];
 	CalcOp	cop[MAX_COP];
-	char	*tmp;
 	int	i;
 
 	for(i=0;test[i];i++)

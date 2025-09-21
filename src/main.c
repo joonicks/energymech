@@ -1287,6 +1287,10 @@ int main(int argc, char **argv, char **envp)
 
 	if (startup == STARTUP_TESTRUN)
 	{
+#ifdef DEBUG
+		if (debug_on_exit == TRUE)
+			run_debug();
+#endif /* DEBUG */
 		to_file(1,"init: test run completed, exiting...\n");
 		_exit(0);
 	}

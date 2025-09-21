@@ -1,7 +1,7 @@
 /*
 
     EnergyMech, IRC bot software
-    Copyright (c) 2020 proton
+    Copyright (c) 2020-2024 proton
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -141,7 +141,7 @@ int parse_proc_status(char *line)
 
 	key = chop(&line);
 #ifdef DEBUG
-	debug("pps key = %s (%s)\n",key,line);
+	debug("(parse_proc_status) pps key = %s (%s)\n",key,line);
 #endif
 	if (key == NULL)
 		return(FALSE);
@@ -267,7 +267,7 @@ void process_monitor()
 	FileMon	*fmon;
 	struct inotify_event *ivent;
 	char	tmp[256];
-	int	n;
+	int	n,m;
 
 	for(fmon=filemonlist;fmon;fmon=fmon->next)
 	{
@@ -277,14 +277,14 @@ void process_monitor()
 
 			n = read(fmon->fd,globaldata,sizeof(struct inotify_event));
 			if (ivent->len > 0)
-				read(fmon->fd,ivent->name,ivent->len);
+				m = read(fmon->fd,ivent->name,ivent->len);
 			else
 				*ivent->name = 0;
 #ifdef DEBUG
-			debug("ino %i, n %i, sz %i\n",fmon->fd,n,sizeof(in2str));
-			debug("wd %i, mask %lu, cookie %lu, len %lu, name %s\n",
+			debug("(process_monitor) ino %i, n %i, sz %i\n",fmon->fd,n,sizeof(in2str));
+			debug("(process_monitor) wd %i, mask %lu, cookie %lu, len %lu, name %s\n",
 				ivent->wd,ivent->mask,ivent->cookie,ivent->len,ivent->name);
-			debug("%s\n",inomask2str(ivent->mask,tmp));
+			debug("(process_monitor) %s\n",inomask2str(ivent->mask,tmp));
 			debug("(process_monitor) ino %i bytes read, int wd = %i, uint32_t mask = %s (%lu), "
 				"uint32_t cookie = %lu, uint32_t len = %lu, char name = %s\n",
 				n,ivent->wd,inomask2str(ivent->mask,tmp),ivent->mask,ivent->cookie,ivent->len,ivent->name);
@@ -302,13 +302,13 @@ void process_monitor()
 /*---------------------------------------------------------------------------------------------------------------------------------------------------*/
 
 /*
-help:HOSTINFO:(no arguments)
+help:SYSINFO:(no arguments)
 
 Equivalent to ``uname -orm''
 
 See also: meminfo, cpuinfo
 */
-void do_hostinfo(COMMAND_ARGS)
+void do_sysinfo(COMMAND_ARGS)
 {
 	char	*h,hostname[256];
 	struct utsname un;
@@ -363,7 +363,7 @@ See also: hostinfo, meminfo
 */
 void do_cpuinfo(COMMAND_ARGS)
 {
-	char	bogostr[64],cpustr[64];
+	char	bogostr[256],cpustr[64];
 	char	*a1,*a2,*a3,*dst;
 	int	fd,n;
 	double	loads[3];
@@ -375,13 +375,6 @@ void do_cpuinfo(COMMAND_ARGS)
 	else
 		stringcpy(bogostr,"/proc/cpuinfo");
 	if ((fd = open(bogostr,O_RDONLY)) < 0)
-/*
-	if ((fd = open("/home/git/cpuinfo/mips3",O_RDONLY)) < 0)
-	if ((fd = open("/home/git/cpuinfo/mips2",O_RDONLY)) < 0)
-	if ((fd = open("/home/git/cpuinfo/mips1",O_RDONLY)) < 0)
-	if ((fd = open("/home/git/cpuinfo/intel1",O_RDONLY)) < 0)
-	if ((fd = open("/home/git/cpuinfo/cosmiccow",O_RDONLY)) < 0)
-*/
 #endif
 	if ((fd = open("/proc/cpuinfo",O_RDONLY)) < 0)
 #ifdef DEBUG

@@ -1,7 +1,7 @@
 /*
 
     EnergyMech, IRC bot software
-    Copyright (c) 2000-2018 proton
+    Copyright (c) 2000-2024 proton
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -102,6 +102,7 @@
 #define TEXT_BOTUPTIME		"Uptime\t%s"
 #define TEXT_BOTVERSION		"Version\t%s (%s)"
 #define TEXT_BOTFEATURES	"Features\t%s"
+#define TEXT_HOSTINFO		"Host\t%s %s %s %s"
 
 #define TEXT_CSERV		"Current Server: %s:%i"
 #define TEXT_CSERVNOT		"Current Server: " TEXT_NOTINSERVLIST

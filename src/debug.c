@@ -1,7 +1,7 @@
 /*
 
     EnergyMech, IRC bot software
-    Copyright (c) 1997-2021 proton
+    Copyright (c) 1997-2024 proton
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -108,59 +108,68 @@ LS const struct
 #endif
 { NULL, }};
 
+#define CORE_SE		,"CORE"
+#define CFG1_SE		,"CFG1"
+#define CMD1_SE		,"CMD1"
+#define INIT_SE		,"INIT"
+#define RARE_SE		,"RARE"
+#define DBUG_SE		,"DBUG"
+
 LS struct
 {
 	void	*func;
 	char	*name;
+	char	segment[5];
 	int	num;
 	int	size;
 	int	mall_size;
 
 } ProcList[] =
 {
-{	SockConnect,			"SockConnect"			},
-{	add_bot,			"add_bot"			},
-{	add_server,			"add_server"			},
+{	SockConnect,			"SockConnect"			CORE_SE },
+{	add_bot,			"add_bot"			CFG1_SE },
+{	add_server,			"add_server"			CFG1_SE },
 {	add_shit,			"add_shit"			},
 {	add_user,			"add_user"			},
-{	addtouser,			"addtouser"			},
-{	cfg_opt,			"cfg_opt"			},
-{	cfg_pass,			"cfg_pass"			},
-{	cfg_user,			"cfg_user"			},
+{	addtouser,			"addtouser"			CORE_SE },
+{	cfg_opt,			"cfg_opt"			CFG1_SE },
+{	cfg_pass,			"cfg_pass"			CFG1_SE },
+{	cfg_user,			"cfg_user"			CFG1_SE },
 {	change_authnick,		"change_authnick"		},
 {	ctcp_dcc,			"ctcp_dcc"			},
-{	copy_vars,			"copy_vars"			},
-{	dcc_chat,			"dcc_chat"			},
-{	do_die,				"do_die"			},
-{	do_nick,			"do_nick"			},
-{	do_kicksay,			"do_kicksay"			},
-{	do_servergroup,			"do_servergroup"		},
-{	do_set,				"do_set"			},
-{	do_spy,				"do_spy"			},
-{	join_channel,			"join_channel"			},
+{	copy_vars,			"copy_vars"			CFG1_SE },
+{	dcc_chat,			"dcc_chat"			CMD1_SE },
+{	do_die,				"do_die"			RARE_SE },
+{	do_nick,			"do_nick"			CMD1_SE },
+{	do_kicksay,			"do_kicksay"			CMD1_SE },
+{	do_servergroup,			"do_servergroup"		CMD1_SE },
+{	do_set,				"do_set"			CMD1_SE },
+{	do_spy,				"do_spy"			CMD1_SE },
+{	join_channel,			"join_channel"			CFG1_SE },
 {	killsock,			"killsock"			},
 {	make_auth,			"make_auth"			},
 {	make_ban,			"make_ban"			},
 {	make_chanuser,			"make_chanuser"			},
-{	make_ireq,			"make_ireq"			},
-{	make_strp,			"make_strp"			},
-{	mirror_user,			"mirror_user"			},
-{	on_join,			"on_join"			},
-{	on_kick,			"on_kick"			},
-{	on_mode,			"on_mode"			},
-{	on_msg,				"on_msg"			},
-{	on_nick,			"on_nick"			},
+{	make_ireq,			"make_ireq"			CMD1_SE },
+{	make_strp,			"make_strp"			CORE_SE },
+{	mirror_user,			"mirror_user"			CORE_SE },
+{	on_join,			"on_join"			CORE_SE },
+{	on_kick,			"on_kick"			CORE_SE },
+{	on_mode,			"on_mode"			CORE_SE },
+{	on_msg,				"on_msg"			CORE_SE },
+{	on_nick,			"on_nick"			CORE_SE },
 {	parse_311,			"parse_311"			},
-{	randstring_getline,		"randstring_getline"		},
+{	randstring_getline,		"randstring_getline"		CMD1_SE },
 {	readcfgfile,			"readcfgfile"			},
+{	recover_client,			"recover_client"		INIT_SE },
 {	reverse_topic,			"reverse_topic"			},
 {	to_user,			"to_user"			},
 {	to_user_q,			"to_user_q"			},
 {	send_kick,			"send_kick"			},
 {	send_mode,			"send_mode"			},
-{	set_str_varc,			"set_str_varc"			},
+{	set_str_varc,			"set_str_varc"			CFG1_SE },
 {	setbotnick,			"setbotnick"			},
-{	sig_hup,			"sig_hup"			},
+{	sig_hup,			"sig_hup"			RARE_SE },
 {	table_buffer,			"table_buffer"			},
 #ifdef ALIAS
 {	do_alias,			"do_alias"			},
@@ -187,7 +196,7 @@ LS struct
 #endif /* HOSTINFO */
 #ifdef NOTE
 {	catch_note,			"catch_note"			},
-{	do_note,			"do_note"			},
+{	do_note,			"do_note"			CMD1_SE },
 #endif /* NOTE */
 #ifdef NOTIFY
 {	catch_whois,			"catch_whois"			},
@@ -201,10 +210,10 @@ LS struct
 #ifdef RAWDNS
 {	rawdns,				"rawdns"			},
 {	parse_query,			"parse_query"			},
-{	read_dnsroot,			"read_dnsroot"			},
+{	read_dnsroot,			"read_dnsroot"			CFG1_SE },
 #endif /* RAWDNS */
 #ifdef REDIRECT
-{	begin_redirect,			"begin_redirect"		},
+{	begin_redirect,			"begin_redirect"		CORE_SE },
 #endif /* REDIRECT */
 #ifdef SEEN
 {	make_seen,			"make_seen"			},
@@ -219,19 +228,19 @@ LS struct
 {	check_telnet,			"check_telnet"			},
 #endif /* TELNET */
 #ifdef TOYBOX
-{	read_bigcharset_callback,	"read_bigcharset_callback"	},
+{	read_bigcharset_callback,	"read_bigcharset_callback"	CMD1_SE },
 #endif /* TOYBOX */
 #ifdef TRIVIA
-{	trivia_check,			"trivia_check"			},
-{	trivia_question,		"trivia_question"		},
-{	trivia_score_callback,		"trivia_score_callback"		},
+{	trivia_check,			"trivia_check"			CMD1_SE },
+{	trivia_question,		"trivia_question"		CMD1_SE },
+{	trivia_score_callback,		"trivia_score_callback"		CMD1_SE },
 #endif /* TRIVIA */
 #ifdef UPTIME
-{	init_uptime,			"init_uptime"			},
-{	send_uptime,			"send_uptime"			},
+{	init_uptime,			"init_uptime"			CFG1_SE },
+{	send_uptime,			"send_uptime"			CORE_SE },
 #endif /* UPTIME */
 #ifdef URLCAPTURE
-{	urlcapture,			"urlcapture"			},
+{	urlcapture,			"urlcapture"			CORE_SE },
 #endif /* URLCAPTURE */
 {	0,				"(unknown)"			},
 { NULL, }};
@@ -445,6 +454,42 @@ const char *proc_lookup(void *addr, int size)
 	return(NULL);
 }
 
+void proc_list(void)
+{
+	int	i,sel;
+	void	*a,*b,*l;
+
+	a = l = NULL;
+
+	do
+	{
+		b = NULL;
+		for(i=0;ProcList[i].name;i++)
+		{
+			if ((ProcList[i].func > a) && ((b == NULL) || (ProcList[i].func < b)))
+			{
+				b = ProcList[i].func;
+				sel = i;
+			}
+		}
+		if (b)
+		{
+			if (l == NULL)
+				l = b;
+			if (strlen(ProcList[sel].name) < 14)
+				a = "\t\t";
+			else
+			if (strlen(ProcList[sel].name) < 20)
+				a = "\t";
+			else
+				a = " ";
+			debug("; %s%s"mx_pfmt" (+%i) [%s]\n",ProcList[sel].name,a,b,b-l,ProcList[sel].segment);
+			a = b;
+		}
+	}
+	while (b);
+}
+
 char *atime(time_t when)
 {
 	char	*pt,*zp;
@@ -573,6 +618,9 @@ void debug_memory(void)
 #ifdef ALIAS
 	Alias	*alias;
 #endif /* ALIAS */
+#ifdef URLCAPTURE
+	Strp	*sp;
+#endif /* URLCAPTURE */
 	Chan	*chan;
 	Mech	*bot;
 	aMEA	*mea;
@@ -588,6 +636,12 @@ void debug_memory(void)
 		memtouch(alias->format);
 	}
 #endif /* ALIAS */
+#ifdef URLCAPTURE
+	for(sp=urlhistory;sp;sp=sp->next)
+	{
+		memtouch(sp);
+	}
+#endif /* URLCAPTURE */
 	for(bot=botlist;bot;bot=bot->next)
 	{
 		for(i=CHANSET_SIZE;VarName[i].name;i++)
@@ -607,6 +661,7 @@ void debug_memory(void)
 		{
 			memtouch(bot->lastcmds[i]);
 		}
+		memtouch(bot->userhost);
 	}
 	debug("> Memory allocations\n");
 	for(mea=mrrec;(mea);mea=mea->next)
@@ -737,7 +792,10 @@ void debug_botnet(void)
 				debug("  ; lsid\t\t%i\n",bn->lsid);
 				debug("  ; rsid\t\t%i\n",bn->rsid);
 				debug("  ; opt.pta\t\t%s\n",boolstr(bn->opt.pta));
+				if (bn->controller)
 				debug("  ; controller\t\t"mx_pfmt" { guid = %i }\n",(mx_ptr)bn->controller,bn->controller->guid);
+				else
+				debug("  ; controller\t\tnot set (NULL)\n");
 				debug("  ; when\t\t%s (%lu)\n",atime(bn->when),bn->when);
 				debug("  > botinfo\t\t"mx_pfmt"\n",(mx_ptr)bn->botinfo);
 				debug_botinfo(bn->botinfo);
@@ -789,7 +847,7 @@ void debug_core(void)
 	debug("> StructList\n");
 	for(i=0;StructList[i].name;i++)
 	{
-		debug("  ; %s\t\t%i\n",StructList[i].name,StructList[i].size);
+		debug("  ; %s\t%s%i\n",StructList[i].name,(strlen(StructList[i].name) < 12) ? "\t" : "",StructList[i].size);
 	}
 	debug("  ; ---\n");
 	if (current)
@@ -1356,6 +1414,9 @@ void run_debug(void)
 #endif /* SCRIPTING */
 
 	debug_memory();
+	debug("> functions\n");
+	proc_list();
+	debug("; ---\n");
 }
 
 int wrap_debug(void)

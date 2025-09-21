@@ -32,8 +32,8 @@
 
 #ifndef TEST
 
-LS char timebuf[24];		/* max format lentgh == 20+1, round up to nearest longword -> 24 */
-LS char idlestr[36];		/* max format lentgh == 24+1, round up to nearest longword -> 28 */
+LS char timebuf[32];		/* max format lentgh == 20+1, round up to 32 */
+LS char idlestr[36];		/* max format lentgh == 24+1, round up to 36 */
 LS const char monlist[12][4] = { "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" };
 LS const char daylist[7][4] = {	"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat" };
 

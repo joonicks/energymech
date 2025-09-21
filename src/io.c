@@ -269,7 +269,7 @@ int SockAccept(int sock)
 /*
  *  Format text and send to a socket or file descriptor
  */
-int to_file(int sock, const char *format, ...)
+int to_file(const int sock, const char *format, ...)
 {
 	va_list msg;
 #if defined(DEBUG) && !defined(GENCMD_C)
@@ -357,7 +357,8 @@ void to_user_q(const char *target, const char *format, ...)
 
 	if (STARTUP_ECHOTOCONSOLE)
 	{
-		write(1,message,strlen(message));
+		int	n;
+		n = write(1,message,strlen(message));
 		return;
 	}
 

@@ -125,7 +125,7 @@ char *webread(int s, char *rest, char *line)
 	return(NULL);
 }
 
-#define NOBO	if (dest == &mem[MSGLEN-2]) { write(s,mem,dest-mem); dest = mem; }
+#define NOBO	if (dest == &mem[MSGLEN-2]) { int n; n = write(s,mem,dest-mem); dest = mem; }
 
 void eml_fmt(WebSock *client, char *format)
 {
@@ -133,6 +133,7 @@ void eml_fmt(WebSock *client, char *format)
 	char	*src,*dest,*org;
 	int	out;
 	int	s = client->sock;
+	int	n;
 
 	org = NULL;
 	out = TRUE;
@@ -230,8 +231,8 @@ restart:
 		format++;
 	}
 	if (dest-mem > 0)
-		write(s,mem,dest-mem);
-	write(s,"\r\n",2);
+		n = write(s,mem,dest-mem);
+	n = write(s,"\r\n",2);
 }
 
 void web_raw(WebSock *client, char *url)
@@ -240,8 +241,7 @@ void web_raw(WebSock *client, char *url)
 	char	path[MSGLEN];
 	char	*src,*dest;
 	ino_t	ino;
-	int	fd;
-	int	eml;
+	int	fd,eml,n;
 	size_t	sz;
 
 	eml = (matches("*.html",url)) ? TRUE : FALSE;
@@ -293,7 +293,7 @@ void web_raw(WebSock *client, char *url)
 #endif /* DEBUG */
 	set_mallocdoer(web_raw);
 	src = Calloc(sz+1);
-	read(fd,src,sz);
+	n = read(fd,src,sz);
 	if (eml)
 	{
 		to_file(client->sock,"%s\r\n",src);

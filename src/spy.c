@@ -69,6 +69,9 @@ static int basepos(char c)
 		return(63);
 	return(0);
 }
+#if defined(SHACRYPT) || defined(MD5CRYPT)
+char *CRYPT_FUNC(const char *, const char *);
+#endif
 
 void send_spy(const char *src, const char *format, ...)
 {
@@ -130,12 +133,12 @@ void send_spy(const char *src, const char *format, ...)
      SHA-512 | 86 characters
 */
 #ifdef SHACRYPT
-			sprintf(tempdata,"$6$%04x",(now & 0xFFFF));
+			sprintf(tempdata,"$6$%04x",(uint32_t)(now & 0xFFFF));
 			rnd = CRYPT_FUNC(tempsrc,tempdata);
 #endif /* SHACRYPT */
 
 #if !defined(SHACRYPT) && defined(MD5CRYPT)
-			sprintf(tempdata,"$1$%04x",(now & 0xFFFF));
+			sprintf(tempdata,"$1$%04x",(uint32_t)(now & 0xFFFF));
 			rnd = CRYPT_FUNC(tempsrc,tempdata);
 #endif /* !SHACRYPT && MD5CRYPT */
 
@@ -164,7 +167,9 @@ void send_spy(const char *src, const char *format, ...)
 #endif /* DEBUG */
 				if ((fd = open(spy->dest,O_WRONLY|O_CREAT|O_APPEND,NEWFILEMODE)) >= 0)
 				{
-					write(fd,tempdata,dst - tempdata);
+					int	n;
+
+					n = write(fd,tempdata,dst - tempdata);
 					close(fd);
 				}
 			}
