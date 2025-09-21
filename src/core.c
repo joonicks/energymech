@@ -1,7 +1,7 @@
 /*
 
     EnergyMech, IRC bot software
-    Parts Copyright (c) 1997-2018 proton
+    Parts Copyright (c) 1997-2024 proton
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -28,6 +28,10 @@
 #include "text.h"
 #include "mcmd.h"
 #include "settings.h"
+
+#ifdef HOSTINFO
+#include <sys/utsname.h>
+#endif /* HOSTINFO */
 
 #ifdef IDWRAP
 
@@ -443,6 +447,13 @@ void signoff(char *from, char *reason)
 	{
 		Free(&current->lastcmds[i]);
 	}
+
+	/*
+	 *  little of this n that
+	 */
+	Free((char**)&current->nick);
+	Free((char**)&current->wantnick);
+	Free((char**)&current->userhost);
 
 	/*
 	 *  These 2 are used by do_die() to pass reason and doer.
@@ -1251,6 +1262,10 @@ void do_version(COMMAND_ARGS)
 
 void do_core(COMMAND_ARGS)
 {
+#ifdef HOSTINFO
+        char    *h,hostname[256];
+        struct utsname un;
+#endif /* HOSTINFO */
 	char	tmp[MSGLEN];	/* big buffers at the top */
 	Server	*sp;
 	Chan	*chan;
@@ -1330,6 +1345,16 @@ void do_core(COMMAND_ARGS)
 		table_buffer(TEXT_CURRSERVERNOT);
 	table_buffer(TEXT_SERVERONTIME,idle2str(now - current->ontime,FALSE));
 	table_buffer(TEXT_BOTMODES,(*current->modes) ? current->modes : TEXT_NONE);
+#ifdef HOSTINFO
+	hostname[255] = 0;
+	if (gethostname(hostname,250) < 0)
+		h = "(hostname error)";
+	else
+		h = hostname;
+
+	if (uname(&un) == 0)
+		table_buffer(TEXT_HOSTINFO,h,un.sysname,un.release,un.machine);
+#endif /* HOSTINFO */
 	table_buffer(TEXT_CURRENTTIME,time2str(now));
 	table_buffer(TEXT_BOTSTARTED,time2str(uptime));
 	table_buffer(TEXT_BOTUPTIME,idle2str(now - uptime,FALSE));

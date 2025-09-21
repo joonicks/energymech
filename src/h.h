@@ -336,7 +336,7 @@ void select_monitor()							__page(CORE_SEG);
 void process_monitor()							__page(CORE_SEG);
 int parse_proc_status(char *line)					__page(CMD1_SEG);
 int parse_proc_cpuinfo(char *line)					__page(CMD1_SEG);
-void do_hostinfo(COMMAND_ARGS)						__page(CMD1_SEG);
+void do_sysinfo(COMMAND_ARGS)						__page(CMD1_SEG);
 void do_meminfo(COMMAND_ARGS)						__page(CMD1_SEG);
 void do_cpuinfo(COMMAND_ARGS)						__page(CMD1_SEG);
 void do_filemon(COMMAND_ARGS)						__page(CMD1_SEG);
@@ -419,7 +419,7 @@ LS void sig_segv(int)							__attr(RARE_SEG, __noreturn__);
 #endif
 LS void sig_term(int)							__attr(RARE_SEG, __noreturn__);	/* rare */
 LS void doit(void)							__page(CORE_SEG);
-LS int main(int argc, char **argv, char **envp)				__page(CFG1_SEG);
+LS int main(int argc, char **argv, char **envp)				__page(INIT_SEG);
 
 /* net.c */
 
