@@ -1,7 +1,7 @@
 /*
 
     EnergyMech, IRC bot software
-    Parts Copyright (c) 1997-2009 proton
+    Parts Copyright (c) 1997-2024 proton
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -592,31 +592,6 @@ recheck_alias:
 		}
 
 		/*
-		 *  list of last LASTCMDSIZE commands
-		 */
-		if (from != CoreUser.name)
-		{
-			Free(&current->lastcmds[LASTCMDSIZE-1]);
-			for(j=LASTCMDSIZE-2;j>=0;j--)
-				current->lastcmds[j+1] = current->lastcmds[j];
-			if ((pt = STRCHR(from,'@')) == NULL)
-				pt = from;
-			set_mallocdoer(on_msg);
-			current->lastcmds[0] = (char*)Calloc(strlen(pt) + 45);
-			if (CurrentUser)
-			{
-				sprintf(current->lastcmds[0],"[%s] %s\r%s[%-3i]\t(*%s)",
-					time2medium(now),command,CurrentUser->name,
-					(CurrentUser->x.x.access),pt);
-			}
-			else
-			{
-				sprintf(current->lastcmds[0],"[%s] %s\r%s[---]\t(*%s)",
-					time2medium(now),command,CurrentNick,pt);
-			}
-		}
-
-		/*
 		 *  CAXS check: first argument might be a channel
 		 *              check user access on target channel
 		 */
@@ -645,6 +620,31 @@ recheck_alias:
 			uaccess = get_authaccess(from,MATCH_ALL);
 			if (uaccess < acmd[i])
 				return;
+		}
+
+		/*
+		 *  list of last LASTCMDSIZE commands
+		 */
+		if (from != CoreUser.name)
+		{
+			Free(&current->lastcmds[LASTCMDSIZE-1]);
+			for(j=LASTCMDSIZE-2;j>=0;j--)
+				current->lastcmds[j+1] = current->lastcmds[j];
+			if ((pt = STRCHR(from,'@')) == NULL)
+				pt = from;
+			set_mallocdoer(on_msg);
+			current->lastcmds[0] = (char*)Calloc(strlen(pt) + 45);
+			if (CurrentUser)
+			{
+				sprintf(current->lastcmds[0],"[%s] %s\r%s[%-3i]\t(*%s)",
+					time2medium(now),command,CurrentUser->name,
+					(CurrentUser->x.x.access),pt);
+			}
+			else
+			{
+				sprintf(current->lastcmds[0],"[%s] %s\r%s[---]\t(*%s)",
+					time2medium(now),command,CurrentNick,pt);
+			}
 		}
 
 		/*
