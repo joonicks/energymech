@@ -1,7 +1,7 @@
 /*
 
     EnergyMech, IRC bot software
-    Copyright (c) 2001-2018 proton
+    Copyright (c) 2001-2024 proton
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -434,6 +434,7 @@ See also: passwd, setpass
 */
 void do_auth(COMMAND_ARGS)
 {
+	Auth	*au;
 #ifdef BOTNET
 	char	*checksum;
 #endif /* BOTNET */
@@ -443,7 +444,21 @@ void do_auth(COMMAND_ARGS)
 	int	hostmatch;
 
 	if ((pass = chop(&rest)) == NULL)
+	{
+		if (get_authaccess(from,MATCH_ALL) == 100)
+		{
+			/* empty pass + owner: List active auths */
+			table_buffer("\037Active Auths\037");
+			if (current->authlist == NULL)
+				table_buffer("(none)");
+			for(au=current->authlist;au;au=au->next)
+			{
+				table_buffer("%s\t%i\t%s\t%s",au->user->name,au->user->x.x.access,au->nuh,idle2str(now - au->active,TRUE));
+			}
+			table_send(from,3);
+		}
 		return;
+	}
 
 	/*
 	 *  chop chop
