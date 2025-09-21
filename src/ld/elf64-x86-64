@@ -61,10 +61,10 @@ SECTIONS
     *(.text.hot .text.hot.*)
     *(.text.e)  /* RARE */
     *(.text.d)  /* INIT */
-    *(.text.b)  /* CFG1 */
     *(.text.c)  /* CMD1 */
     *(.text.a)  /* CORE */
     *(.text.f)  /* DBUG */
+    *(.text.b)  /* CFG1 */
     *(.text .stub .text.* .gnu.linkonce.t.*)
     /* .gnu.warning sections are handled specially by elf32.em.  */
     *(.gnu.warning)
