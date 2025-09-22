@@ -604,8 +604,8 @@ recheck_alias:
 			uaccess = get_authaccess(from,to);
 			if (uaccess < acmd[i])
 				return;
-			CurrentChan = find_channel_ac(to);
-			if (mcmd[i].acchan && !CurrentChan)
+			CurrentChan = find_channel_ny(to);
+			if (mcmd[i].acchan && (CurrentChan == NULL || CurrentChan->active == 0))
 			{
 				to_user(from,ERR_CHAN,to);
 				return;

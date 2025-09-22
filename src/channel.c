@@ -67,7 +67,7 @@ Chan *find_channel(const char *name, int anychannel)
 
 	for(chan=current->chanlist;chan;chan=chan->next)
 	{
-		if (chan->active < anychannel)
+		if (anychannel == 1 && chan->active == 0)
 			continue;
 		if (ni != tolowertab[(uchar)(chan->name[1])])
 			continue;
@@ -757,24 +757,21 @@ begin:
 void do_forget(COMMAND_ARGS)
 {
 	/*
-	 *  on_msg checks: CARGS
+	 *  on_msg checks: CAXS
 	 */
-	Chan	*chan;
-	char	*channel;
 
-	channel = chop(&rest);	/* cant be NULL (CARGS) */
-	if ((chan = find_channel_ny(channel)) == NULL)
+	if (CurrentChan == NULL)
 	{
-		to_user(from,"Channel %s is not in memory",channel);
+		to_user(from,"Unknown channel");
 		return;
 	}
-	if (chan->active)
+	if (CurrentChan->active)
 	{
-		to_user(from,"I'm currently active on %s",channel);
+		to_user(from,"I'm currently active on %s",CurrentChan->name);
 		return;
 	}
-	to_user(from,"Channel %s is now forgotten",channel);
-	remove_chan(chan);
+	to_user(from,"Channel %s is now forgotten",CurrentChan->name);
+	remove_chan(CurrentChan);
 }
 
 /*
