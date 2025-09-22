@@ -42,3 +42,4 @@ src/y
 src/z
 randdata
 test.conf
+postfix.sh

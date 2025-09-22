@@ -182,7 +182,7 @@ struct
 	 *  Level 70 == JOINLEVEL
 	 */
 	{ 0, "CYCLE",		"do_cycle",		70	| CCPW	| CAXS | ACCHAN			},
-	{ 0, "FORGET",		"do_forget",		70	| CCPW	| CAXS | CARGS			},
+	{ 0, "FORGET",		"do_forget",		70	| CCPW	| CAXS				},
 	{ 0, "JOIN",		"do_join",		70	| CCPW	| CARGS				},
 	{ 0, "KS",		"do_kicksay",		70	| CCPW	| REDIR | LBUF			},
 	{ 0, "PART",		"do_part",		70	| CCPW	| CAXS | ACCHAN			},

@@ -69,7 +69,7 @@ int orig_charheight;
 int orig_spacewidth;
 int orig_kerning;
 
-int read_bigcharset_callback(char *rest)
+int read_charset_callback(char *rest)
 {
 	char	*opt;
 	int	*n,sz;
@@ -98,9 +98,9 @@ int read_bigcharset_callback(char *rest)
 		opt = chop(&rest);
 
 #ifdef DEBUG
-		debug("(read_bigcharset_callback) New character definition: %s\n",opt);
+		debug("(read_charset_callback) New character definition: %s\n",opt);
 #endif /* DEBUG */
-		set_mallocdoer(read_bigcharset_callback);
+		set_mallocdoer(read_charset_callback);
 		newchar = (BigC*)Calloc(sizeof(BigC) + strlen(opt));
 
 		newchar->next = fontlist;
@@ -137,7 +137,7 @@ int read_bigcharset_callback(char *rest)
 			return(TRUE);
 		}
 		Free((char**)&fontname);
-		set_mallocdoer(read_bigcharset_callback);
+		set_mallocdoer(read_charset_callback);
 		fontname = stringdup(opt);
 	}
 
@@ -173,7 +173,7 @@ int read_bigcharset(char *fname)
 	charheight = 0;
 	kerning = 0;
 
-	readline(fd,&read_bigcharset_callback);		/* readline closes fd */
+	readline(fd,&read_charset_callback);		/* readline closes fd */
 
 	/*
 	 *  free the old font if there is one

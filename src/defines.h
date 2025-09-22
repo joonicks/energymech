@@ -374,12 +374,6 @@ enum {
 #define SP_NO_DNS		7
 #define SP_THROTTLED		8
 
-/* find_channel() */
-
-#define CH_ACTIVE		0x1
-#define CH_OLD			0x2
-#define CH_ANY			0x3
-
 /* check_mass() */
 
 #define INDEX_FLOOD		0

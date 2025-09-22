@@ -1,7 +1,7 @@
 #!/bin/sh
 #
 #   EnergyMech, IRC Bot software
-#   Copyright (c) 1997-2018 proton
+#   Copyright (c) 1997-2025 proton
 #
 #   This program is free software; you can redistribute it and/or modify
 #   it under the terms of the GNU General Public License as published by
@@ -1566,10 +1566,14 @@ if [ ! "$cores" = 1 ]; then
   $out "For speedy compiling, use \`\`make -j$cores''"
 fi
 $out ''
-$out "Your chosen ./configure options have been saved to ./myconfig"
+$out 'If you compile often and need to do repetitive extra operations after'
+$out 'doing "make install", you can create "./postfix.sh" which will be executed'
+$out 'after each "make install".'
+$out ''
+$out 'Your chosen ./configure options have been saved to ./myconfig'
 $out 'if you wish to save ./myconfig in its current state, chmod -w ./myconfig'
 $out ''
-$out 'Submit your bugreports at https://github.com/MadCamel/energymech/issues'
+$out 'Submit your bugreports at https://github.com/EnergyMech/energymech/issues'
 $out ''
 $out 'You have read the README file I hope?'
 $out ''

@@ -228,7 +228,7 @@ LS struct
 {	check_telnet,			"check_telnet"			},
 #endif /* TELNET */
 #ifdef TOYBOX
-{	read_bigcharset_callback,	"read_bigcharset_callback"	CMD1_SE },
+{	read_charset_callback,		"read_charset_callback"		CMD1_SE },
 #endif /* TOYBOX */
 #ifdef TRIVIA
 {	trivia_check,			"trivia_check"			CMD1_SE },

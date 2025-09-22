@@ -1,6 +1,6 @@
 #
 #   EnergyMech, IRC Bot software
-#   Copyright (c) 1997-2018 proton
+#   Copyright (c) 1997-2025 proton
 #
 #   This program is free software; you can redistribute it and/or modify
 #   it under the terms of the GNU General Public License as published by
@@ -86,12 +86,14 @@ clean:
 
 install:
 		$(MAKE) -C src install
+		test -x postfix.sh && ./postfix.sh
 
 mega:
 		$(MAKE) -C src mega
 
 mega-install:
 		$(MAKE) -C src mega-install
+		test -x postfix.sh && ./postfix.sh
 
 #
 #  code validation tests

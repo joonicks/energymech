@@ -688,7 +688,7 @@ LS void do_tcl(COMMAND_ARGS)						__page(CMD1_SEG);
 
 /* toybox.c */
 
-LS int read_bigcharset_callback(char *)					__page(CMD1_SEG);
+LS int read_charset_callback(char *)					__page(CMD1_SEG);
 LS int read_bigcharset(char *)						__page(CMD1_SEG);
 LS int read_ascii(char *)						__page(CMD1_SEG);
 LS void trivia_week_toppers(void)					__page(CMD1_SEG);
