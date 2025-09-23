@@ -1581,7 +1581,7 @@ void change_pass(User *user, char *pass)
 	char	*enc;
 
 	enc = makepass(pass);
-	if (strlen(user->pass) <= strlen(enc))
+	if (user->pass && strlen(user->pass) <= strlen(enc))
 	{
 		stringcpy(user->pass,enc);
 #ifdef BOTNET

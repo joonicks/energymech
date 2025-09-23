@@ -1073,6 +1073,10 @@ void update(SequenceTime *this)
 			temp = TEXT_NOTINSERVLIST;
 			if ((sp = find_server(current->server)))
 			{
+				int	ot = (uint32_t)(now - current->ontime);
+
+				if (sp->maxontime < ot)
+					sp->maxontime = ot;
 				sprintf(globaldata,"%s:%i",(*sp->realname) ? sp->realname : sp->name,sp->port);
 				temp = globaldata;
 			}
@@ -1486,15 +1490,28 @@ void do_server(COMMAND_ARGS)
 	 */
 	if (!server)
 	{
+		char	maxontime[36],*cuur;
+		int	ot;
+
 		if (partyline_only_command(from))
 			return;
 		if (servergrouplist->next)
-			table_buffer(str_underline("server") "\t" str_underline("last connect") "\t" str_underline("group"));
+			table_buffer(str_underline("server") "\t" str_underline("last connect") "\t"
+			str_underline("maxontime") "\t" str_underline("group"));
 		else
-			table_buffer(str_underline("server") "\t" str_underline("last connect"));
+			table_buffer(str_underline("server") "\t" str_underline("last connect") "\t" str_underline("maxontime"));
 		sgi = -1;
 		for(sp=serverlist;sp;sp=sp->next)
 		{
+			cuur = "";
+			if (sp->ident == current->server)
+			{
+				cuur = TEXT_CURRENT;
+				ot = now - current->ontime;
+				if (sp->maxontime < ot)
+					sp->maxontime = ot;
+			}
+			stringcpy(maxontime,(sp->maxontime == 0) ? TEXT_NEVER : idle2str(sp->maxontime,FALSE));
 			if (sp->lastconnect)
 				last = idle2str(now - sp->lastconnect,FALSE);
 			else
@@ -1534,13 +1551,12 @@ void do_server(COMMAND_ARGS)
 					if (sg)
 						sgi = sg->servergroup;
 				}
-				table_buffer("%s:%i\t%s%s%s\t%s",(*sp->realname) ? sp->realname : sp->name,sp->port,
-					last,(sp->lastconnect) ? TEXT_AGO : "",(sp->ident == current->server) ? TEXT_CURRENT : "",
-					(sg) ? sg->name : "(unknown)");
+				table_buffer("%s:%i\t%s%s%s\t%s\t%s",(*sp->realname) ? sp->realname : sp->name,sp->port,
+					last,(sp->lastconnect) ? TEXT_AGO : "",cuur,maxontime,(sg) ? sg->name : "(unknown)");
 			}
 			else
-				table_buffer("%s:%i\t%s%s%s",(*sp->realname) ? sp->realname : sp->name,sp->port,
-					last,(sp->lastconnect) ? TEXT_AGO : "",(sp->ident == current->server) ? TEXT_CURRENT : "");
+				table_buffer("%s:%i\t%s%s%s\t%s",(*sp->realname) ? sp->realname : sp->name,sp->port,
+					last,(sp->lastconnect) ? TEXT_AGO : "",cuur,maxontime);
 		}
 		table_send(from,2);
 		return;
