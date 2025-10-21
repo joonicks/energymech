@@ -42,26 +42,60 @@ DCC chat and DCC file support to operate.
 Very necessary to include if you are a developer...
 
 --- Dynamic channel limit (+l)
+
+  Make the bot update the channel user limit (+l) to a value that only allows
+a limited number of users to join within a certain time period.
+
 --- Dynamic command levels support
+
+  Permit altering at runtime the access level needed to use commands. Including
+the possibility to disable commands.
+
 --- Greet support
 --- HTTP server support
+
+  Warning: ALPHA grade code. Not recommended for casual use. Make energymech
+respond to HTTP requests on a user configurable port.
+
 --- Host info support
+
+  Include features to monitor the server that the energymech runs on.
+
 --- IRC proxy support
 --- IRCD extensions support
+
+  BETA code. Support for non-standard IRC server features.
+
 --- Newbie support
+
+  Extra safeguards and messages for beginners.
+
 --- Note support
 --- Notify support
 --- Password hashing with MD5
+
+  Encrypt user passwords with md5.
+
 --- Password hashing with SHA
+
+  Encrypt user passwords with sha1 or sha512.
+
 --- Scripting with Python
 --- Scripting with Tcl
 --- Seen support
 --- Session support
 --- Statistics support
 --- Telnet support
+
+  Support for connecting to the energymech partyline with telnet/netcat.
+
 --- Trivia support
 --- Toybox fun and games
 --- Uptime support
+
+  Send bot uptime packets to the bot uptime tracker (https://www.eggheads.org/uptime)
+
 --- URL capture support
 --- WinGate support
 
+  Ancient tech. Support for wingate proxy.
