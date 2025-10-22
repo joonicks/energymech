@@ -68,7 +68,7 @@
 #endif
 
 /* __x86_64__ automatically compiles for regparm optimization */
-#if !defined(__profiling__) && defined(__i386__)
+#if !defined(__profiling__) && defined(__i386__) && !defined(__i686__)
 # define __regparm(x)		regparm(x)
 #else
 # define __regparm(x)
