@@ -17,5 +17,7 @@ MEEP one two three four -> SAY two one three four
 Aliases may call other aliases and aliases can be used
 to replace built in commands. Aliases can recurse a
 maximum of 20 times (prevents infinite loops).
- 
+  
+If no argument is given, all current aliases will be listed.
+  
 See also: unalias

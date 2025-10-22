@@ -1,2 +1,4 @@
-Usage: WHOM
-   Show who are connected to the partyline.
+  
+Show who are connected to the partyline.
+  
+See also: core, boot

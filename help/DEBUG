@@ -1,0 +1,5 @@
+Write debug information to a file named "debug.<timestamp>".
+  
+Only available if compiled with debug support.
+  
+See also: crash

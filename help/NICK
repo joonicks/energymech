@@ -1,4 +1,12 @@
-Usage: NICK <nick>
-   Changes the nick of the bot. If the nick given is already
-   in use, the bot will not change its nickname until the
-   occupied nick is available.
+  
+Changes the nick of the bot. If the nick given is already
+in use, the bot will not change its nickname until the
+occupied nick is available.
+  
+If a guid is given, the nick of the bot with the given guid
+will be changed.
+  
+If no bot with the given guid exists, a new bot will be
+created with the given guid.
+  
+See also: die

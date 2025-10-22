@@ -1,2 +1,4 @@
-Usage: VER
-   Returns the version of EnergyMech that is running
+  
+Returns the version of EnergyMech that is running
+
+See also: core, features
