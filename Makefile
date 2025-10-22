@@ -49,8 +49,9 @@ RANDFILES =	messages/8ball.txt messages/away.txt messages/insult.txt \
 
 STUBFILES =	src/Makefile.in src/config.h.in src/ld/README src/ld/elf32-i386 src/ld/elf64-x86-64
 
-TESTFILES =	config/cc.c config/endian.c config/inet_addr.c config/inet_aton.c config/ldtest.c config/md5.h config/md5_internal.c \
-		config/perl.c config/ptr_size.c config/python.c config/pw.c config/sha1.h config/sha_internal.c config/socket.c config/tcl.c \
+TESTFILES =	config/cc.c config/endian.c config/inet_addr.c config/inet_aton.c config/ldtest.c \
+		config/md5.h config/md5.c config/perl.c config/ptr_size.c config/python.c config/pw.c \
+		config/sha1.h config/shal.c config/sha512.c config/socket.c config/tcl.c \
 		config/unaligned.c config/which
 
 TRIVFILES =	trivia/mkindex.c
@@ -62,7 +63,8 @@ SRCFILES =	src/alias.c src/auth.c src/bounce.c src/channel.c src/core.c src/ctcp
 		src/toybox.c src/uptime.c src/user.c src/vars.c src/web.c \
 		src/lib/md5.c src/lib/md5.h src/lib/string.c
 
-HDRFILES =	src/defines.h src/global.h src/h.h src/settings.h src/structs.h src/text.h src/usage.h
+HDRFILES =	src/commands.h src/defines.h src/global.h src/h.h src/onhash.h src/settings.h \
+		src/structs.h src/text.h src/usage.h
 
 CONFFILES =	src/Makefile src/config.h
 
