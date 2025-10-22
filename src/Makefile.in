@@ -66,7 +66,7 @@ all:		$(INSTALLNAME)
 #   instead of doing extra parsing and handling while the bot is running.
 #
 
-gencmd:		gencmd.c io.c config.h structs.h
+gencmd:		gencmd.c io.c config.h structs.h onhash.h commands.h
 		$(CC) $(LFLAGS) -o gencmd gencmd.c
 
 mcmd.h:		gencmd
@@ -149,6 +149,9 @@ lib/md5.o:	lib/md5.c $(INCS)
 lib/sha1.o:	lib/sha1.c $(INCS)
 		$(CROSS_COMPILE)$(CC) $(CFLAGS) -c $< -o $@ -Ilib $(CPROF)
 
+lib/sha512.o:	lib/sha512.c $(INCS)
+		$(CROSS_COMPILE)$(CC) $(CFLAGS) -c $< -o $@ -Ilib $(CPROF)
+
 lib/string.o:	lib/string.c $(BASEINCLUDES)
 		$(CROSS_COMPILE)$(CC) $(CFLAGS) -c $< -o $@ -I. $(CPROF)
 
@@ -206,7 +209,7 @@ net.o:		net.c $(INCS)
 note.o:		note.c $(INCS)
 		$(CROSS_COMPILE)$(CC) $(CFLAGS) -c $< $(CPROF)
 
-ons.o:		ons.c $(INCS)
+ons.o:		ons.c $(INCS) onhash.h
 		$(CROSS_COMPILE)$(CC) $(CFLAGS) -c $< $(CPROF)
 
 parse.o:	parse.c $(INCS)

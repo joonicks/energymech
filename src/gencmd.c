@@ -26,345 +26,229 @@ char	globaldata[MAXLEN];
 
 #include "io.c"
 
+#define HASHDATASZ	256
+#define HASHDATAMASK	255
+
+uint8_t	hash[512];
+uint8_t	hashmap[512];
+uint8_t	hashdata[HASHDATASZ];
+
+#define HEATMAP 1
+#ifdef HEATMAP
+uint8_t heatmap[HASHDATASZ];
+#endif
+
+int	mx,collis,mincoll,randfd,heatmapon;
+
 /*
-
-	These are defined in config.h
-
-	DCC	0x000100		requires DCC
-	CC	0x000200		requires commandchar
-	PASS	0x000400		requires password / authentication
-	CARGS	0x000800		requires args
-	NOPUB	0x001000		ignore in channel (for password commands)
-	NOCMD	0x002000		not allowed to be executed thru CMD
-	GAXS	0x004000		check global access
-	CAXS	0x008000		check channel access
-	REDIR	0x010000		may be redirected
-	LBUF	0x020000		can be linebuffered to server
-	CBANG	0x040000		command may be prefixed with a bang (!)
-	ACCHAN  0x080000		needs an active channel
-	SUPRES  0x100000		command is not suitable to run on many bots at once, try to suppress it
-
-	CLEVEL	0x000ff
-
-*/
-
-#define CCPW	CC|PASS
-
-struct
+ *  tolowertab blatantly ripped from ircu2.9.32
+ */
+const uchar tolowertab[256] =
 {
-	int	pass;
-	const char *name;
-	const char *func;
-	uint32_t flags;
-	char	*cmdarg;
-
-} pre_mcmd[] =
-{
-	/*
-	 *  public access commands
-	 */
-	{ 0, "AUTH",		"do_auth",		 0		| NOPUB	| CBANG			}, // double up on AUTH/VERIFY to better
-	{ 0, "VERIFY",		"do_auth",		 0		| NOPUB	| CBANG			}, // catch login attempts
-#ifdef TOYBOX
-	{ 0, "8BALL",		"do_8ball",		 0		| CBANG	| SUPRES		},
-	{ 0, "RAND",		"do_rand",		 0		| CBANG	| SUPRES		},
-#endif /* TOYBOX */
-	{ 0, "CV",		"do_convert",		 0		| CBANG | SUPRES		},
-	{ 0, "CALC",		"do_calc",		 0		| CBANG | SUPRES		},
-
-	/*
-	 *  Level 10
-	 */
-	{ 0, "ACCESS",		"do_access",		10	| CCPW					},
-	{ 0, "BYE",		"do_bye",		10	| CC					},
-	{ 0, "CHAT",		"do_chat",		10	| CCPW	| NOCMD				},
-#ifdef RAWDNS
-	{ 0, "DNS",		"do_dns",		10	| CCPW	| GAXS | CARGS | SUPRES		},
-#endif /* RAWDNS */
-	{ 0, "DOWN",		"do_opdeopme",		10	| CC	| CAXS				},
-	{ 0, "ECHO",		"do_echo",		10	| CCPW	| CARGS				},
-	{ 0, "HELP",		"do_help",		10	| CCPW	| REDIR | LBUF | SUPRES		},
-	{ 0, "PASSWD",		"do_passwd",		10	| PASS	| NOPUB | CARGS			},
-#ifdef DCC_FILE
-	{ 0, "SEND",		"do_send",		10	| CC	| NOCMD	| CBANG	| CARGS		},
-#endif /* DCC_FILE */
-	{ 0, "USAGE",		"do_usage",		10	| CCPW	| REDIR	| CARGS			},
-
-	/*
-	 *  Level 20
-	 */
-	{ 0, "ONTIME",		"do_upontime",		20	| CCPW					, "Ontime: %s" },
-	{ 0, "UPTIME",		"do_upontime",		20	| CCPW					, "Uptime: %s" },
-	{ 0, "VER",		"do_version",		20	| CCPW					},
-	{ 0, "WHOM",		"do_whom",		20	| CCPW	| REDIR | LBUF			},
-#ifdef SEEN
-	{ 0, "SEEN",		"do_seen",		20	| CCPW	| CBANG				},
-#endif /* SEEN */
-#ifdef URLCAPTURE
-	{ 0, "URLHIST",		"do_urlhist",		20	| CCPW	| REDIR | LBUF			},
-#endif /* ifdef URLCAPTURE */
-
-	/*
-	 *  Level 40
-	 */
-	{ 0, "BAN",		"do_kickban",		40	| CCPW	| CAXS | CARGS | ACCHAN		, "\\x00ban\\0bann" },
-	{ 0, "BANLIST",		"do_banlist",		40	| CCPW	| CAXS | DCC | REDIR | LBUF | ACCHAN },
-	{ 0, "CCHAN",		"do_cchan",		40	| CCPW					},	/* global_access ? */
-	{ 0, "CSERV",		"do_cserv",		40	| CCPW					},
-	{ 0, "CHANNELS",	"do_channels",		40	| CCPW	| DCC				},
-	{ 0, "DEOP",		"do_opvoice",		40	| CCPW	| CAXS | CARGS			, "o-" },
-	{ 0, "ESAY",		"do_esay",		40	| CCPW	| CAXS | CARGS			},
-	{ 0, "IDLE",		"do_idle",		40	| CCPW	| CARGS				},
-	{ 0, "INVITE",		"do_invite",		40	| CCPW	| CAXS | ACCHAN			},
-	{ 0, "KB",		"do_kickban",		40	| CCPW	| CAXS | CARGS | ACCHAN		, "\\x04kickban\\0kickbann" },
-	{ 0, "KICK",		"do_kickban",		40	| CCPW	| CAXS | CARGS | ACCHAN		, "\\x07kick\\0kick" },
-	{ 0, "LUSERS",		"do_irclusers",		40	| CCPW	| DCC | REDIR | LBUF		},
-	{ 0, "ME",		"do_sayme",		40	| CCPW	| CARGS				},
-	{ 0, "MODE",		"do_mode",		40	| CCPW	| CARGS				},
-	{ 0, "NAMES",		"do_names",		40	| CCPW					},
-	{ 0, "OP",		"do_opvoice",		40	| CCPW	| CAXS				, "o+" },
-	{ 0, "SAY",		"do_sayme",		40	| CCPW	| CARGS				},
-	{ 0, "SCREW",		"do_kickban",		40	| CCPW	| CAXS | CARGS | ACCHAN		, "\\x02screwban\\0screwbann" },
-	{ 0, "SET",		"do_set",		40	| CCPW					},
-	{ 0, "SITEBAN",		"do_kickban",		40	| CCPW	| CAXS | CARGS | ACCHAN		, "\\x01siteban\\0sitebann" },
-	{ 0, "SITEKB",		"do_kickban",		40	| CCPW	| CAXS | CARGS | ACCHAN		, "\\x05sitekickban\\0sitekickbann" },
-	{ 0, "TIME",		"do_time",		40	| CCPW					},
-	{ 0, "TOPIC",		"do_topic",		40	| CCPW	| CAXS | CARGS | ACCHAN	| SUPRES },
-	{ 0, "UNBAN",		"do_unban",		40	| CCPW	| CAXS				},
-	{ 0, "UNVOICE",		"do_opvoice",		40	| CCPW	| CAXS | CARGS			, "v-" },
-	{ 0, "UP",		"do_opdeopme",		40	| CCPW	| CAXS				},
-	{ 0, "USER",		"do_user",		40	| CCPW	| CARGS				},
-	{ 0, "USERHOST",	"do_ircwhois",		40	| CCPW	| CARGS				},
-	{ 0, "VOICE",		"do_opvoice",		40	| CCPW	| CAXS				, "v+" },
-	{ 0, "WALL",		"do_wall",		40	| CCPW	| CAXS | CARGS | ACCHAN		},
-	{ 0, "WHO",		"do_who",		40	| CCPW	| CAXS | DCC			},
-	{ 0, "WHOIS",		"do_ircwhois",		40	| CCPW	| CARGS | DCC | REDIR | LBUF	},
-#ifdef NOTE
-	{ 0, "NOTE",		"do_note",		40	| CCPW	| CARGS				},
-	{ 0, "READ",		"do_read",		40	| CCPW					},
-#endif /* NOTE */
-#ifdef STATS
-	{ 0, "INFO",		"do_info",		40	| CCPW	| REDIR | CAXS | DCC		},
-#endif /* STATS */
-
-	/*
-	 *  Level 50
-	 */
-	{ 0, "QSHIT",		"do_shit",		50	| CCPW	| CARGS				},
-	{ 0, "RSHIT",		"do_rshit",		50	| CCPW	| CARGS				},
-	{ 0, "SHIT",		"do_shit",		50	| CCPW	| CARGS				},
-	{ 0, "SHITLIST",	"do_shitlist",		50	| CCPW	| DCC | REDIR | LBUF		},
-#ifdef GREET
-	{ 0, "GREET",		"do_greet",		50	| CCPW	| CARGS				},
-#endif /* GREET */
-#ifdef TOYBOX
-	{ 0, "INSULT",		"do_random_msg",	50	| CCPW					, RANDINSULTFILE },
-	{ 0, "PICKUP",		"do_random_msg",	50	| CCPW					, RANDPICKUPFILE },
-	{ 0, "RSAY",		"do_random_msg",	50	| CCPW					, RANDSAYFILE },
-	{ 0, "RT",		"do_randtopic",		50	| CCPW	| CAXS | ACCHAN			},
-	{ 0, "ASCII",		"do_ascii",		50	| CCPW	| CAXS | CARGS | SUPRES		},
-#endif /* TOYBOX */
-#ifdef TRIVIA
-	{ 0, "TRIVIA",		"do_trivia",		50	| CCPW	| CAXS | CARGS | CBANG		},
-#endif /* TRIVIA */
-
-	/*
-	 *  Level 60
-	 */
-	{ 0, "SHOWIDLE",	"do_showidle",		60	| CCPW	| CAXS | DCC | ACCHAN		},
-	{ 0, "USERLIST",	"do_userlist",		60	| CCPW	| DCC				},
-#ifdef CTCP
-	{ 0, "CTCP",		"do_ping_ctcp",		60	| CCPW	| CARGS				},
-	{ 0, "PING",		"do_ping_ctcp",		60	| CCPW	| CARGS				},
-#endif /* CTCP */
-
-	/*
-	 *  Level 70 == JOINLEVEL
-	 */
-	{ 0, "CYCLE",		"do_cycle",		70	| CCPW	| CAXS | ACCHAN			},
-	{ 0, "FORGET",		"do_forget",		70	| CCPW	| CAXS				},
-	{ 0, "JOIN",		"do_join",		70	| CCPW	| CARGS				},
-	{ 0, "KS",		"do_kicksay",		70	| CCPW	| REDIR | LBUF			},
-	{ 0, "PART",		"do_part",		70	| CCPW	| CAXS | ACCHAN			},
-	{ 0, "RKS",		"do_rkicksay",		70	| CCPW	| CARGS				},
-	{ 0, "SETPASS",		"do_setpass",		70	| CCPW	| NOPUB	| CARGS			},
-#ifdef NOTIFY
-	{ 0, "NOTIFY",		"do_notify",		70	| CCPW	| DCC | GAXS | REDIR | LBUF	},
-#endif /* NOTIFY */
-
-	/*
-	 *  Level 80 == ASSTLEVEL
-	 */
-	{ 0, "AWAY",		"do_away",		80	| CCPW	| GAXS				},
-	{ 0, "BOOT",		"do_boot",		80	| CCPW	| GAXS | CARGS			},
-#if defined(BOTNET) && defined(REDIRECT)
-	{ 0, "CMD",		"do_cmd",		80	| CCPW	| CARGS				},
-#endif /* BOTNET && REDIRECT */
-	{ 0, "CQ",		"do_clearqueue",	80	| CCPW	| GAXS				},
-	{ 0, "LAST",		"do_last",		80	| CCPW	| DCC				},
-	{ 0, "LOAD",		"do_load",		80	| CCPW	| GAXS				},
-	{ 0, "MSG",		"do_msg",		80	| CCPW	| CARGS				},
-	{ 0, "NEXTSERVER",	"do_server",		80	| CCPW	| GAXS				},
-	{ 0, "SAVE",		"do_save",		80	| CCPW	| GAXS				},
-	{ 0, "SERVER",		"do_server",		80	| CCPW	| GAXS | REDIR | LBUF		},
-	{ 0, "SERVERGROUP",	"do_servergroup",	80	| CCPW	| GAXS | REDIR | LBUF		},
-	{ 0, "STATS",		"do_ircstats",		80	| CCPW	| DCC | CARGS			},
-#ifdef ALIAS
-	{ 0, "ALIAS",		"do_alias",		80	| CCPW	| GAXS				},
-	{ 0, "UNALIAS",		"do_unalias",		80	| CCPW	| GAXS | CARGS			},
-#endif /* ALIAS */
-#ifdef TOYBOX
-	{ 0, "BIGSAY",		"do_bigsay",		80	| CCPW	| CAXS | CARGS | SUPRES		},
-#endif /* TOYBOX */
-
-	/*
-	 *  Level 90
-	 */
-	{ 0, "CLEARSHIT",	"do_clearshit",		90	| CCPW	| GAXS				},
-	{ 0, "DO",		"do_do",		90	| CCPW	| GAXS | CARGS			},
-	{ 0, "NICK",		"do_nick",		90	| CCPW	| GAXS | CARGS			},
-	{ 0, "RSPY",		"do_rspy",		90	| CCPW	| CARGS				},
-	{ 0, "SPY",		"do_spy",		90	| CCPW					},
-#ifdef BOTNET
-	{ 0, "LINK",		"do_link",		90	| CCPW	| GAXS				},
-#endif /* BOTNET */
-#ifdef DYNCMD
-	{ 0, "CHACCESS",	"do_chaccess",		90	| CCPW	| GAXS | CARGS			},
-#endif /* DYNCMD */
-#ifdef UPTIME
-	{ 0, "UPSEND",		"do_upsend",		90	| CCPW	| GAXS				},
-#endif /* UPTIME */
-
-	/*
-	 *  Level 100
-	 */
-#ifdef HOSTINFO
-	{ 0, "SYSINFO",		"do_sysinfo",		100	| CCPW	| GAXS				},
-	{ 0, "MEMINFO",		"do_meminfo",		100	| CCPW	| GAXS				},
-	{ 0, "CPUINFO",		"do_cpuinfo",		100	| CCPW	| GAXS				},
-	{ 0, "FILEMON",		"do_filemon",		100	| CCPW	| GAXS | CARGS			},
-#endif /* HOSTINFO */
-#ifdef RAWDNS
-	{ 0, "DNSSERVER",	"do_dnsserver",		100	| CCPW  | GAXS				},
-	{ 0, "DNSROOT",		"do_dnsroot",		100	| CCPW	| GAXS | CARGS			},
-#endif /* RAWDNS */
-	{ 0, "CORE",		"do_core",		100	| CCPW	| REDIR | DCC			},
-	{ 0, "DIE",		"do_die",		100	| CCPW	| GAXS				},
-	{ 0, "RESET",		"do_reset",		100	| CCPW	| GAXS | NOCMD			},
-	{ 0, "SHUTDOWN",	"do_shutdown",		100	| CCPW	| GAXS | NOPUB | NOCMD		},
-#ifdef DEBUG
-	{ 0, "DEBUG",		"do_debug",		100	| CCPW	| GAXS				},
-	{ 0, "CRASH",		"do_crash",		100	| CCPW	| GAXS				},
-#endif /* DEBUG */
-#ifdef PERL
-#ifdef PLEASE_HACK_MY_SHELL
-	{ 0, "PERL",		"do_perl",		100	| CCPW	| GAXS | CARGS			},
-#endif /* PLEASE_HACK_MY_SHELL */
-	{ 0, "PERLSCRIPT",	"do_perlscript",	100	| CCPW	| GAXS | CARGS			},
-#endif /* PERL */
-#ifdef PYTHON
-#ifdef PLEASE_HACK_MY_SHELL
-	{ 0, "PYTHON",		"do_python",		100	| CCPW	| GAXS | CARGS			},
-#endif /* PLEASE_HACK_MY_SHELL */
-	{ 0, "PYTHONSCRIPT",	"do_pythonscript",	100	| CCPW	| GAXS | CARGS			},
-#endif /* PYTHON */
-#ifdef TCL
-#ifdef PLEASE_HACK_MY_SHELL
-	{ 0, "TCL",		"do_tcl",		100	| CCPW	| GAXS | CARGS			},
-#endif /* PLEASE_HACK_MY_SHELL */
-	{ 0, "TCLSCRIPT",	"do_tcl",		100	| CCPW	| GAXS | CARGS			},
-#endif /* TCL */
-	/*---*/
-	{ 0, NULL,		NULL,			0						},
+        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+        0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
+        0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
+        0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f,
+        ' ',  '!',  '"',  '#',  '$',  '%',  '&',  0x27,
+        '(',  ')',  '*',  '+',  ',',  '-',  '.',  '/',
+        '0',  '1',  '2',  '3',  '4',  '5',  '6',  '7',
+        '8',  '9',  ':',  ';',  '<',  '=',  '>',  '?',
+        '@',  'a',  'b',  'c',  'd',  'e',  'f',  'g',
+        'h',  'i',  'j',  'k',  'l',  'm',  'n',  'o',
+        'p',  'q',  'r',  's',  't',  'u',  'v',  'w',
+        'x',  'y',  'z',  '{',  '|',  '}',  '~',  '_',
+        '`',  'a',  'b',  'c',  'd',  'e',  'f',  'g',
+        'h',  'i',  'j',  'k',  'l',  'm',  'n',  'o',
+        'p',  'q',  'r',  's',  't',  'u',  'v',  'w',
+        'x',  'y',  'z',  '{',  '|',  '}',  '~',  0x7f,
+        0x80, 0x81, 0x82, 0x83, 0x84, 0x85, 0x86, 0x87,
+        0x88, 0x89, 0x8a, 0x8b, 0x8c, 0x8d, 0x8e, 0x8f,
+        0x90, 0x91, 0x92, 0x93, 0x94, 0x95, 0x96, 0x97,
+        0x98, 0x99, 0x9a, 0x9b, 0x9c, 0x9d, 0x9e, 0x9f,
+        0xa0, 0xa1, 0xa2, 0xa3, 0xa4, 0xa5, 0xa6, 0xa7,
+        0xa8, 0xa9, 0xaa, 0xab, 0xac, 0xad, 0xae, 0xaf,
+        0xb0, 0xb1, 0xb2, 0xb3, 0xb4, 0xb5, 0xb6, 0xb7,
+        0xb8, 0xb9, 0xba, 0xbb, 0xbc, 0xbd, 0xbe, 0xbf,
+        0xc0, 0xc1, 0xc2, 0xc3, 0xc4, 0xc5, 0xc6, 0xc7,
+        0xc8, 0xc9, 0xca, 0xcb, 0xcc, 0xcd, 0xce, 0xcf,
+        0xd0, 0xd1, 0xd2, 0xd3, 0xd4, 0xd5, 0xd6, 0xd7,
+        0xd8, 0xd9, 0xda, 0xdb, 0xdc, 0xdd, 0xde, 0xdf,
+        0xe0, 0xe1, 0xe2, 0xe3, 0xe4, 0xe5, 0xe6, 0xe7,
+        0xe8, 0xe9, 0xea, 0xeb, 0xec, 0xed, 0xee, 0xef,
+        0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7,
+        0xf8, 0xf9, 0xfa, 0xfb, 0xfc, 0xfd, 0xfe, 0xff
 };
 
-#define __define_strng	4
-#define __define_print	3
-#define __struct_acces	2
-#define __struct_print	1
+#include "onhash.h"
 
-void make_mcmd(void)
+#include "commands.h"
+
+#define __command_hash_9	9
+#define __print_hashta_7	7
+#define __define_strng_5	5
+#define __define_print_3	3
+#define __struct_acces_2	2
+#define __struct_print_1	1
+
+static const char *getsortedcommand(int pass, int *idxout)
 {
-	const char *pt;
-	char	tmp[100],*tabs;
-	int	i,j,wh,pass,ct,sl,fd;
+	const char *chosen;
+	int	j,index;
+
+	chosen = NULL;
+	index = -1;
+	for(j=0;pre_mcmd[j].name;j++)
+	{
+		if (pre_mcmd[j].pass == pass)
+			continue;
+		if (chosen == NULL)
+		{
+			chosen = pre_mcmd[j].name;
+			index = j;
+			continue;
+		}
+		if (strcmp(chosen,pre_mcmd[j].name) > 0)
+		{
+			chosen = pre_mcmd[j].name;
+			index = j;
+		}
+	}
+	*idxout = index;
+	return(chosen);
+}
+
+void make_mcmd(int mode)
+{
+	const char *cmdstr;
+	char	tmp[257];
+	int	i,j,cmdidx,pass,fd,h;
+	int	cmdcount;
 	OnMsg	v;
 
-	unlink("mcmd.h");
-	fd = open("mcmd.h",O_WRONLY|O_CREAT|O_TRUNC,0644);
+	if (mode == 0)
+	{
+		unlink("mcmd.h");
+		fd = open("mcmd.h",O_WRONLY|O_CREAT|O_TRUNC,0644);
+	}
+	if (mode == 1)
+	{
+		fd = 1;
+	}
 
-	pass = __define_strng;
-	ct = 0;
+	collis = 0;
+	pass = __command_hash_9;
+	cmdcount = 0;
 
 	to_file(fd,"/""* This file is automatically generated from gencmd.c *""/\n");
 	to_file(fd,"#ifndef TEST\n#ifndef MCMD_H\n#define MCMD_H 1\n\n");
 
 	while(pass)
 	{
-		if (pass == __struct_print)
+		if (pass == __command_hash_9)
 		{
-			to_file(fd,"LS const OnMsg mcmd[] =\n{\n");
+			memset(hash,0,sizeof(hash));
+			memset(hashmap,255,sizeof(hashmap));
+			j = 0;
+			if (randfd < 0)
+			{
+				randfd = open("hashdata.cache",O_RDONLY);
+				if (randfd > 0)
+				{
+					j = read(randfd,hashdata,sizeof(hashdata));
+					close(randfd);
+					if (j == sizeof(hashdata))
+						to_file(2,"gencmd: hashdata recovered from hashdata.cache\n");
+				}
+				randfd = open("/dev/urandom",O_RDONLY);
+				if (randfd < 0)
+				{
+					to_file(2,"gencmd: Fatal error: unable to create random hashdata from /dev/urandom!\n");
+					exit(50);
+				}
+			}
+			if (j < sizeof(hashdata))
+			{
+				j = read(randfd,hashdata,sizeof(hashdata));
+			}
 		}
-		if (pass == __struct_acces)
+		if (pass == __print_hashta_7)
+		{
+		}
+		if (pass == __struct_acces_2)
 		{
 			to_file(fd,"LS OnMsg_access acmd[] =\n{\n");
 		}
+		if (pass == __struct_print_1)
+		{
+			to_file(fd,"LS const OnMsg mcmd[] =\n{\n");
+		}
+
+#ifdef HEATMAP
+				memset(heatmap,0,sizeof(heatmap));
+#endif
 		for(i=0;pre_mcmd[i].name;i++)
 		{
-			pt = 0;
-			wh = 0;
-			for(j=0;pre_mcmd[j].name;j++)
+			const char *tabs,*tabx;
+			int	adj;
+
+			if (pass == __command_hash_9)
 			{
-				if (pre_mcmd[j].pass != pass)
+				h = mkhash(pre_mcmd[i].name);
+#ifdef HEATMAP
+				if (heatmapon > 0)
 				{
-					pt = pre_mcmd[j].name;
-					wh = j;
+					for(j=0;j<sizeof(heatmap);j++)
+					{
+						to_file(2,"%s%c",((j%32)==0) ? "\n" : "",(heatmap[j] > 0) ? (-1 + 'A' + heatmap[j]) : '.');
+					}
+					to_file(2,"\nend of heatmap for %s\n",pre_mcmd[i].name);
+				}
+#endif
+				if (collis > mincoll)
 					break;
-				}
+				continue;
 			}
-			for(j=0;pre_mcmd[j].name;j++)
+			cmdstr = getsortedcommand(pass,&cmdidx);
+			if (pass == __define_strng_5)
 			{
-				if ((pre_mcmd[j].pass != pass) && (strcmp(pt,pre_mcmd[j].name) > 0))
+			}
+			if (pass == __define_print_3)
+			{
+				if (cmdstr)
 				{
-					pt = pre_mcmd[j].name;
-					wh = j;
+					adj = strlen(cmdstr);
+					tabs = ((adj) < 7) ? "\t\t" : "\t";
+					to_file(fd,"BEG const char C_%s[]%s\tMDEF(\"%s\");%s/""* %3i *""/\n",
+						cmdstr,((adj + 3) < 8) ? "\t" : "",cmdstr,tabs,cmdcount);
+					cmdcount++;
 				}
 			}
-			if (pass == __define_strng)
+			if (pass == __struct_acces_2)
 			{
-				//to_file(fd,"#define S_%s%s\t\"%s\"\n",pt,((strlen(pt) + 2) < 8) ? "\t" : "",pt);
+				to_file(fd,"\t%i,\t/""* %s *""/\n",pre_mcmd[cmdidx].flags & CLEVEL,cmdstr);
 			}
-			if (pass == __define_print)
+			if (pass == __struct_print_1)
 			{
-				//to_file(fd,"#define C_%s%s\tmcmd[%i].name\n",pt,((strlen(pt) + 2) < 8) ? "\t" : "",ct);
-				to_file(fd,"BEG const char C_%s[]%s\tMDEF(\"%s\");\n",pt,((strlen(pt) + 3) < 8) ? "\t" : "",pt);
-				ct++;
-			}
-			if (pass == __struct_acces)
-			{
-				to_file(fd,"\t%i,\t/""* %s *""/\n",
-					pre_mcmd[wh].flags & CLEVEL,
-					pt);
-			}
-			if (pass == __struct_print)
-			{
+				h = mkhash(cmdstr);
+				hashmap[h] = i;
+
 				memset(&v,0,sizeof(v));
 
-				v.defaultaccess = pre_mcmd[wh].flags & CLEVEL;
+				v.defaultaccess = pre_mcmd[cmdidx].flags & CLEVEL;
 				/* + defaultaccess */
-				v.dcc    = (pre_mcmd[wh].flags & DCC)    ? 1 : 0;
-				v.cc     = (pre_mcmd[wh].flags & CC)     ? 1 : 0;
-				v.pass   = (pre_mcmd[wh].flags & PASS)   ? 1 : 0;
-				v.args   = (pre_mcmd[wh].flags & CARGS)  ? 1 : 0;
-				v.nopub  = (pre_mcmd[wh].flags & NOPUB)  ? 1 : 0;
-				v.nocmd  = (pre_mcmd[wh].flags & NOCMD)  ? 1 : 0;
-				v.gaxs   = (pre_mcmd[wh].flags & GAXS)   ? 1 : 0;
-				v.caxs   = (pre_mcmd[wh].flags & CAXS)   ? 1 : 0;
-				v.redir  = (pre_mcmd[wh].flags & REDIR)  ? 1 : 0;
-				v.lbuf   = (pre_mcmd[wh].flags & LBUF)   ? 1 : 0;
-				v.cbang  = (pre_mcmd[wh].flags & CBANG)  ? 1 : 0;
-				v.acchan = (pre_mcmd[wh].flags & ACCHAN) ? 1 : 0;
-				v.supres = (pre_mcmd[wh].flags & SUPRES) ? 1 : 0;
+				v.dcc    = (pre_mcmd[cmdidx].flags & DCC)    ? 1 : 0;
+				v.cc     = (pre_mcmd[cmdidx].flags & CC)     ? 1 : 0;
+				v.pass   = (pre_mcmd[cmdidx].flags & PASS)   ? 1 : 0;
+				v.args   = (pre_mcmd[cmdidx].flags & CARGS)  ? 1 : 0;
+				v.nopub  = (pre_mcmd[cmdidx].flags & NOPUB)  ? 1 : 0;
+				v.nocmd  = (pre_mcmd[cmdidx].flags & NOCMD)  ? 1 : 0;
+				v.gaxs   = (pre_mcmd[cmdidx].flags & GAXS)   ? 1 : 0;
+				v.caxs   = (pre_mcmd[cmdidx].flags & CAXS)   ? 1 : 0;
+				v.redir  = (pre_mcmd[cmdidx].flags & REDIR)  ? 1 : 0;
+				v.lbuf   = (pre_mcmd[cmdidx].flags & LBUF)   ? 1 : 0;
+				v.cbang  = (pre_mcmd[cmdidx].flags & CBANG)  ? 1 : 0;
+				v.acchan = (pre_mcmd[cmdidx].flags & ACCHAN) ? 1 : 0;
+				v.supres = (pre_mcmd[cmdidx].flags & SUPRES) ? 1 : 0;
 
 				sprintf(tmp,"%3i,%2i,%2i,%2i,%2i,%2i,%2i,%2i,%2i,%2i,%2i,%2i,%2i,%2i",
 					v.defaultaccess,
@@ -383,38 +267,75 @@ void make_mcmd(void)
 					v.supres
 					);
 
-				sl = strlen(pre_mcmd[wh].func) + 1;
 				tabs = "\t\t\t";
 
-				sl = (sl & ~7) / 8;
-				tabs += sl;
+				adj = strlen(cmdstr);
+				if (adj < 3)
+					tabx = tabs + 1;
+				else
+				if (adj < 11)
+					tabx = tabs + 2;
+				else
+					tabx = tabs + 3;
 
-				to_file(fd,(pre_mcmd[wh].cmdarg) ? "{ C_%s,%s\t%s,%s%s\t, \"%s\"\t},\n" : "{ C_%s,%s\t%s,%s%s\t},\n",
-					pt,
-					((strlen(pt) + 5) < 8) ? "\t" : "",
-					pre_mcmd[wh].func,
+				adj = strlen(pre_mcmd[cmdidx].func);
+				tabs += 1 + ((adj > 6));
+
+				//to_file(fd,"/""* %3i=%3i *""/",h,i);
+				to_file(fd,(pre_mcmd[cmdidx].cmdarg) ? "{ C_%s,%s\t%s,%s%s\t, \"%s\"\t},\n" : "{ C_%s,%s\t%s,%s%s\t},\n",
+					cmdstr,
+					tabx,
+					pre_mcmd[cmdidx].func,
 					tabs,
 					tmp,
-					pre_mcmd[wh].cmdarg
+					pre_mcmd[cmdidx].cmdarg
 				);
 			}
-			pre_mcmd[wh].pass = pass;
+			pre_mcmd[cmdidx].pass = pass;
 		}
-		if (pass == __define_strng)
+		if (pass == __define_strng_5)
 		{
-			/* nothing */
+			/* nothing */;
 		}
-		if (pass == __define_print)
+		if (pass == __define_print_3)
 		{
-			to_file(fd,"\n#ifdef MAIN_C\n\n");
+			to_file(fd,"\n/""* number of builtin commands: %i *""/\n\n",cmdcount);
+			if (cmdcount >= 255)
+			{
+				to_file(2,"gencmd: Hashmap overflow error\n");
+				exit(66);
+			}
+			to_file(fd,"#ifdef MAIN_C\n\n");
 		}
-		if (pass == __struct_print)
+		if (pass == __struct_print_1)
 		{
 			to_file(fd,"{ NULL, }};\n\n");
 		}
-		if (pass == __struct_acces)
+		if (pass == __struct_acces_2)
 		{
 			to_file(fd,"};\n\n");
+		}
+		if (pass == __command_hash_9)
+		{
+			if (collis > 0)
+				pass = __command_hash_9 + 1;
+			if (collis < mincoll)
+			{
+				mincoll = collis;
+				to_file(fd,"\n");
+			}
+			if (collis == 0)
+			{
+				int cachefd;
+
+				cachefd = open("hashdata.cache",O_WRONLY|O_CREAT|O_TRUNC,0644);
+				write(cachefd,hashdata,sizeof(hashdata));
+				close(cachefd);
+			}
+			to_file(2,"gencmd: Hash options tried: %8i, Collisions %4i, Best hash option so far %4i collisions%c",
+				mx,collis,mincoll,(collis == 0) ? '\n' : '\r');
+			mx++;
+			collis = 0;
 		}
 		pass--;
 	}
@@ -423,8 +344,26 @@ void make_mcmd(void)
 	to_file(fd,"extern OnMsg mcmd[];\n");
 	to_file(fd,"extern OnMsg_access acmd[];\n\n");
 	to_file(fd,"#endif /""* MAIN_C *""/\n\n");
-	to_file(fd,"#endif /""* MCMD_H *""/\n\n");
-	to_file(fd,"#endif /""* TEST *""/\n\n");
+
+			to_file(fd,"#if defined(COM_ONS_C) || defined(MEGA_C)\n\n");
+			to_file(fd,"#define HASHDATAMASK\t\t%i\n",HASHDATAMASK);
+			to_file(fd,"#define HASHDATASZ\t\t%i\n\nconst uint8_t hashdata[HASHDATASZ] =\n{",HASHDATASZ);
+			for(i=0;i<HASHDATASZ;i++)
+			{
+				to_file(fd,"%s0x%02X%s",((i%16)==0) ? "\n\t" : "",hashdata[i],(i==HASHDATASZ-1) ? "" : ",");
+			}
+			to_file(fd,"\n};\n\n");
+
+			to_file(fd,"const uint8_t hashmap[%i] =\n{",sizeof(hashmap));
+			for(i=0;i<sizeof(hashmap);i++)
+			{
+				to_file(fd,"%s0x%02X%s",((i%16)==0) ? "\n\t" : "",hashmap[i],(i==511) ? "" : ",");
+			}
+			to_file(fd,"\n};\n\n");
+			to_file(fd,"#endif /""* defined(COM_ONS_C) || defined(MEGA_C) *""/\n\n");
+
+	to_file(fd,"#endif /""* not MCMD_H *""/\n\n");
+	to_file(fd,"#endif /""* not TEST *""/\n\n");
 	close(fd);
 	exit(0);
 }
@@ -515,7 +454,7 @@ void datestamp(void)
 
 #ifndef HAVE_GIT
 
-const char *srcfile[] = { "../configure", "../Makefile", "Makefile.in", "alias.c", "auth.c", "bounce.c", //"calc.c",
+const char *srcfile[] = { "../configure", "../Makefile", "Makefile.in", "alias.c", "auth.c", "bounce.c", "calc.c",
 	"channel.c", "config.h", "config.h.in", "core.c", "ctcp.c", "debug.c", "defines.h", "dns.c", "function.c",
 	"gencmd.c", "global.h", "greet.c", "h.h", "help.c", "hostinfo.c", "io.c", "irc.c", "lib/string.c", "main.c",
 	"net.c", "note.c", "ons.c", "parse.c", "partyline.c", "perl.c", "prot.c", "python.c", "reset.c", "seen.c",
@@ -562,13 +501,18 @@ void githash(void)
 
 int main(int argc, char **argv)
 {
+	randfd = -1;
+	mx = 0;
+	mincoll = 666666;
+	heatmapon = 0;
+
 	if (argv[1])
 	{
 		if (strcmp(argv[1],"usercombo.h") == 0)
 			make_usercombo();
 
 		if (strcmp(argv[1],"mcmd.h") == 0)
-			make_mcmd();
+			make_mcmd(0);
 
 		if (strcmp(argv[1],"testhelp") == 0)
 			test_help();
@@ -578,6 +522,16 @@ int main(int argc, char **argv)
 
 		if (strcmp(argv[1],"githash.h") == 0)
 			githash();
+
+		if (strcmp(argv[1],"heatmap") == 0)
+		{
+			heatmapon = 1;
+			make_mcmd(1);
+		}
+	}
+	else
+	{
+		make_mcmd(1);
 	}
 	return(0);
 }

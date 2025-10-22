@@ -1,7 +1,7 @@
 /*
 
     EnergyMech, IRC bot software
-    Parts Copyright (c) 1997-2024 proton
+    Parts Copyright (c) 1997-2025 proton
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -372,6 +372,8 @@ void on_nick(char *from, char *newnick)
 	}
 }
 
+#include "onhash.h"
+
 void on_msg(char *from, char *to, char *rest)
 {
 #ifdef SCRIPTING
@@ -389,7 +391,7 @@ void on_msg(char *from, char *to, char *rest)
 	uchar	*p1,*p2;
 	int	has_cc,has_bang;
 	int	uaccess;
-	int	i,j;
+	int	i,j,h;
 
 	/*
 	 *  No line sent to this routine should be longer than MSGLEN
@@ -397,6 +399,9 @@ void on_msg(char *from, char *to, char *rest)
 	 *  non-NULL and non-zerolength
 	 */
 
+	/*
+	 *  Are we recording a note?
+	 */
 #ifdef NOTE
 	if (notelist && catch_note(from,to,rest))
 		return;
@@ -521,20 +526,35 @@ recheck_alias:
 	if (i) return;
 #endif /* SCRIPTING */
 
+	h = mkhash(command);
+	i = hashmap[h];
+#ifdef DEBUG
+	debug("(on_msg) %s = hash %i, mapped to %i %s\n",command,h,i,(i==255)?"(no match)":mcmd[i].name);
+#endif /* DEBUG */
+	if (i == 255)
+		goto public_msg;
+
 	/*
 	 *  match "command" against internal command list
 	 */
-	for(;mcmd[i].name;i++)
+/* todo: delete - hash
+	for(i=0;mcmd[i].name;i++)
 	{
+*/
 		if (!has_cc && mcmd[i].cc && !(has_bang && mcmd[i].cbang))
-			continue;
+			return; /* continue; */
 		if (uaccess < acmd[i])
-			continue;
+			return; /* continue; */
+		/*
+		 *  The string hash matches a command, but is it a false positive?
+		 */
 		j = stringcasecmp(mcmd[i].name,command);
+/* todo: delete - hash
 		if (j < 0)
 			continue;
 		if (j > 0)
 			break;
+*/
 
 #if defined(BOTNET) && defined(REDIRECT)
 		if (mcmd[i].nocmd && redirect.to)
@@ -687,10 +707,17 @@ recheck_alias:
 #endif /* REDIRECT */
 
 		/*
-		 *  be quick to exit afterwards, there are "dangerous" commands like DIE and DEL (user)
+		 *  be quick to exit afterwards, there are "dangerous" commands like DIE and USER -...
 		 */
 		return;
+/* todo: delete - hash
 	}
+*/
+
+	/*
+	 *  If the input isnt a command or the sender lacks access
+	 */
+public_msg:
 
 	/*
 	 *  un-chop() the message string
