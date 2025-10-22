@@ -1,4 +1,22 @@
-3.1 -- WORK IN PROGRESS (~May, 2018)
+3.5(.dev) --
+
+ * Changed: on_msg now matches commands using a hash function instead
+            of iterating through the list of commands using strcasecmp.
+ * Changed: Bumped version because of undocumented changes.
+ * Added: More help files; BOOT, DEBUG, NOTE, READ
+ * Changed: Updated several helpfiles.
+ * Added: Support for a posfix.sh command at the end of the compilation
+          process for developers.
+ * Changed: Table of builtin commands taken out of gencmd.c and put into
+            commands.h for easier editing.
+
+3.2 -- October 21, 2025.
+
+ * Changed: HOSTINFO changed to SYSINFO.
+ * Changed: January 15, 2025: Proton no longer single. Sorry to all the ladies.
+ * Plenty of unlisted changes...
+
+3.1 -- April 14, 2018.
 
  * Fixed: If the network interface goes down, the mech will mark all servers as unconnectable,
           permanently, so even when the network comes back up... Fixed!
