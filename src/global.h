@@ -42,8 +42,8 @@
 #define DEFAULTCMDCHAR			'-'
 #define MECHUSERLOGIN			"v3.energymech.net"
 
-BEG const char VERSION[]		MDEF("3.2p" GITHASH);
-BEG const char SRCDATE[]		MDEF("May 13th, 2024");
+BEG const char VERSION[]		MDEF("3.5.dev" GITHASH);
+BEG const char SRCDATE[]		MDEF("October 22nd, 2025");
 #ifdef __CYGWIN__
 BEG const char BOTCLASS[]		MDEF("WinMech");
 #else /* ! CYGWIN */
