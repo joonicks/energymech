@@ -402,20 +402,20 @@ void sig_int(int signum)
  *  SIGILL, Illegal instruction
  */
 #ifdef DEBUG
+
 void sig_ill(int crap)
 {
 	debug("(sigill)\n");
 }
-#endif /* DEBUG */
 
 /*
  *  SIGABRT, abort(3)
  */
-#ifdef DEBUG
 void sig_abrt(int crap)
 {
 	debug("(sigabrt)\n");
 }
+
 #endif /* DEBUG */
 
 /*
@@ -881,7 +881,8 @@ restart_die:
 #endif
 
 #ifdef TRIVIA
-	trivia_tick();
+	if (triv_next_time && (now >= triv_next_time))
+		trivia_tick();
 #endif /* TRIVIA */
 
 	/*

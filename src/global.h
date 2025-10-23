@@ -254,6 +254,7 @@ BEG int		triv_qdelay		MDEF(30);	/* proc var */
 BEG char	*triv_qfile		MDEF(NULL);	/* proc var */
 BEG char	triv_qchar		MDEF('*');	/* proc var */
 BEG TrivScore	*scorelist		MDEF(NULL);
+BEG time_t	triv_next_time		MDEF(0);
 
 #endif /* TRIVIA */
 

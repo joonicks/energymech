@@ -407,11 +407,11 @@ LS void do_sigusr1(void)						__page(CMD1_SEG);
 LS void sig_usr1(int)							__page(CMD1_SEG);
 LS void sig_usr2(int)							__page(DBUG_SEG);		/* DEBUG */
 LS void sig_suicide()							__attr(RARE_SEG, __noreturn__);	/* rare */
-LS void do_sigint(void)							__page(RARE_SEG);		/* rare */
+LS void do_sigint(void)							__attr(RARE_SEG, __noreturn__);	/* rare */
 LS void sig_int(int)							__page(RARE_SEG);		/* rare */
 LS void sig_ill(int)							__page(RARE_SEG);
 LS void sig_abrt(int)							__page(RARE_SEG);
-LS void sig_bus(int)							__page(CMD1_SEG);
+LS void sig_bus(int)							__attr(RARE_SEG, __noreturn__);
 #if defined(__linux__) && defined(__x86_64__) && defined(DEBUG) && !defined(__STRICT_ANSI__)
 LS void sig_segv(int, siginfo_t *, void *)				__attr(RARE_SEG, __noreturn__);
 #else

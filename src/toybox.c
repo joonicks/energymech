@@ -50,7 +50,6 @@ LS TrivScore *lastwinner;
 LS Chan *triv_chan = NULL;
 LS Strp *triv_answers = NULL;
 LS time_t triv_ask_time;
-LS time_t triv_next_time = 0;
 LS time_t triv_weektop10;
 LS int triv_mode;
 LS int triv_score;
@@ -575,37 +574,34 @@ void trivia_tick(void)
 	Chan	*chan;
 	Mech	*bot;
 
-	if (triv_next_time && (now >= triv_next_time))
+	for(bot=botlist;bot;bot=bot->next)
 	{
-		for(bot=botlist;bot;bot=bot->next)
+		for(chan=bot->chanlist;chan;chan=chan->next)
 		{
-			for(chan=bot->chanlist;chan;chan=chan->next)
+			if (triv_chan == chan)
 			{
-				if (triv_chan == chan)
+				current = bot;
+				triv_next_time = now + TRIV_HINT_DELAY;
+				switch(triv_mode)
 				{
-					current = bot;
-					triv_next_time = now + TRIV_HINT_DELAY;
-					switch(triv_mode)
-					{
-					case TRIV_WAIT_QUESTION:
-						trivia_question();
-						break;
-					case TRIV_HINT_TWO:
-						hint_two();
-						break;
-					case TRIV_HINT_THREE:
-						hint_three();
-						break;
-					case TRIV_NO_ANSWER:
-						trivia_no_answer();
-						return; /* dont increment with triv_mode */
-					}
-					triv_mode++;
-#ifdef DEBUG
-					current = NULL;
-#endif /* DEBUG */
-					return;
+				case TRIV_WAIT_QUESTION:
+					trivia_question();
+					break;
+				case TRIV_HINT_TWO:
+					hint_two();
+					break;
+				case TRIV_HINT_THREE:
+					hint_three();
+					break;
+				case TRIV_NO_ANSWER:
+					trivia_no_answer();
+					return; /* dont increment with triv_mode */
 				}
+				triv_mode++;
+#ifdef DEBUG
+				current = NULL;
+#endif /* DEBUG */
+				return;
 			}
 		}
 	}
