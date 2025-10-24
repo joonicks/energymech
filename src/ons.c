@@ -534,27 +534,15 @@ recheck_alias:
 	if (i == 255)
 		goto public_msg;
 
-	/*
-	 *  match "command" against internal command list
-	 */
-/* todo: delete - hash
-	for(i=0;mcmd[i].name;i++)
-	{
-*/
 		if (!has_cc && mcmd[i].cc && !(has_bang && mcmd[i].cbang))
-			return; /* continue; */
+			goto public_msg;
 		if (uaccess < acmd[i])
-			return; /* continue; */
+			goto public_msg;
 		/*
 		 *  The string hash matches a command, but is it a false positive?
 		 */
-		j = stringcasecmp(mcmd[i].name,command);
-/* todo: delete - hash
-		if (j < 0)
-			continue;
-		if (j > 0)
-			break;
-*/
+		if (stringcasecmp(mcmd[i].name,command) != 0)
+			goto public_msg;
 
 #if defined(BOTNET) && defined(REDIRECT)
 		if (mcmd[i].nocmd && redirect.to)
