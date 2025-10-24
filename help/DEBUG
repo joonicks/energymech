@@ -1,4 +1,9 @@
-Write debug information to a file named "debug.<timestamp>".
+  
+On <debugfile>   - Turn On debug and write output to <debugfile>
+Off              - Turn Off debug
+  
+If no arguments are given, debug data will be written
+to a file named "debug.<timestamp>".
   
 Only available if compiled with debug support.
   

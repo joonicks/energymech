@@ -1,7 +1,7 @@
 /*
 
     EnergyMech, IRC bot software
-    Copyright (c) 2000-2009 proton
+    Copyright (c) 2000-2025 proton
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -59,7 +59,7 @@ LS const UsageList ulist[] =
 #endif /* CTCP */
 { C_CYCLE,	"[channel]"								},
 #ifdef DEBUG
-{ C_DEBUG,	NULL									},
+{ C_DEBUG,	"[On <debugfile>|Off]"									},
 #endif /* DEBUG */
 { C_DEOP,	"[channel] <nick|pattern [...]>"					},
 { C_DIE,	"[reason]"								},
