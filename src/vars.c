@@ -1,7 +1,7 @@
 /*
 
     EnergyMech, IRC bot software
-    Parts Copyright (c) 1997-2009 proton
+    Parts Copyright (c) 1997-2025 proton
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -166,6 +166,21 @@ void ec_channels(char *from, const char *to)
 	}
 }
 
+#ifdef HOSTINFO
+
+static void ec_loadavg(char *from, const char *to)
+{
+	double avg;
+	char avgstr[8];
+
+	getloadavg(&avg,1);
+	snprintf(avgstr,8,"%.0f%%",100*avg);
+	avgstr[4] = 0;
+	nobo_strcpy(avgstr);
+}
+
+#endif /* HOSTINFO */
+
 void ec_time(char *from, const char *to)
 {
 	nobo_strcpy(time2away(now));
@@ -277,7 +292,7 @@ void ec_guid(char *from, const char *to)
 	nobo_strcpy(tmp);
 }
 
-LS const struct
+static const struct
 {
 	void	(*func)(char *, const char *);
 	char	name[12];
@@ -285,17 +300,23 @@ LS const struct
 
 } ecmd[] =
 {
+/*
+ *  Sorted by the second parameter alphabetical
+ */
 	{ ec_access,		"$access",	7	},
 	{ ec_capabilities,	"$cap",		4	},
 	{ ec_cc,		"$cc",		3	},
 	{ ec_channels,		"$channels",	9	},
-	{ ec_time,		"$time",	5	},
-	{ ec_set,		"$var(",	5	},
+	{ ec_guid,		"$guid",	5	},
+#ifdef HOSTINFO
+	{ ec_loadavg,		"$load",	5	},
+#endif /* HOSTINFO */
 	{ ec_on,		"$on",		3	},
 	{ ec_server,		"$server",	7	},
+	{ ec_time,		"$time",	5	},
 	{ ec_up,		"$up",		3	},
+	{ ec_set,		"$var(",	5	},
 	{ ec_ver,		"$ver",		4	},
-	{ ec_guid,		"$guid",	5	},
 	{ NULL,			"",		0	},
 };
 
