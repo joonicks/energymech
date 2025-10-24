@@ -1,7 +1,7 @@
 /*
 
     EnergyMech, IRC bot software
-    Parts Copyright (c) 1997-2024 proton
+    Parts Copyright (c) 1997-2025 proton
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -1364,6 +1364,10 @@ void do_core(COMMAND_ARGS)
 	table_buffer(TEXT_BOTUPTIME,idle2str(now - uptime,FALSE));
 	table_buffer(TEXT_BOTVERSION,VERSION,SRCDATE);
 	table_buffer(TEXT_BOTFEATURES,__mx_opts);
+#ifdef DEBUG
+	table_buffer("Debug\t%s%s%s",(const char *[]){"Off","On, Output = "}[dodebug],
+		(debugfile==NULL) ? ((dodebug==TRUE) ? "Stdout" : "") : debugfile);
+#endif /* DEBUG */
 	table_send(from,2);
 }
 
