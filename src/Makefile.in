@@ -104,7 +104,7 @@ $(INSTALLNAME)-static:	$(OFILES)
 #  resulting in a smaller, more efficient, binary. this process uses lots more memory at compile time.
 #
 
-mega-install:	mega $(SRCFILES) $(INCS) usage.h
+mega-install mi:mega $(SRCFILES) $(INCS) usage.h
 		$(CHMOD) $(INSTALLMODE) $(INSTALLNAME)
 		$(MV) $(INSTALLNAME) $(INSTALLDIR)
 
