@@ -1,7 +1,7 @@
 /*
 
     EnergyMech, IRC bot software
-    Parts Copyright (c) 1997-2024 proton
+    Parts Copyright (c) 1997-2025 proton
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -102,6 +102,7 @@ void send_spy(const char *src, const char *format, ...)
 	}
 
 #ifdef DEBUG
+	if (src != SPYSTR_RAWIRC) /* too much debug spam */
 	debug("(send_spy) src <%s> format = '%s', current = '%s' (%i)\n",src,format,
 		(current == NULL) ? "<NULL>" : nullstr(current->nick),(current == NULL) ? -1 : current->guid);
 #endif /* DEBUG */
