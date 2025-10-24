@@ -1447,6 +1447,41 @@ int wrap_debug(void)
 
 void do_debug(COMMAND_ARGS)
 {
+	const char *arg;
+	int	m;
+
+	arg = chop(&rest);
+	if (strcasecmp(arg,"off") == 0)
+	{
+		if (debugfile && debugfilemalloc == TRUE)
+			Free(&debugfile);
+		debugfilemalloc = FALSE;
+		debugfile = NULL;
+		dodebug = FALSE;
+		to_user(from,"Debug output turned off");
+		return;
+	}
+	if (strcasecmp(arg,"on") == 0)
+	{
+		m = is_safepath(rest,FILE_MAY_EXIST);
+		debug("(do_debug) turn on, rest = '%s', %i\n",rest,m);
+		if (*rest && m == FILE_IS_SAFE)
+		{
+			if (debugfile && debugfilemalloc == TRUE)
+				Free(&debugfile);
+			debugfilemalloc = TRUE;
+			set_mallocdoer(do_debug);
+			debugfile = strdup(rest);
+			dodebug = TRUE;
+			to_user(from,"Debug output turned on, Output = %s",rest);
+		}
+		else
+		{
+			to_user(from,"debug: Unsafe filename");
+		}
+		return;
+
+	}
 	if (wrap_debug())
 		to_user(from,"Debug information has been written to file");
 	else

@@ -184,6 +184,7 @@ BEG time_t	ctcp_slot[CTCP_SLOTS];
 
 BEG char	debugbuf[MAXLEN];
 BEG char	*debugfile		MDEF(NULL);
+BEG int		debugfilemalloc		MDEF(FALSE);
 BEG int		dodebug			MDEF(FALSE);
 BEG int		debug_fd		MDEF(-1);
 BEG int		debug_on_exit		MDEF(FALSE);
