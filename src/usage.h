@@ -146,7 +146,7 @@ LS const UsageList ulist[] =
 { C_SHUTDOWN,	NULL									},
 { C_SITEBAN,	"[channel] <nick|userhost>"						},
 { C_SITEKB,	"[channel] <nick> [reason]"						},
-{ C_SPY,	"[STATUS|MESSAGE|RAWIRC|[guid\":\"|botnick\":\"] [channel|\">\" filename]" },
+{ C_SPY,	"[<source>|[guid\":\"|botnick\":\"] [channel|\">\" filename]]"		},
 { C_STATS,	"<type> [servername]"							},
 #ifdef TCL
 #ifdef PLEASE_HACK_MY_SHELL

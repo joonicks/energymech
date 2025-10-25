@@ -9,6 +9,7 @@ excess flood if not careful.
    STATUS     Status messages.
    MESSAGE    Pivate messages that the bot receives.
    RAWIRC     Lines received from irc server before processing.
+   RANDSRC    Collect randomness from IRC activity, best saved to a file.
    guid:      Messages from a bot specified by guid.
    botnick:   Messages from a bot specified by nick.
    channel    Activities on the specified channel.
