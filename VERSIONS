@@ -5,18 +5,37 @@
  * Changed: Bumped version because of undocumented changes.
  * Added: More help files; BOOT, DEBUG, NOTE, READ
  * Changed: Updated several helpfiles.
- * Added: Support for a posfix.sh command at the end of the compilation
-          process for developers.
  * Changed: Table of builtin commands taken out of gencmd.c and put into
             commands.h for easier editing.
 
 3.2 -- October 21, 2025.
 
- * Changed: HOSTINFO changed to SYSINFO.
- * Changed: January 15, 2025: Proton no longer single. Sorry to all the ladies.
+ * Added: Server maxontime is actually used.
+ * Fixed: Crash in SETPASS
+ * Fixed: FORGET command Issue #20
+ * Added: Support for a posfix.sh command at the end of the compilation
+          process for developers.
+ * Added: Host info added to CORE (with HOSTINFO support).
  * Plenty of unlisted changes...
+ * Changed: Do not log commands until all the checks are done.
+ * Added: Debug info on code layout in debug files.
+ * Changed: HOSTINFO changed to SYSINFO.
+ * Fixed: Compiler warnings.
+ * Changed: More code layout adjustments.
+ * Added: Superuser doing AUTH with no arguments will list active auths.
+ * Changed: Default uptime host set to uptime.eggheads.org.
+ * Fixed: CHAT crash bug.
+ * Changed: Reorder HELP command list to alphabetical order.
+ * Added: Binary as source for CV command.
+ * Added: Newbie warning about using -f with sessions support.
+ * Added: CALC command (still alpha code).
+ * Added: Spy RANDSRC: generate randomness from IRC activity.
+ * Fixed: away.txt grammar (m4t).
+ * Fixed: 8ball.txt language fixes.
+ * Changed: ESAY overflow adjustment.
+ * Changed: January 15, 2025: Proton no longer single. Sorry to all the ladies.
 
-3.1 -- April 14, 2018.
+3.1 -- May 25, 2020.
 
  * Fixed: If the network interface goes down, the mech will mark all servers as unconnectable,
           permanently, so even when the network comes back up... Fixed!
