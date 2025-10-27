@@ -427,7 +427,7 @@ void channel_massmode(const Chan *chan, char *pattern, int filtmode, char mode, 
 						/*
 						 *  never deop yourself, stupid bot
 						 */
-						if (nickcmp(pat,current->nick))
+						if (nickcmp(pat,getbotnick(current)))
 							willdo = TRUE;
 					}
 					else
@@ -890,9 +890,10 @@ void do_mode(COMMAND_ARGS)
 	}
 	else
 	{
+		/* todo: is it really necessary to chop? */
 		target = chop(&rest);
 
-		if (!nickcmp(current->nick,target))
+		if (!nickcmp(target,getbotnick(current)))
 		{
 			to_server("MODE %s %s\n",target,rest);
 		}

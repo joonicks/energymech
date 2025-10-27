@@ -97,7 +97,7 @@ char *recover_client(char *env)
 
 found_user:
 	if (to_file(fd,"[%s] [%s] %s[%i] has connected (reset recover)\n",
-		time2medium(now),current->wantnick,handle,user->x.x.access) < 0)
+		time2medium(now),getbotwantnick(current),handle,user->x.x.access) < 0)
 	{
 		close(fd);
 		return(p);
@@ -121,7 +121,7 @@ found_user:
 	{
 		CurrentDCC = client;
 		stringcpy(client->sockdata,"status");
-		do_spy(user->name,current->wantnick,client->sockdata,0);
+		do_spy(user->name,getbotwantnick(current),client->sockdata,0);
 		*client->sockdata = 0;
 		CurrentDCC = NULL;
 	}

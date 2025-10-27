@@ -84,7 +84,7 @@ void parse_join(char *from, char *rest)
 	if ((CurrentChan = chan = find_channel_ny(rest)) == NULL)
 		return;
 
-	if (!nickcmp(current->nick,from))
+	if (!nickcmp(getbotnick(current),from))
 	{
 #ifdef DEBUG
 		debug("(parse_join) Im joining %s\n",chan->name);
@@ -202,7 +202,7 @@ void parse_mode(char *from, char *rest)
 		on_mode(from,to,rest);
 	}
 	else
-	if (!stringcasecmp(current->nick,to))
+	if (!stringcasecmp(getbotnick(current),to)) /* todo: nickcmp? */
 	{
 		char	*dst;
 		char	sign;
@@ -311,7 +311,7 @@ void parse_part(char *from, char *rest)
 	if (current->spy & SPYF_CHANNEL)
 		send_spy(channel,"*** Parts: %s (%s)",nick,from);
 
-	if (!nickcmp(current->nick,nick))
+	if (!nickcmp(getbotnick(current),nick))
 	{
 #ifdef DEBUG
 		debug("(parse_part) Im parting %s\n",chan->name);
@@ -547,6 +547,9 @@ void parse_251(char *from, char *rest)
 	{
 		nick = chop(&rest);
 		setbotnick(current,nick);
+#ifdef BOTNET
+		botnet_refreshbotinfo();
+#endif /* BOTNET */
 		for(sp=serverlist;sp;sp=sp->next)
 		{
 			if (!stringcasecmp(sp->name,from) || !stringcasecmp(sp->realname,from))
@@ -702,11 +705,9 @@ void parse_311(char *from, char *rest)
 	if (host)
 		host[-1] = '@';
 
-	if (!nickcmp(nick,current->nick))
+	if (!nickcmp(getbotnick(current),nick))
 	{
-		Free((char**)&current->userhost);
-		set_mallocdoer(parse_311);
-		current->userhost = stringdup(user);
+		setbotuserhost(current,user);
 #ifdef BOTNET
 		botnet_refreshbotinfo();
 #endif /* BOTNET */
@@ -855,7 +856,7 @@ void parse_319(char *from, char *rest)
 	send_pa(PA_WHOIS,nick,"Channels: %s",rest);
 
 	/* if nick is myself (the bot), check for reset recovery */
-	if (!nickcmp(nick,current->nick))
+	if (!nickcmp(getbotnick(current),nick))
 	{
 		if (current->reset)
 		{
@@ -871,7 +872,7 @@ loop:
 			 */
 			while(*channel && *channel != '#') /* this is a recipe for disaster with other valid channels than '#' */
 				channel++;
-			sprintf(nuh,"%s!%s",current->nick,current->userhost);
+			sprintf(nuh,"%s!%s",getbotnick(current),getbotuserhost(current));
 #ifdef DEBUG
 			debug("(parse_319) :%s JOIN :%s\n",nuh,channel);
 #endif /* DEBUG */
@@ -996,7 +997,7 @@ void parse_352(char *from, char *rest)
 		if (*rest == '@')
 		{
 			chan->users->flags = CU_CHANOP;
-			if (!nickcmp(current->nick,nick))
+			if (!nickcmp(getbotnick(current),nick))
 			{
 #ifdef DEBUG
 				debug("(parse_352) According to wholist I have ops\n");
@@ -1066,13 +1067,10 @@ void parse_376(char *from, char *rest)
 	{
 		current->connect = CN_ONLINE;
 		current->ontime = now;
-		to_server("WHOIS %s\n",current->nick);
+		to_server("WHOIS %s\n",getbotnick(current));
 		if ((mode = current->setting[STR_UMODES].str_var))
-			to_server("MODE %s %s\n",current->nick,mode);
+			to_server("MODE %s %s\n",getbotnick(current),mode);
 	}
-#ifdef IDWRAP
-	unlink_identfile();
-#endif /* IDWRAP */
 }
 
 /*
@@ -1113,7 +1111,7 @@ void parse_433(char *from, char *rest)
 		do
 		{
 			s2 = chop(&s);
-			if (current->connect == CN_ONLINE && !stringcasecmp(current->nick,s2))
+			if (current->connect == CN_ONLINE && !stringcasecmp(getbotnick(current),s2)) /* todo: nickcmp? */
 			{
 				/* nicks listed first are more worth, dont try nicks after */
 				break;
@@ -1134,14 +1132,12 @@ void parse_433(char *from, char *rest)
 		if (nick)
 		{
 #ifdef DEBUG
-			debug("(parse_433) Nick: %s, Altnick: %s\n",current->nick,nick);
+			debug("(parse_433) Nick: %s, Altnick: %s\n",getbotnick(current),nick);
 #endif /* DEBUG */
 			to_server("NICK %s\n",nick);
 			if (current->connect != CN_ONLINE)
 			{
-				Free((char**)&current->nick);
-				set_mallocdoer(parse_433);
-				current->nick = stringdup(nick);
+				setbotnick(current,nick);
 			}
 			return;
 		}

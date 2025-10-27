@@ -122,7 +122,7 @@ void partyline_banner(Client *client)
 	client->lasttime = now;
 
 	sprintf(tmp,"[%s] %s[%i] has connected",
-		current->nick,client->user->name,(int)client->user->x.x.access);
+		getbotnick(current),client->user->name,(int)client->user->x.x.access);
 
 	if ((to_file(client->sock,"[%s] %s\n",time2medium(now),tmp)) < 0)
 	{
@@ -134,7 +134,7 @@ void partyline_banner(Client *client)
 	{
 		CurrentDCC = client;
 		stringcpy(tmp,SPYSTR_STATUS);
-		do_spy(client->user->name,current->nick,tmp,0);
+		do_spy(client->user->name,getbotnick(current),tmp,0);
 		CurrentDCC = NULL;
 	}
 }
@@ -240,7 +240,7 @@ void do_whom(COMMAND_ARGS)
 		{
 			stringcpy(stt,TEXT_NOTCONNECTED);
 		}
-		table_buffer(TEXT_WHOMSELFLINE,bot->nick,(bot == current) ? "(me)" : "b200",stt);
+		table_buffer(TEXT_WHOMSELFLINE,getbotnick(bot),(bot == current) ? "(me)" : "b200",stt);
 		for(client=bot->clientlist;client;client=client->next)
 		{
 			m = (now - client->lasttime) / 60;

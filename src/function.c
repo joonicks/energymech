@@ -1,7 +1,7 @@
 /*
 
     EnergyMech, IRC bot software
-    Parts Copyright (c) 1997-2020 proton
+    Parts Copyright (c) 1997-2025 proton
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -166,6 +166,50 @@ void Free(char **mem)
 }
 
 #endif /* DEBUG */
+
+void set_mix16(Mix16 *mix, const char *str)
+{
+	int	sz;
+
+	if (mix->opt >= 16)
+	{
+		Free(&mix->x.ptr);
+	}
+
+	sz = strlen(str);
+	if (sz < 16)
+	{
+		stringcpy(mix->x.string,str);
+	}
+	else
+	{
+		set_mallocdoer(set_mix16);
+		mix->x.ptr = stringdup(str);
+	}
+	mix->opt = sz;
+}
+
+void set_mix64(Mix64 *mix, const char *str)
+{
+	int	sz;
+
+	if (mix->opt >= 64)
+	{
+		Free(&mix->x.ptr);
+	}
+
+	sz = strlen(str);
+	if (sz < 64)
+	{
+		stringcpy(mix->x.string,str);
+	}
+	else
+	{
+		set_mallocdoer(set_mix64);
+		mix->x.ptr = stringdup(str);
+	}
+	mix->opt = sz;
+}
 
 Strp *make_strp(Strp **pp, const char *string)
 {

@@ -209,7 +209,7 @@ LS struct
 
 int sig_hup_callback(char *line)
 {
-	on_msg((char*)CoreUser.name,current->nick,line);
+	on_msg((char*)CoreUser.name,getbotnick(current),line);
 	return(FALSE);
 }
 
@@ -295,9 +295,6 @@ void do_sigusr1(void)
 	{
 		if (current->sock != -1)
 		{
-#ifdef IDWRAP
-			unlink_identfile();
-#endif /* IDWRAP */
 			close(current->sock);
 		}
 		current->sock = -1;
@@ -686,9 +683,6 @@ doit_jumptonext:
 #ifdef DEBUG
 					debug("(doit) {%i} Connection timed out\n",current->sock);
 #endif /* DEBUG */
-#ifdef IDWRAP
-					unlink_identfile();
-#endif /* IDWRAP */
 					close(current->sock);
 					current->sock = -1;
 					goto restart_dcc;

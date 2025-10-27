@@ -45,15 +45,7 @@
 #define BNC_ACTIVE		5
 #define BNC_DEAD		6
 
-#ifdef IDWRAP
-
-#define USE_VHOST		2
-
-#else /* not IDWRAP */
-
 #define USE_VHOST		TRUE
-
-#endif /* IDWRAP */
 
 void bounce_parse(ircLink *irc, char *message)
 {
@@ -175,10 +167,6 @@ void bounce_parse(ircLink *irc, char *message)
 #ifdef WINGATE
 		current->setting[STR_WINGATE].str_var = NULL;
 #endif /* WINGATE */
-#ifdef IDWRAP
-		current->identfile = NULL;
-		current->setting[STR_IDENT].str_var = irc->handle;
-#endif /* IDWRAP */
 
 		if (virtual)
 		{
@@ -189,27 +177,9 @@ void bounce_parse(ircLink *irc, char *message)
 		{
 			irc->status = BNC_CONNECTING;
 			irc->active = now + 60;	/* 120 second timeout */
-#ifdef IDWRAP
-			irc->idfile = current->identfile;
-#endif /* IDWRAP */
 		}
 	}
 }
-
-#ifdef IDWRAP
-
-void bounce_cleanup(void)
-{
-	ircLink *irc;
-
-	for(irc=bnclist;irc;irc=irc->next)
-	{
-		if (irc->idfile)
-			unlink(irc->idfile);
-	}
-}
-
-#endif /* IDWRAP */
 
 void new_port_bounce(const struct Setting *no_op)
 {
@@ -379,13 +349,6 @@ void process_bounce(void)
 			Free((char**)&irc->nickLine);
 			Free((char**)&irc->nick);
 			Free((char**)&irc->handle);
-#ifdef IDWRAP
-			if (irc->idfile)
-			{
-				unlink(irc->idfile);
-				Free((char**)&irc->idfile);
-			}
-#endif /* IDWRAP */
 			Free((char**)&irc);
 			continue;
 		}

@@ -201,7 +201,7 @@ Shit *get_shituser(char *userhost, char *channel)
 	 */
 	if (!current->shitlist)
 		return(NULL);
-	if (!nickcmp(current->nick,userhost))
+	if (!nickcmp(getbotnick(current),userhost))
 		return(NULL);
 	for(chan=current->chanlist;chan;chan=chan->next)
 	{

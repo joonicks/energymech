@@ -82,7 +82,7 @@ void delete_client(Client *client)
 			pspy = &(*pspy)->next;
 		}
 		send_global(SPYSTR_STATUS,"[%s] %s[%i] has disconnected",
-			current->nick,client->user->name,client->user->x.x.access);
+			getbotnick(current),client->user->name,client->user->x.x.access);
 	}
 #ifdef DCC_FILE
 	if (client->fileno >= 0)
@@ -347,11 +347,11 @@ void parse_dcc(Client *client)
 			bp = ptr;
 			chop(&bp);
 			ptr = get_token(&bp,"\001");
-			on_action(CurrentUser->name,current->nick,ptr);
+			on_action(CurrentUser->name,getbotnick(current),ptr);
 		}
 		else
 		{
-			on_msg(CurrentUser->name,current->nick,ptr);
+			on_msg(CurrentUser->name,getbotnick(current),ptr);
 		}
 		CurrentDCC = NULL;
 		/*

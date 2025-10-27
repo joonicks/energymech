@@ -55,7 +55,6 @@ BEG const char NULLSTR[]		MDEF("<NULL>");
 
 BEG const char ERR_CHAN[]		MDEF("I'm not on %s");
 BEG const char ERR_FILEOPEN[]		MDEF("Couldn't open the file %s");
-BEG const char ERR_INIT[]		MDEF("init: Warning:");
 BEG const char ERR_NICK[]		MDEF("Invalid nickname: %s");
 BEG const char ERR_NOCHANNELS[]		MDEF("I'm not active on any channels");
 BEG const char ERR_NOTOPPED[]		MDEF("I'm not opped on %s");

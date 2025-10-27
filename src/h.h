@@ -1,7 +1,7 @@
 /*
 
     EnergyMech, IRC bot software
-    Copyright (c) 1997-2024 proton
+    Copyright (c) 1997-2025 proton
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -183,11 +183,21 @@ LS void do_idle(COMMAND_ARGS)						__page(CMD1_SEG);
 
 /* core.c */
 
-void unlink_identfile(void);
+#define getbotnicklen(z)	(z->nick.opt)
+#define getbotnick(z)		((z->nick.opt < 16) ? z->nick.x.string : z->nick.x.ptr)
+#define getbotwantnick(z)	((z->wantnick.opt < 16) ? z->wantnick.x.string : z->wantnick.x.ptr)
+#define getbotuserhost(z)	((z->userhost.opt == 0) ? UNKNOWNATUNKNOWN : ((z->userhost.opt < 64) ? z->userhost.x.string : z->userhost.x.ptr))
+
+#define setbotnick(z,y)		set_mix16(&z->nick,y)
+#define setbotwantnick(z,y)	set_mix16(&z->wantnick,y)
+#define setbotuserhost(z,y)	set_mix64(&z->userhost,y)
+
+void set_mix16(Mix16 *, const char *)					__page(CORE_SEG);
+void set_mix64(Mix64 *, const char *)					__page(CORE_SEG);
+
 int conf_callback(char *line)						__page(CFG1_SEG);
 void readcfgfile(void)							__page(CFG1_SEG);
 int write_session(void)							__page(CORE_SEG);
-void setbotnick(Mech *bot, char *nick)					__page(CFG1_SEG);
 Mech *add_bot(int guid, char *nick)					__page(CFG1_SEG);
 void signoff(char *from, char *reason)					__page(RARE_SEG);
 void kill_all_bots(char *reason)					__attr(RARE_SEG, __noreturn__);;

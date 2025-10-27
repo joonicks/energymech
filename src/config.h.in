@@ -72,12 +72,6 @@
 @DEF_HOSTINFO@
 
 /*
- *  IDWRAP: support for idwrap ident spoofing
- */
-@DEF_IDWRAP@
-#define IDWRAP_PATH	@IDWRAP_PATH@
-
-/*
  *  IRCD_EXTENSIONS: support some special features of new ircds
  */
 @DEF_IRCD_EXT@
@@ -195,7 +189,7 @@
 /*
  *  URLCAPTURE: capture url's mentioned
  */
-@DEF_URLCAPTURE@
+@DEF_URLCAP@
 
 /*
  *  WEB: serving documents via HTTP

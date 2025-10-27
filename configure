@@ -103,7 +103,6 @@ do
           dyncmd )	ft_dyncmd=$yesno ;;
           greet )	ft_greet=$yesno ;;
           hostinfo )	ft_hostinfo=$yesno ;;
-          idwrap )	ft_idwrap=$yesno ;;
           ircd_ext )	ft_ircd_ext=$yesno ;;
 	  libmusl )	try_libmusl=$yesno ;;
           md5 )		ft_md5=$yesno ;;
@@ -154,7 +153,7 @@ do
   esac
 
   case "$feature" in
-    alias | botnet | bounce | chanban | ctcp | dccfile | debug | dynamode | dyncmd | greet | hostinfo | idwrap | ircd_ext | libmusl | md5 \
+    alias | botnet | bounce | chanban | ctcp | dccfile | debug | dynamode | dyncmd | greet | hostinfo | ircd_ext | libmusl | md5 \
     | netcfg | newbie | note | notify | perl | profiling | python | rawdns | redirect | seen | session | sha | stats | suppress | tcl \
     | telnet | toybox | trivia | uptime | urlcapture | web | wingate )
       case _"$optarg"_ in
@@ -206,8 +205,6 @@ do
         greet_no )			ft_greet=no ;;
         hostinfo_yes | hostinfo_ )	ft_hostinfo=yes ;;
         hostinfo_no )			ft_hostinfo=no ;;
-        idwrap_yes | idwrap_ )		ft_idwrap=yes ;;
-        idwrap_no )			ft_idwrap=no ;;
         ircd_ext_yes | ircd_ext_ )	ft_ircd_ext=yes ;;
         ircd_ext_no )			ft_ircd_ext=no ;;
 	libmusl_yes | libmusl_ )	try_libmusl=/usr/local/musl/bin/musl-gcc ;;
@@ -273,7 +270,6 @@ do
         dyncmd )       ft_dyncmd=no ;;
         greet )        ft_greet=no ;;
         hostinfo )     ft_hostinfo=no ;;
-        idwrap )       ft_idwrap=no ;;
         ircd_ext )     ft_ircd_ext=no ;;
 	libmusl )	try_libmusl=no ;;
         md5 )          ft_md5=no ;;
@@ -1075,26 +1071,6 @@ echo $ac_t "$has_ldscript"
 rm -f $TESTP
 
 #
-#  idwrap
-#
-has_idwrap=no
-def_idwrap='#undef IDWRAP'
-IDWRAP_PATH='/* nothing */'
-
-if [ -r .use_idwrap -o "$ft_idwrap" = yes ]; then
-  echo $ac_n "checking for idwrap path ... "$ac_c
-  if test -z "$idwrappath"; then
-    idwrappath="/tmp/.ident/"
-  fi
-  if test -d $idwrappath; then
-    IDWRAP_PATH='"'"$idwrappath"'"'
-    has_idwrap="$IDWRAP_PATH"
-    def_idwrap='#define IDWRAP'
-  fi
-  echo $ac_t "$has_idwrap"
-fi
-
-#
 #
 #
 echo $ac_n "checking for objcopy ... "$ac_c
@@ -1425,12 +1401,12 @@ test "$ft_uptime" && $out "$ft_uptime" && ans=$ft_uptime
 test -z "$ft_uptime" && read ans
 test -z "$ans" -o "$ans" = y -o "$ans" = Y -o "$ans" = yes -o "$ans" = YES -o "$ans" = Yes && def_uptime='#define UPTIME'
 
-def_urlcapture='#undef URLCAPTURE'
+def_urlcap='#undef URLCAPTURE'
 unset ans
 $out $ac_n "[ BETA ] URL capture support? ....................... [Y/n] "$ac_c
 test "$ft_urlcapture" && $out "$ft_urlcapture" && ans=$ft_urlcapture
 test -z "$ft_urlcapture" && read ans
-test -z "$ans" -o "$ans" = y -o "$ans" = Y -o "$ans" = yes -o "$ans" = YES -o "$ans" = Yes && def_urlcapture='#define URLCAPTURE'
+test -z "$ans" -o "$ans" = y -o "$ans" = Y -o "$ans" = yes -o "$ans" = YES -o "$ans" = Yes && def_urlcap='#define URLCAPTURE'
 
 def_wingate='#undef WINGATE'
 unset ans
@@ -1502,7 +1478,6 @@ sed "
 s|@DEF_DYNAMODE@|$def_dynamode|;
    s|@DEF_GREET@|$def_greet|;
 s|@DEF_HOSTINFO@|$def_hostinfo|;
-  s|@DEF_IDWRAP@|$def_idwrap|;
 s|@DEF_IRCD_EXT@|$def_ircd_ext|;
      s|@DEF_MD5@|$def_md5|;
      s|@DEF_SHA@|$def_sha|;
@@ -1523,7 +1498,7 @@ s|@DEF_SUPPRESS@|$def_suppress|;
   s|@DEF_TOYBOX@|$def_toybox|;
   s|@DEF_TRIVIA@|$def_trivia|;
   s|@DEF_UPTIME@|$def_uptime|;
-s|@DEF_URLCAPTURE@|$def_urlcapture|;
+  s|@DEF_URLCAP@|$def_urlcap|;
      s|@DEF_WEB@|$def_web|;
  s|@DEF_WINGATE@|$def_wingate|;
 
@@ -1534,14 +1509,13 @@ s|@DEF_CRYPT_FUNCTION@|$CRYPT_FUNCTION|;
 s|@CRYPT_HAS_SHA@|$CRYPT_HAS_SHA|;
 s|@CRYPT_HAS_MD5@|$CRYPT_HAS_MD5|;
 s|@CRYPT_HAS_DES@|$CRYPT_HAS_DES|;
-s|@IDWRAP_PATH@|$IDWRAP_PATH|;
 s|@PTSIZE_DEFINE32@|$PTSIZE_DEFINE32|;
 s|@PTSIZE_DEFINE64@|$PTSIZE_DEFINE64|;
 s|@UNALIGNED_MEM@|$UNALIGNED_MEM|;
 " < src/config.h.in >> src/config.h
 
 save_myconfig() {
-  names="alias botnet bounce chanban ctcp dccfile debug dynamode dyncmd greet hostinfo idwrap ircd_ext libmusl md5
+  names="alias botnet bounce chanban ctcp dccfile debug dynamode dyncmd greet hostinfo ircd_ext libmusl md5
     netcfg newbie note notify perl profiling python rawdns redirect seen session sha stats suppress tcl
     telnet toybox trivia uptime urlcapture web wingate"
   echo "./configure \\" > ./myconfig

@@ -168,7 +168,7 @@ void send_uptime(int type)
 	 */
 	if (botlist)
 	{
-		nick = botlist->nick;
+		nick = getbotnick(botlist);
 		upPack.ontime = htonl(botlist->ontime);
 		if ((sp = find_server(botlist->server)))
 		{

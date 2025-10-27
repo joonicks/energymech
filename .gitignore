@@ -37,10 +37,14 @@ dev/*
 .use_size
 conf
 debug*
+src/benchmark*
 src/nostdlib
 src/x
 src/y
 src/z
+x
+y
+z
 randdata
 test.conf
 postfix.sh

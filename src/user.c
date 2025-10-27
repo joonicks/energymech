@@ -593,7 +593,7 @@ void mirror_user(User *user)
 		}
 #ifdef DEBUG
 		debug("(mirror_user) mirroring user %s[%i] to local bot %s(%i)\n",
-			user->name,user->x.x.access,nullstr(anybot->nick),anybot->guid);
+			user->name,user->x.x.access,getbotnick(anybot),anybot->guid);
 #endif /* DEBUG */
 
 		current = anybot;
@@ -646,7 +646,7 @@ void mirror_userlist(void)
 	User	*user;
 
 #ifdef DEBUG
-	debug("(mirror_userlist) mirroring userlist of %s(%i)\n",nullstr(current->nick),current->guid);
+	debug("(mirror_userlist) mirroring userlist of %s(%i)\n",getbotnick(current),current->guid);
 #endif /* DEBUG */
 
 	for(user=current->userlist;user;user=user->next)
@@ -903,7 +903,7 @@ int is_bot(const char *userhost)
 
 	for(bot=botlist;bot;bot=bot->next)
 	{
-		if (!nickcmp(userhost,bot->nick))
+		if (!nickcmp(userhost,getbotnick(bot)))
 			return(TRUE);
 	}
 	return(FALSE);

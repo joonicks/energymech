@@ -168,7 +168,7 @@ LS struct
 {	send_kick,			"send_kick"			},
 {	send_mode,			"send_mode"			},
 {	set_str_varc,			"set_str_varc"			CFG1_SE },
-{	setbotnick,			"setbotnick"			},
+{	set_mix16,			"set_mix16"			CORE_SE },
 {	sig_hup,			"sig_hup"			RARE_SE },
 {	table_buffer,			"table_buffer"			},
 #ifdef ALIAS
@@ -661,7 +661,6 @@ void debug_memory(void)
 		{
 			memtouch(bot->lastcmds[i]);
 		}
-		memtouch(bot->userhost);
 	}
 	debug("> Memory allocations\n");
 	for(mea=mrrec;(mea);mea=mea->next)
@@ -851,7 +850,7 @@ void debug_core(void)
 	}
 	debug("  ; ---\n");
 	if (current)
-		debug("; current\t\t"mx_pfmt" \"%s\"\n",(mx_ptr)current,nullstr(current->nick));
+		debug("; current\t\t"mx_pfmt" \"%s\"\n",(mx_ptr)current,nullstr(getbotnick(current)));
 	else
 		debug("; current\t\t"mx_pfmt"\n",(mx_ptr)current);
 	debug("; executable\t\t\"%s\"\n",executable);
@@ -887,8 +886,6 @@ void debug_core(void)
 	for(bot=botlist;bot;bot=bot->next)
 	{
 		memtouch(bot);
-		memtouch(bot->nick);
-		memtouch(bot->wantnick);
 		debug("  ; Mech*\t\t"mx_pfmt"\n",(mx_ptr)bot);
 		debug("  ; next\t\t"mx_pfmt"\n",(mx_ptr)bot->next);
 		debug("  ; connect\t\t%s (%i)\n",strdef(CNdefs,bot->connect),bot->connect);
@@ -906,8 +903,8 @@ void debug_core(void)
 		{
 			debug_server(sp,"    ");
 		}
-		debug("  ; nick\t\t\"%s\"\n",nullstr(bot->nick));
-		debug("  ; wantnick\t\t\"%s\"\n",nullstr(bot->wantnick));
+		debug("  ; nick\t\t\"%s\"\n",nullstr(getbotnick(bot)));
+		debug("  ; wantnick\t\t\"%s\"\n",nullstr(getbotwantnick(bot)));
 
 		debug_settings(bot->setting,DSET_GLOBAL);
 

@@ -115,10 +115,6 @@ int SockConnect(char *host, int port, int use_vhost)
 {
 	struct  sockaddr_in sai;
 	int	s;
-#ifdef IDWRAP
-	char	*id,identfile[64];
-	int	t = FALSE;
-#endif /* IDWRAP */
 
 #ifdef DEBUG
 	debug("(SockConnect) %s %i%s\n",nullstr(host),port,(use_vhost) ? " [VHOST]" : "");
@@ -130,16 +126,7 @@ int SockConnect(char *host, int port, int use_vhost)
 	memset((char*)&sai,0,sizeof(sai));
 	sai.sin_family = AF_INET;
 
-	/*
-	 *  special case, BOUNCE feature may call SockConnect()
-	 *  to create the IDWRAP symlink, using special use_vhost value == 2
-	 */
-#if defined(BOUNCE) && defined(IDWRAP)
-	if ((use_vhost == TRUE)
-#else /* not ... */
-	if (use_vhost
-#endif /* ... */
-		&& ((current->vhost_type & VH_IPALIAS_FAIL) == 0)
+	if (use_vhost && ((current->vhost_type & VH_IPALIAS_FAIL) == 0)
 		&& current->setting[STR_VIRTUAL].str_var)
 	{
 		current->vhost_type |= VH_IPALIAS_BOTH;
@@ -151,25 +138,12 @@ int SockConnect(char *host, int port, int use_vhost)
 #ifdef WINGATE
 				use_vhost++;
 #endif /* WINGATE */
-#ifdef IDWRAP
-				t = TRUE;
-#endif /* IDWRAP */
 #ifdef DEBUG
 				debug("(SockConnect) IP Alias virtual host bound OK\n");
 #endif /* DEBUG */
 			}
 		}
 	}
-#ifdef IDWRAP
-	/*
-	 *  do a blank bind to get a port number
-	 */
-	if (!t)
-	{
-		sai.sin_addr.s_addr = INADDR_ANY;
-		bind(s,(struct sockaddr *)&sai,sizeof(sai));
-	}
-#endif /* IDWRAP */
 
 	memset((char*)&sai,0,sizeof(sai));
 	sai.sin_family = AF_INET;
@@ -204,29 +178,6 @@ int SockConnect(char *host, int port, int use_vhost)
 		/*
 		 *  Normal connect, no bounces...
 		 */
-#ifdef IDWRAP
-		if (use_vhost)
-		{
-			t = sizeof(sai);
-			if (getsockname(s,(struct sockaddr*)&sai,&t) == 0)
-			{
-				if (current->identfile)
-					Free((char**)&current->identfile);
-				sprintf(identfile,IDWRAP_PATH "%i.%i",ntohs(sai.sin_port),port);
-				id = current->setting[STR_IDENT].str_var;
-				if (symlink((id) ? id : BOTLOGIN,identfile) == 0)
-				{
-					set_mallocdoer(SockConnect);
-					current->identfile = Strdup(identfile);
-#ifdef DEBUG
-					debug("(SockConnect) symlink: %s -> %s\n",identfile,(id) ? id : BOTLOGIN);
-#endif /* DEBUG */
-				}
-			}
-			memset((char*)&sai,0,sizeof(sai));
-			sai.sin_family = AF_INET;
-		}
-#endif /* IDWRAP */
 		sai.sin_port = htons(port);
 		if ((sai.sin_addr.s_addr = get_ip(host)) == -1)
 		{

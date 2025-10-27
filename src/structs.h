@@ -1,7 +1,7 @@
 /*
 
     EnergyMech, IRC bot software
-    Parts Copyright (c) 1997-2020 proton
+    Parts Copyright (c) 1997-2025 proton
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -20,6 +20,35 @@
 */
 #ifndef STRUCTS_H
 #define STRUCTS_H 1
+
+typedef struct Strp
+{
+	struct	Strp *next;
+	char	p[1];
+
+} Strp;
+
+typedef struct Mix16
+{
+	union
+	{
+		char string[16];
+		char *ptr;
+	} x;
+	int8_t	opt;
+
+} Mix16;
+
+typedef struct Mix64
+{
+	union
+	{
+		char string[64];
+		char *ptr;
+	} x;
+	int8_t	opt;
+
+} Mix64;
 
 typedef union usercombo
 {
@@ -87,10 +116,6 @@ typedef struct ircLink
 
 	char		*nick;			/* which nick to speak to */
 	char		*handle;
-
-#ifdef IDWRAP
-	char		*idfile;
-#endif /* IDWRAP */
 
 	char		servmem[MSGLEN];
 	char		usermem[MSGLEN];
@@ -211,13 +236,6 @@ typedef struct Setting
 	void		(*func)(const struct Setting *);
 
 } Setting;
-
-typedef struct Strp
-{
-	struct		Strp *next;
-	char		p[1];
-
-} Strp;
 
 typedef struct KickSay
 {
@@ -553,9 +571,10 @@ typedef struct Mech
 	/*
 	 *  Basic bot information
 	 */
-	char		*nick;			/* current nickname		*/
-	char		*wantnick;		/* wanted nickname		*/
-	char		*userhost;
+	Mix16		nick;
+	Mix16		wantnick;
+	Mix64		userhost;
+
 	int		vhost_type;
 
 	uint32_t	reset:1,
@@ -604,10 +623,6 @@ typedef struct Mech
 	 */
 	char		*signoff;
 	char		*from;
-
-#ifdef IDWRAP
-	char		*identfile;
-#endif /* IDWRAP */
 
 	/* big buffers at the end */
 	UniVar		setting[SIZE_VARS];	/* global vars + channel defaults */

@@ -82,7 +82,7 @@ void on_kick(char *from, char *rest)
 	if (current->spy & SPYF_CHANNEL)
 		send_spy(chan->name,"*** %s was kicked by %s (%s)",nick,CurrentNick,rest);
 
-	if (!nickcmp(current->nick,nick))
+	if (!nickcmp(getbotnick(current),nick))
 	{
 #ifdef DEBUG
 		debug("(on_kick) I was kicked from %s\n",chan->name);
@@ -290,8 +290,8 @@ void on_nick(char *from, char *newnick)
 	 *  grab the nick *RIGHT NOW*
 	 *  this is a setting because this is risky, you might get collided as a result
 	 */
-	if (!nickcmp(CurrentNick,current->wantnick))
-		to_server("NICK %s\n",current->wantnick);
+	if (!nickcmp(CurrentNick,getbotwantnick(current)))
+		to_server("NICK %s\n",getbotwantnick(current));
 #endif /* FASTNICK */
 
 	/*
@@ -311,9 +311,12 @@ void on_nick(char *from, char *newnick)
 
 	change_authnick(from,newnuh);
 
-	if ((isbot = !nickcmp(current->nick,CurrentNick)))
+	if ((isbot = !nickcmp(getbotnick(current),CurrentNick)))
 	{
 		setbotnick(current,newnick);
+#ifdef BOTNET
+		botnet_refreshbotinfo();
+#endif /* BOTNET */
 	}
 
 	for(chan=current->chanlist;chan;chan=chan->next)
@@ -450,7 +453,7 @@ void on_msg(char *from, char *to, char *rest)
 	if ((p2 = (uchar*)(command = chop(&rest))) == NULL)
 		return;
 
-	p1 = (uchar*)current->nick;
+	p1 = (uchar*)getbotnick(current);
 	while(!(i = tolowertab[*(p1++)] - tolowertab[*p2]) && *(p2++))
 		;
 
@@ -726,7 +729,7 @@ public_msg:
 	{
 		partyline_broadcast(CurrentDCC,"<%s> %s\n",origstart);
 #ifdef BOTNET
-		botnet_relay(NULL,"PM* * %s@%s %s\n",CurrentNick,current->nick,origstart);
+		botnet_relay(NULL,"PM* * %s@%s %s\n",CurrentNick,getbotnick(current),origstart);
 #endif /* BOTNET */
 	}
 	else
@@ -800,7 +803,7 @@ modeloop:
 				}
 			}
 			else
-			if (!nickcmp(current->nick,nick))
+			if (!nickcmp(getbotnick(current),nick))
 			{
 				/*
 				 *  wooohoooo! they gave me ops!!!
@@ -824,7 +827,7 @@ modeloop:
 			victim->flags &= ~(CU_CHANOP|CU_DEOPPED);
 			if (i == BOTLEVEL)
 			{
-				if (!nickcmp(current->nick,nick))
+				if (!nickcmp(getbotnick(current),nick))
 				{
 					/*
 					 *  they dont love me!!! :~(
@@ -1105,7 +1108,7 @@ void on_action(char *from, char *to, char *rest)
 	{
 		partyline_broadcast(CurrentDCC,"* %s %s\n",rest);
 #ifdef BOTNET
-		botnet_relay(NULL,"PM* * %s@%s \001%s\n",CurrentNick,current->nick,rest);
+		botnet_relay(NULL,"PM* * %s@%s \001%s\n",CurrentNick,getbotnick(current),rest);
 #endif /* BOTNET */
 		return;
 	}

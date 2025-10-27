@@ -104,7 +104,7 @@ void send_spy(const char *src, const char *format, ...)
 #ifdef DEBUG
 	if (src != SPYSTR_RAWIRC) /* too much debug spam */
 	debug("(send_spy) src <%s> format = '%s', current = '%s' (%i)\n",src,format,
-		(current == NULL) ? "<NULL>" : nullstr(current->nick),(current == NULL) ? -1 : current->guid);
+		(current == NULL) ? "<NULL>" : getbotnick(current),(current == NULL) ? -1 : current->guid);
 #endif /* DEBUG */
 
 	for(spy=current->spylist;spy;spy=spy->next)
@@ -428,7 +428,7 @@ void send_redirect(char *message)
 			Mech	*backup;
 
 			/* PM<targetguid> <targetuserhost> <source> <message> */
-			sprintf(tempdata,"%i %s %s %s",redirect.guid,redirect.to,current->nick,message);
+			sprintf(tempdata,"%i %s %s %s",redirect.guid,redirect.to,getbotnick(current),message);
 			backup = current;
 			partyMessage(NULL,tempdata);
 			current = backup;
@@ -770,7 +770,7 @@ spy_dest_ok:
 	debug("(do_spy) src = `%s'; t_src = %i (%s); dest = `%s'; t_dest = %i (%s), CurrentDCC "mx_pfmt"\n",
 		src,t_src,SPY_DEFS[t_src-1],nullstr(dest),t_dest,SPY_DEFS[t_dest-1],CurrentDCC);
 	if (guid >= 0)
-		debug("(do_spy) spying from remote bot guid %i (%s), channel %s\n",guid,(destbot) ? destbot->nick : "unknown",src);
+		debug("(do_spy) spying from remote bot guid %i (%s), channel %s\n",guid,(destbot) ? getbotnick(destbot) : "unknown",src);
 #endif /* DEBUG */
 
 	if (t_dest == SPY_DCC)

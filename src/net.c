@@ -206,8 +206,8 @@ void botnet_refreshbotinfo(void)
 	Server	*sv;
 
 	sv = find_server(current->server);
-	botnet_relay(NULL,"BL%i 0 %s!%s %s:%i %s %s\n",	current->guid,current->nick,
-		(current->userhost) ? current->userhost : UNKNOWNATUNKNOWN,
+	botnet_relay(NULL,"BL%i 0 %s!%s %s:%i %s %s\n",	current->guid,getbotnick(current),
+		getbotuserhost(current),
 		(sv) ? ((*sv->realname) ? sv->realname : sv->name) : UNKNOWN,
 		(sv) ? sv->port : 0,BOTCLASS,VERSION);
 #ifdef DEBUG
@@ -248,8 +248,8 @@ void botnet_dumplinklist(BotNet *bn)
 		 */
 		sv = find_server(bot->server);
 		to_file(bn->sock,"BL%i %c %s!%s %s:%i %s %s\n",bot->guid,
-			(bot == bn->controller) ? '0' : '1',bot->nick,
-			(bot->userhost) ? bot->userhost : UNKNOWNATUNKNOWN,
+			(bot == bn->controller) ? '0' : '1',getbotnick(bot),
+			getbotuserhost(bot),
 			(sv) ? ((*sv->realname) ? sv->realname : sv->name) : UNKNOWN,
 			(sv) ? sv->port : 0,BOTCLASS,VERSION);
 	}
@@ -987,7 +987,7 @@ int commandlocal(int dg, int sg, char *from, char *command)
 			*p2 = current->setting[CHR_CMDCHAR].char_var;
 			stringcpy((*p2 == *command) ? p2 : p2+1,command);
 
-			on_msg(p1,current->nick,p2);
+			on_msg(p1,getbotnick(current),p2);
 			CurrentDCC = NULL;
 		}
 		if (dg == -1)

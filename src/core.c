@@ -33,22 +33,6 @@
 #include <sys/utsname.h>
 #endif /* HOSTINFO */
 
-#ifdef IDWRAP
-
-void unlink_identfile(void)
-{
-	if (current->identfile)
-	{
-#ifdef DEBUG
-		debug("(unlink_identfile) unlink(%s)\n",current->identfile);
-#endif /* DEBUG */
-		unlink(current->identfile);
-		Free((char**)&current->identfile);
-	}
-}
-
-#endif /* IDWRAP */
-
 int conf_callback(char *line)
 {
 
@@ -57,7 +41,7 @@ int conf_callback(char *line)
 
 	fix_config_line(line);
 
-	on_msg((char*)CoreUser.name,current->nick,line);
+	on_msg((char*)CoreUser.name,getbotnick(current),line);
 	return(FALSE);
 }
 
@@ -108,7 +92,7 @@ void readcfgfile(void)
 	}
 
 	if ((current) && (current->chanlist == NULL))
-		to_file(1,"%s %s will not join any channels\n",ERR_INIT,current->nick);
+		to_file(1,"init: Warning: %s will not join any channels\n",getbotnick(current));
 
 	oc = 0;
 #ifdef DEBUG
@@ -123,8 +107,8 @@ void readcfgfile(void)
 			to_file(1,", ...");
 			break;
 		}
-		to_file(1,"%s%s",(oc > 0) ? ", " : "",bot->nick);
-		oc += strlen(bot->nick);
+		to_file(1,"%s%s",(oc > 0) ? ", " : "",getbotnick(bot));
+		oc += getbotnicklen(bot);
 	}
 	to_file(1," ]\n");
 #ifdef DEBUG
@@ -243,7 +227,7 @@ int write_session(void)
 
 	for(bot=botlist;bot;bot=bot->next)
 	{
-		to_file(sf,"nick %i %s\n",bot->guid,bot->wantnick);
+		to_file(sf,"nick %i %s\n",bot->guid,getbotwantnick(bot));
 		/*
 		 *  current->setting contains channel defaults and global vars
 		 */
@@ -327,22 +311,6 @@ int write_session(void)
  *  Bot nicking, adding and killing
  */
 
-void setbotnick(Mech *bot, char *nick)
-{
-	/*
-	 *  if its exactly the same we dont need to change it
-	 */
-	if (!stringcmp(bot->nick,nick))
-		return;
-
-	Free((char**)&bot->nick);
-	set_mallocdoer(setbotnick);
-	bot->nick = stringdup(nick);
-#ifdef BOTNET
-	botnet_refreshbotinfo();
-#endif /* BOTNET */
-}
-
 Mech *add_bot(int guid, char *nick)
 {
 	Mech	*bot;
@@ -352,10 +320,8 @@ Mech *add_bot(int guid, char *nick)
 	bot->connect = CN_NOSOCK;
 	bot->sock = -1;
 	bot->guid = guid;
-	set_mallocdoer(add_bot);
-	bot->nick = stringdup(nick);
-	set_mallocdoer(add_bot);
-	bot->wantnick = stringdup(nick);
+	setbotnick(bot,nick);
+	setbotwantnick(bot,nick);
 	set_binarydefault(bot->setting);
 	bot->next = botlist;
 	botlist = bot;
@@ -375,7 +341,7 @@ void signoff(char *from, char *reason)
 
 	if (from)
 	{
-		to_user(from,"Killing mech: %s",current->nick);
+		to_user(from,"Killing mech: %s",getbotnick(current));
 		to_user(from,"Saving the lists...");
 	}
 	fname = current->setting[STR_USERFILE].str_var;
@@ -419,9 +385,6 @@ void signoff(char *from, char *reason)
 
 	if (current->sock != -1)
 	{
-#ifdef IDWRAP
-		unlink_identfile();
-#endif /* IDWRAP */
 		if (!reason)
 			reason = randstring(SIGNOFFSFILE);
 		to_server("QUIT :%s\n",(reason) ? reason : "");
@@ -451,9 +414,6 @@ void signoff(char *from, char *reason)
 	/*
 	 *  little of this n that
 	 */
-	Free((char**)&current->nick);
-	Free((char**)&current->wantnick);
-	Free((char**)&current->userhost);
 
 	/*
 	 *  These 2 are used by do_die() to pass reason and doer.
@@ -481,10 +441,6 @@ void signoff(char *from, char *reason)
 	 */
 	if ((current = botlist) == NULL)
 	{
-#if defined(BOUNCE) && defined(IDWRAP)
-		bounce_cleanup();
-#endif /* BOUNCE && IDWRAP */
-
 #ifdef TRIVIA
 		write_triviascore();
 #endif /* TRIVIA */
@@ -759,7 +715,7 @@ void register_with_server(void)
 	to_server((sendpass) ? "PASS :%s\nNICK %s\nUSER %s " MECHUSERLOGIN " 0 :%s\n" :
 		"%sNICK %s\nUSER %s " MECHUSERLOGIN " 0 :%s\n",
 		(sendpass) ? sp->pass : "",
-		current->wantnick,
+		getbotwantnick(current),
 		(ident) ? ident : BOTLOGIN,
 		(ircname) ? ircname : VERSION);
 	current->connect = CN_CONNECTED;
@@ -1034,8 +990,8 @@ void update(SequenceTime *this)
 		if ((now - current->lastreset) > RESETINTERVAL)
 		{
 			current->lastreset = now;
-			if (stringcmp(current->nick,current->wantnick))
-				to_server("NICK %s\n",current->wantnick);
+			if (stringcmp(getbotnick(current),getbotwantnick(current)))
+				to_server("NICK %s\n",getbotwantnick(current));
 			check_idlekick();
 			if ((x = current->setting[INT_AAWAY].int_var) && current->away == FALSE)
 			{
@@ -1134,10 +1090,10 @@ void process_server_input(void)
 
 	if (FD_ISSET(current->sock,&write_fds))
 	{
-		setbotnick(current,current->wantnick);
+		setbotnick(current,getbotwantnick(current));
 #ifdef DEBUG
 		debug("[PSI] {%i} connection established (%s) [ASYNC]\n",
-			current->sock,current->wantnick);
+			current->sock,getbotwantnick(current));
 #endif /* DEBUG */
 #ifdef WINGATE
 		if ((current->vhost_type & VH_WINGATE_BOTH) == VH_WINGATE)
@@ -1170,10 +1126,6 @@ void process_server_input(void)
 		 *  send NICK, USER and maybe PASS
 		 */
 		register_with_server();
-#ifdef IDWRAP
-		if (current->sock == -1)
-			unlink_identfile();
-#endif /* IDWRAP */
 		return;
 	}
 	if (FD_ISSET(current->sock,&read_fds))
@@ -1244,9 +1196,6 @@ breaksock:
 #endif /* DEBUG */
 breaksock2:
 	*current->sockdata = 0;
-#ifdef IDWRAP
-	unlink_identfile();
-#endif /* IDWRAP */
 	close(current->sock);
 	current->sock = -1;
 	current->connect = CN_NOSOCK;
@@ -1287,11 +1236,11 @@ void do_core(COMMAND_ARGS)
 			bu++;
 	}
 
-	i = stringcmp(current->nick,current->wantnick);
+	i = stringcmp(getbotnick(current),getbotwantnick(current));
 	if (i)
-		table_buffer(TEXT_CURRNICKWANT,current->nick,current->wantnick,current->guid);
+		table_buffer(TEXT_CURRNICKWANT,getbotnick(current),getbotwantnick(current),current->guid);
 	else
-		table_buffer(TEXT_CURRNICKHAS,current->nick,current->guid);
+		table_buffer(TEXT_CURRNICKHAS,getbotnick(current),current->guid);
 	table_buffer(TEXT_USERLISTSTATS,u,su,EXTRA_CHAR(su),bu,EXTRA_CHAR(bu));
 
 	pt = tmp;
@@ -1716,15 +1665,15 @@ void do_nick(COMMAND_ARGS)
 	char	*nick;
 	int	guid;
 
-	nick = chop(&rest);
-	if (!nick || !*nick)
+	if (!rest || !*rest)
 	{
 		usage(from);	/* usage for CurrentCmd->name */
 		return;
 	}
+	nick = chop(&rest);
 	guid = asc2int(nick);
 	backup = current;
-	if (!errno)
+	if (errno == 0) /* we got a number */
 	{
 		nick = chop(&rest);
 		for(current=botlist;current;current=current->next)
@@ -1735,7 +1684,7 @@ void do_nick(COMMAND_ARGS)
 				break;
 		}
 	}
-	if (!is_nick(nick))
+	if (is_nick(nick) == FALSE)
 	{
 		current = backup;
 		to_user(from,ERR_NICK,nick);
@@ -1756,15 +1705,11 @@ void do_nick(COMMAND_ARGS)
 	{
 		if (current->guid == 0)
 		{
-			Free((char**)&current->nick);
-			set_mallocdoer(do_nick);
-			current->nick = stringdup(nick);
-			current->guid = guid;
+			setbotnick(current,nick);
+			current->guid = guid; /* guid might be undefined? */
 		}
-		Free((char**)&current->wantnick);
-		set_mallocdoer(do_nick);
-		current->wantnick = stringdup(nick);
-		to_server("NICK %s\n",current->wantnick);
+		setbotwantnick(current,nick);
+		to_server("NICK %s\n",getbotwantnick(current));
 	}
 	current = backup;
 }
