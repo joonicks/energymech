@@ -554,7 +554,7 @@ cf_cflags=
 if [ -n "$CFLAGS" ]; then
   if $CC $CFLAGS -c -o $TESTO $TESTC 1> /dev/null 2> /dev/null && test -r $TESTO; then
     cf_cflags="$CFLAGS"
-    echo $ac_n "$CFLAGS "$ac_c
+    echo $ac_n "$CFLAGS (from environment CFLAGS) "$ac_c
   fi
 fi
 
@@ -616,12 +616,10 @@ if [ -z "$cf_cflags" -a -n "$cf_GNUCC" ]; then
   #
   #  -fomit-frame-pointer
   #
-  if [ ! "$ft_prof" = yes ]; then
-    if [ -z "$cc_ofp_opt" -o "$cc_ofp_opt" = yes ]; then
-      if $CC -fomit-frame-pointer -c -o $TESTO $TESTC 1> /dev/null 2> /dev/null && test -r $TESTO; then
-        cc_ofp_flag=-fomit-frame-pointer
-        echo $ac_n "-fomit-frame-pointer "$ac_c
-      fi
+  if [ -z "$cc_ofp_opt" -o "$cc_ofp_opt" = yes ]; then
+    if $CC -fomit-frame-pointer -c -o $TESTO $TESTC 1> /dev/null 2> /dev/null && test -r $TESTO; then
+      cc_ofp_flag=-fomit-frame-pointer
+      echo $ac_n "-fomit-frame-pointer "$ac_c
     fi
   fi
 fi
@@ -635,7 +633,7 @@ fi
 
 oflag="-O2"
 if [ "$optitype" = size ]; then
-  oflag="-Os -fcf-protection=none"
+  oflag="-Os"
 fi
 
 if [ -z "$cf_cflags" -a -z "$cc_optimize_opt" ]; then
@@ -648,6 +646,14 @@ if [ -z "$cf_cflags" -a -z "$cc_optimize_opt" ]; then
       cc_optimize_flag="-O"
       echo $ac_n "-O "$ac_c
     fi
+  fi
+fi
+
+cc_omitprotect_flag=""
+if [ "$optitype" = size ]; then
+  if $CC $oflag -fcf-protection=none -o $TESTO $TESTC 1> /dev/null 2> /dev/null; then
+    cc_omitprotect_flag="-fcf-protection=none "
+    echo $ac_n "$cc_omitprotect_flag "$ac_c
   fi
 fi
 
@@ -1420,7 +1426,7 @@ test -z "$ans" -o "$ans" = y -o "$ans" = Y -o "$ans" = yes -o "$ans" = YES -o "$
 $out ''
 echo "Creating src/Makefile"
 
-O_FLAGS="$cc_optimize_flag $cc_arch_flag $cc_march_flag $cc_ofp_flag"
+O_FLAGS="$cc_optimize_flag $cc_arch_flag $cc_march_flag $cc_ofp_flag $cc_omitprotect_flag"
 W_FLAGS="$cc_wall_flag $cc_wshadow_flag $cc_fnostrictalias"
 libflags="$libcrypt $libtcl $libnsl $libsocket $libresolv $libpython $libperl"
 lflags="$cc_g_flag -o"
