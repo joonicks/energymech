@@ -616,10 +616,12 @@ if [ -z "$cf_cflags" -a -n "$cf_GNUCC" ]; then
   #
   #  -fomit-frame-pointer
   #
-  if [ -z "$cc_ofp_opt" -o "$cc_ofp_opt" = yes ]; then
-    if $CC -fomit-frame-pointer -c -o $TESTO $TESTC 1> /dev/null 2> /dev/null && test -r $TESTO; then
-      cc_ofp_flag=-fomit-frame-pointer
-      echo $ac_n "-fomit-frame-pointer "$ac_c
+  if [ ! "$ft_prof" = yes ]; then
+    if [ -z "$cc_ofp_opt" -o "$cc_ofp_opt" = yes ]; then
+      if $CC -fomit-frame-pointer -c -o $TESTO $TESTC 1> /dev/null 2> /dev/null && test -r $TESTO; then
+        cc_ofp_flag=-fomit-frame-pointer
+        echo $ac_n "-fomit-frame-pointer "$ac_c
+      fi
     fi
   fi
 fi
