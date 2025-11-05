@@ -92,7 +92,6 @@ LS const struct
 { "Seen",		sizeof(Seen)		},
 #endif /* SEEN */
 { "Server",		sizeof(Server)		},
-{ "ServerGroup",	sizeof(ServerGroup)	},
 { "Setting",		sizeof(Setting)		},
 { "Shit",		sizeof(Shit)		},
 { "Spy\t",		sizeof(Spy)		},
@@ -142,7 +141,6 @@ LS struct
 {	do_die,				"do_die"			RARE_SE },
 {	do_nick,			"do_nick"			CMD1_SE },
 {	do_kicksay,			"do_kicksay"			CMD1_SE },
-{	do_servergroup,			"do_servergroup"		CMD1_SE },
 {	do_set,				"do_set"			CMD1_SE },
 {	do_spy,				"do_spy"			CMD1_SE },
 {	join_channel,			"join_channel"			CFG1_SE },
@@ -169,6 +167,7 @@ LS struct
 {	send_mode,			"send_mode"			},
 {	set_str_varc,			"set_str_varc"			CFG1_SE },
 {	set_mix16,			"set_mix16"			CORE_SE },
+{	set_mix64,			"set_mix64"			CORE_SE },
 {	sig_hup,			"sig_hup"			RARE_SE },
 {	table_buffer,			"table_buffer"			},
 #ifdef ALIAS
@@ -502,7 +501,6 @@ char *atime(time_t when)
 
 void debug_server(Server *sp, char *pad)
 {
-	ServerGroup *sg;
 	char	*pl;
 
 	if (!sp)
@@ -516,17 +514,9 @@ void debug_server(Server *sp, char *pad)
 	debug("%s; ident\t\t%i\n",pad,sp->ident);
 	debug("%s; name\t\t\"%s\"\n",pad,nullbuf(sp->name));
 	debug("%s; pass\t\t\"%s\"\n",pad,nullbuf(sp->pass));
+	debug("%s; group\t\t\"%s\"\n",pad,nullbuf(sp->group));
 	debug("%s; realname\t\t\"%s\"\n",pad,nullbuf(sp->realname));
 	debug("%s; usenum\t\t%i\n",pad,sp->usenum);
-	sg = getservergroupid(sp->servergroup);
-	if (sg)
-	{
-		debug("%s; servergroup\t%s%i \"%s\"\n",pad,pl,sp->servergroup,sg->name);
-	}
-	else
-	{
-		debug("%s; servergroup\t%s%i (unknown)\n",pad,pl,sp->servergroup);
-	}
 	debug("%s; port\t\t%i\n",pad,sp->port);
 	debug("%s; err\t\t%s%s (%i)\n",pad,pl,strdef(SPdefs,sp->err),sp->err);
 	debug("%s; lastconnect\t%s%s (%lu)\n",pad,pl,atime(sp->lastconnect),sp->lastconnect);
@@ -825,7 +815,6 @@ void debug_core(void)
 	Seen	*seen;
 #endif /* SEEN */
 	Server	*sp;
-	ServerGroup *sg;
 	Spy	*spy;
 	Strp	*st;
 	Shit	*shit;
@@ -856,25 +845,7 @@ void debug_core(void)
 	debug("; executable\t\t\"%s\"\n",executable);
 	debug("; configfile\t\t\"%s\"\n",configfile);
 	debug("; uptime\t\t%s (%lu)\n",atime(uptime),uptime);
-	debug("; short_tv\t\t%s (%is wait)\n",boolstr(short_tv),(short_tv) ? 1 : 30);
-	debug("> currentservergroup\t"mx_pfmt"\n",(mx_ptr)currentservergroup);
-	if (currentservergroup)
-	{
-		sg = currentservergroup;
-		debug("  ; next\t\t"mx_pfmt"\n",(mx_ptr)sg->next);
-		debug("  ; servergroup\t\t%i\n",sg->servergroup);
-		debug("  ; name\t\t\"%s\"\n",nullbuf(sg->name));
-		debug("  ; ---\n");
-	}
-	debug("> servergrouplist\t"mx_pfmt"\n",(mx_ptr)servergrouplist);
-	for(sg=servergrouplist;sg;sg=sg->next)
-	{
-		memtouch(sg);
-		debug("  ; next\t\t"mx_pfmt"\n",(mx_ptr)sg->next);
-		debug("  ; servergroup\t\t%i\n",sg->servergroup);
-		debug("  ; name\t\t\"%s\"\n",nullbuf(sg->name));
-		debug("  ; ---\n");
-	}
+	debug("; short_tv\t\t%s (%is wait)\n",boolstr(cx.short_tv),(cx.short_tv) ? 1 : 30);
 	debug("> serverlist\t\t"mx_pfmt"\n",(mx_ptr)serverlist);
 	for(sp=serverlist;sp;sp=sp->next)
 	{
@@ -1448,7 +1419,7 @@ void do_debug(COMMAND_ARGS)
 	int	m;
 
 	arg = chop(&rest);
-	if (strcasecmp(arg,"off") == 0)
+	if (arg && strcasecmp(arg,"off") == 0)
 	{
 		if (debugfile && debugfilemalloc == TRUE)
 			Free(&debugfile);
@@ -1458,7 +1429,7 @@ void do_debug(COMMAND_ARGS)
 		to_user(from,"Debug output turned off");
 		return;
 	}
-	if (strcasecmp(arg,"on") == 0)
+	if (arg && strcasecmp(arg,"on") == 0)
 	{
 		m = is_safepath(rest,FILE_MAY_EXIST);
 		debug("(do_debug) turn on, rest = '%s', %i\n",rest,m);
@@ -1468,7 +1439,7 @@ void do_debug(COMMAND_ARGS)
 				Free(&debugfile);
 			debugfilemalloc = TRUE;
 			set_mallocdoer(do_debug);
-			debugfile = strdup(rest);
+			debugfile = stringdup(rest);
 			dodebug = TRUE;
 			to_user(from,"Debug output turned on, Output = %s",rest);
 		}

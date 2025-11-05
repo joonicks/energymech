@@ -1,7 +1,7 @@
 /*
 
     EnergyMech, IRC bot software
-    Copyright (c) 1997-2024 proton
+    Copyright (c) 1997-2025 proton
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -24,7 +24,7 @@
 #ifdef MAIN_C
 
 #define MDEF(x)		= x
-#define BEG		LS
+#define BEG
 
 #else /* MAIN_C */
 
@@ -39,6 +39,22 @@
  *
  */
 
+struct CoreData		/* Collect core data all in one place */
+{
+	time_t	now;
+	Mech	*current;
+	char	*rest_end;
+	char	*chop_end;
+	int	socksmodified;
+	int	hisock;
+	int	short_tv;
+};
+
+BEG struct CoreData cx;
+
+#define now	cx.now
+#define current	cx.current
+
 #define DEFAULTCMDCHAR			'-'
 #define MECHUSERLOGIN			"v3.energymech.net"
 
@@ -52,6 +68,10 @@ BEG const char BOTCLASS[]		MDEF("EnergyMech");
 BEG const char BOTLOGIN[]		MDEF("emech");
 
 BEG const char NULLSTR[]		MDEF("<NULL>");
+#define	       EMPTYSTR			(&NULLSTR[6])
+BEG const char DEFAULTSTR[]		MDEF("default");
+BEG const char UNKNOWNATUNKNOWN[]	MDEF("unknown@unknown");
+#define	       UNKNOWN			(&UNKNOWNATUNKNOWN[8])
 
 BEG const char ERR_CHAN[]		MDEF("I'm not on %s");
 BEG const char ERR_FILEOPEN[]		MDEF("Couldn't open the file %s");
@@ -80,7 +100,6 @@ BEG const char FMT_6XSTRTAB[]		MDEF("%s\t%s\t%s\t%s\t%s\t%s");
 #define FMT_PLAIN			&FMT_6XSTRTAB[15]
 
 BEG Mech	*botlist		MDEF(NULL);
-BEG Mech	*current;
 
 BEG char	*executable;
 BEG char	*configfile		MDEF(CFGFILE);
@@ -98,9 +117,6 @@ BEG ino_t	parent_inode;
 BEG KillSock	*killsocks		MDEF(NULL);
 
 BEG Server	*serverlist		MDEF(NULL);
-BEG ServerGroup	*servergrouplist	MDEF(NULL);
-BEG ServerGroup	*currentservergroup	MDEF(NULL);
-BEG int		servergroupid		MDEF(0);
 BEG int		serverident		MDEF(1);
 
 BEG char	CurrentNick[NUHLEN];
@@ -130,14 +146,6 @@ BEG char	nuh_buf[NUHLEN];
 
 BEG fd_set	read_fds;
 BEG fd_set	write_fds;
-BEG int		hisock;
-BEG int		short_tv;
-
-/*
- *  current UNIX timestamp
- */
-
-BEG time_t	now;
 
 /*
  *  defined features
@@ -150,9 +158,6 @@ BEG Alias	*aliaslist		MDEF(NULL);
 #endif /* ALIAS */
 
 #ifdef BOTNET
-
-BEG const char	UNKNOWNATUNKNOWN[]	MDEF("unknown@unknown");
-#define		UNKNOWN			(&UNKNOWNATUNKNOWN[8])
 
 BEG BotNet	*botnetlist		MDEF(NULL);
 BEG NetCfg	*netcfglist		MDEF(NULL);
@@ -204,6 +209,8 @@ BEG Note	*notelist		MDEF(NULL);
 
 #ifdef RAWDNS
 
+BEG int		dnssock			MDEF(-1);
+BEG int		dnsserver		MDEF(0);
 BEG dnsList	*dnslist		MDEF(NULL);
 BEG dnsAuthority *dnsroot		MDEF(NULL);
 BEG struct in_addr ia_ns[MAX_NAMESERVERS];
@@ -308,7 +315,7 @@ BEG int		spawning_lamer		MDEF(0);
 /*
  *  tolowertab blatantly ripped from ircu2.9.32
  */
-LS const uchar tolowertab[256] =
+const uchar tolowertab[256] =
 {
 	0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
 	0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
@@ -347,7 +354,7 @@ LS const uchar tolowertab[256] =
 /*
  *  be wary, this is not a normal upper-to-lower table...
  */
-LS const uchar nickcmptab[256] =
+const uchar nickcmptab[256] =
 {
 	0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
 	0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
@@ -383,7 +390,7 @@ LS const uchar nickcmptab[256] =
 	0xf8, 0xf9, 0xfa, 0xfb, 0xfc, 0xfd, 0xfe, 0xff
 };
 
-LS const uchar attrtab[256] =
+const uchar attrtab[256] =
 {
 	0,	0,	0,	0,	0,	0,	0,	0,	/* 0x00 - 0x07 */
 	0,	0,	CRLF,	0,	0,	CRLF,	0,	0,	/* 0x08 - 0x0F */
@@ -426,7 +433,7 @@ LS const uchar attrtab[256] =
 /*
  *  user struct for the core client
  */
-LS const Strp CMA =
+const Strp CMA =
 {
 	NULL,
 	"*"
@@ -435,7 +442,7 @@ LS const Strp CMA =
 /*
  *  client struct for the core client
  */
-LS ShortClient CoreClient =
+ShortClient CoreClient =
 {
 	NULL,			/* next */
 	(User*)&CoreUser,	/* user */
@@ -445,27 +452,13 @@ LS ShortClient CoreClient =
 	0			/* lasttime */
 };
 
-LS ShortChan CoreChan =
+ShortChan CoreChan =
 {
 	NULL,
 	NULL
 };
 
-typedef struct coreServerGroup
-{
-	ServerGroup	*next;
-	int		servergroup;
-	char		name[8];
-} coreServerGroup;
-
-LS coreServerGroup defaultServerGroup =
-{
-	NULL,			/* next */
-	0,			/* servergroup */
-	"default"		/* name */
-};
-
-LS struct
+struct
 {
 	const char *string;
 	const int id;
@@ -487,7 +480,6 @@ extern const User xxCoreUser;
 extern const User xxLocalBot;
 extern ShortClient CoreClient;
 extern ShortChan CoreChan;
-extern ServerGroup defaultServerGroup;
 
 #endif /* MAIN_C */
 

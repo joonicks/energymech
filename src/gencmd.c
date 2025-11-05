@@ -176,11 +176,11 @@ void make_mcmd(int mode)
 		}
 		if (pass == __struct_acces_2)
 		{
-			to_file(fd,"LS OnMsg_access acmd[] =\n{\n");
+			to_file(fd,"OnMsg_access acmd[] =\n{\n");
 		}
 		if (pass == __struct_print_1)
 		{
-			to_file(fd,"LS const OnMsg mcmd[] =\n{\n");
+			to_file(fd,"const OnMsg mcmd[] =\n{\n");
 		}
 
 #ifdef HEATMAP
@@ -229,6 +229,7 @@ void make_mcmd(int mode)
 			}
 			if (pass == __struct_print_1)
 			{
+				char noargfunc[64];
 				h = mkhash(cmdstr);
 				hashmap[h] = i;
 
@@ -249,8 +250,9 @@ void make_mcmd(int mode)
 				v.cbang  = (pre_mcmd[cmdidx].flags & CBANG)  ? 1 : 0;
 				v.acchan = (pre_mcmd[cmdidx].flags & ACCHAN) ? 1 : 0;
 				v.supres = (pre_mcmd[cmdidx].flags & SUPRES) ? 1 : 0;
+				v.noargf = (pre_mcmd[cmdidx].flags & NOARGF) ? 1 : 0;
 
-				sprintf(tmp,"%3i,%2i,%2i,%2i,%2i,%2i,%2i,%2i,%2i,%2i,%2i,%2i,%2i,%2i",
+				sprintf(tmp,"%3i,%2i,%2i,%2i,%2i,%2i,%2i,%2i,%2i,%2i,%2i,%2i,%2i,%2i,%2i",
 					v.defaultaccess,
 					v.dcc,
 					v.cc,
@@ -264,7 +266,8 @@ void make_mcmd(int mode)
 					v.lbuf,
 					v.cbang,
 					v.acchan,
-					v.supres
+					v.supres,
+					v.noargf
 					);
 
 				tabs = "\t\t\t";
@@ -278,14 +281,21 @@ void make_mcmd(int mode)
 				else
 					tabx = tabs + 3;
 
+				if (v.noargf)
+					sprintf(noargfunc,"%s_noargs",pre_mcmd[cmdidx].func);
+				else
+					strcpy(noargfunc,"0");
 				adj = strlen(pre_mcmd[cmdidx].func);
 				tabs += 1 + ((adj > 6));
 
 				//to_file(fd,"/""* %3i=%3i *""/",h,i);
-				to_file(fd,(pre_mcmd[cmdidx].cmdarg) ? "{ C_%s,%s\t%s,%s%s\t, \"%s\"\t},\n" : "{ C_%s,%s\t%s,%s%s\t},\n",
+				to_file(fd,(pre_mcmd[cmdidx].cmdarg) ?
+					"{ C_%s,%s\t%s,%s,%s%s\t, \"%s\"\t},\n" :
+					"{ C_%s,%s\t%s,%s,%s%s\t},\n",
 					cmdstr,
 					tabx,
 					pre_mcmd[cmdidx].func,
+					noargfunc,
 					tabs,
 					tmp,
 					pre_mcmd[cmdidx].cmdarg

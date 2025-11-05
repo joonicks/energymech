@@ -418,6 +418,25 @@ int make_auth(const char *userhost, const User *user)
  *
  */
 
+void do_auth_noargs(const char *from)
+{
+	Auth	*au;
+
+	if (get_authaccess(from,MATCH_ALL) < 100)
+		return;
+
+	/* no args + owner: List active auths */
+	table_buffer("\037Active Auths\037");
+	if (current->authlist == NULL)
+		table_buffer("(none)");
+	for(au=current->authlist;au;au=au->next)
+	{
+		table_buffer("%s\t%i\t%s\t%s",au->user->name,au->user->x.x.access,au->nuh,
+			idle2str(au->active,TRUE));
+	}
+	table_send(from,3);
+}
+
 /*
 help:AUTH
 help:VERIFY
@@ -443,22 +462,7 @@ void do_auth(COMMAND_ARGS)
 	char	*pass;
 	int	hostmatch;
 
-	if ((pass = chop(&rest)) == NULL)
-	{
-		if (get_authaccess(from,MATCH_ALL) == 100)
-		{
-			/* empty pass + owner: List active auths */
-			table_buffer("\037Active Auths\037");
-			if (current->authlist == NULL)
-				table_buffer("(none)");
-			for(au=current->authlist;au;au=au->next)
-			{
-				table_buffer("%s\t%i\t%s\t%s",au->user->name,au->user->x.x.access,au->nuh,idle2str(now - au->active,TRUE));
-			}
-			table_send(from,3);
-		}
-		return;
-	}
+	pass = chop(&rest);
 
 	/*
 	 *  chop chop

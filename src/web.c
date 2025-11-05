@@ -165,7 +165,7 @@ restart:
 			client->echan = (client->ebot) ? client->ebot->chanlist : NULL;
 			break;
 		case 'b':
-			src = (client->ebot) ? client->ebot->nick : (char*)NULLSTR;
+			src = (client->ebot) ? getbotnick(client->ebot) : (char*)NULLSTR;
 			while(*src)
 			{
 				NOBO;
@@ -328,7 +328,7 @@ void web_botstatus(WebSock *client, char *url)
 		"<h1>EnergyMech Status</h1>\r\n"
 		"Uptime: %s<br><br>\r\n"
 		"<u>Current bots</u>:<br>\r\n",
-		idle2str(now - uptime,FALSE));
+		idle2str(uptime,FALSE));
 
 	for(;bot;bot=bot->next)
 	{

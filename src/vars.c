@@ -257,7 +257,7 @@ void ec_set(char *from, const char *to)
 
 void ec_on(char *from, const char *to)
 {
-	nobo_strcpy(idle2str(now - current->ontime,FALSE));
+	nobo_strcpy(idle2str(current->ontime,FALSE));
 }
 
 void ec_server(char *from, const char *to)
@@ -274,7 +274,7 @@ void ec_server(char *from, const char *to)
 
 void ec_up(char *from, const char *to)
 {
-	nobo_strcpy(idle2str(now - uptime,FALSE));
+	nobo_strcpy(idle2str(uptime,FALSE));
 }
 
 void ec_ver(char *from, const char *to)
@@ -594,6 +594,9 @@ num_data_ok:
 	}
 	to_user(from,"Var: %s   On: %s   Set to: %s",VarName[which].name,
 		(which >= CHANSET_SIZE) ? "(global)" : channel,(*rest) ? rest : NULLSTR);
-	if (VarName[which].func)
-		VarName[which].func(&VarName[which]);
+	/*
+	 *  if there is an onchange function
+	 */
+	if (VarName[which].onchangefunc)
+		VarName[which].onchangefunc(&VarName[which]);
 }

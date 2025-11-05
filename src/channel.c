@@ -40,13 +40,15 @@ void check_idlekick(void)
 
 	for(chan=current->chanlist;chan;chan=chan->next)
 	{
+		if (!chan->bot_is_op)
+			continue;
 		limit = chan->setting[INT_IKT].int_var;
+		if (limit == 0)
+			continue;
 		timeout = (now - (60 * limit));
 		for(cu=chan->users;cu;cu=cu->next)
 		{
 			cu->flags &= ~CU_KSWARN;	/* remove KS warnings */
-			if (!chan->bot_is_op || limit == 0)
-				continue;
 			if (cu->flags & CU_CHANOP)
 				continue;
 			if (timeout < cu->idletime)
@@ -1188,7 +1190,7 @@ void do_showidle(COMMAND_ARGS)
 	{
 		if (n >= (now - cu->idletime))
 			continue;
-		table_buffer("%s\r %s\t%s",idle2str((now - cu->idletime),TRUE),cu->nick,cu->userhost);
+		table_buffer("%s\r %s\t%s",idle2str(cu->idletime,TRUE),cu->nick,cu->userhost);
         }
 	table_send(from,1);
 }
@@ -1219,5 +1221,5 @@ void do_idle(COMMAND_ARGS)
 		to_user(from,TEXT_UNKNOWNUSER,rest);
 		return;
 	}
-	to_user(from,"%s has been idle for %s",rest,idle2str(now - cu2->idletime,TRUE));
+	to_user(from,"%s has been idle for %s",rest,idle2str(cu2->idletime,TRUE));
 }

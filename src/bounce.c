@@ -181,7 +181,10 @@ void bounce_parse(ircLink *irc, char *message)
 	}
 }
 
-void new_port_bounce(const struct Setting *no_op)
+/*
+ *  any time setting is changed
+ */
+void new_port_bounce(const struct Setting *dontcare)
 {
 	if (bounce_sock != -1)
 		close(bounce_sock);

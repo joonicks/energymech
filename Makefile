@@ -62,7 +62,7 @@ SRCFILES =	src/alias.c src/auth.c src/bounce.c src/calc.c src/channel.c src/core
 		src/irc.c src/main.c src/net.c src/note.c src/ons.c src/parse.c src/partyline.c \
 		src/perl.c src/prot.c src/python.c src/reset.c src/seen.c src/shit.c src/io.c \
 		src/spy.c src/tcl.c src/toybox.c src/uptime.c src/user.c src/vars.c src/web.c \
-		src/lib/md5.c src/lib/md5.h src/lib/string.c
+		src/lib/md5.c src/lib/md5.h src/string.c
 
 HDRFILES =	src/commands.h src/defines.h src/global.h src/h.h src/onhash.h src/settings.h \
 		src/structs.h src/text.h src/usage.h

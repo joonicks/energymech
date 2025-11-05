@@ -511,6 +511,8 @@ char *idle2str(time_t when, int small)
 	char	*dst;
 	int	n,z[4];
 
+	when = now - when;
+
 	z[0] = when / 86400;
 	z[1] = (when -= z[0] * 86400) / 3600;
 	z[2] = (when -= z[1] * 3600) / 60;
@@ -522,7 +524,7 @@ char *idle2str(time_t when, int small)
 	/* xx : "59 seconds" */
 	if (small)
 	{
-		char *f[] = {"day","hour","minute","second"};
+		const char *f[] = {"day","hour","minute","second"};
 
 		*idlestr = 0;
 		for(n=0;n<4;n++)

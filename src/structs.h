@@ -79,6 +79,7 @@ typedef struct OnMsg
 {
 	const char	*name;
 	void		(*func)(char *, const char *, char *, const int);
+	void		(*noargfunc)(const char *);
 	uint32_t	defaultaccess:8,	/* defaultaccess */
 			dcc:1,
 			cc:1,
@@ -92,7 +93,8 @@ typedef struct OnMsg
 			lbuf:1,
 			cbang:1,
 			acchan:1,
-			supres:1; /* -- 21 bits */
+			supres:1, /* -- 21 bits */
+			noargf:1; /* -- 22 bits */
 	const char	*cmdarg;
 
 } OnMsg;
@@ -233,7 +235,7 @@ typedef struct Setting
 	} v;
 	char		*name;
 	int		max;
-	void		(*func)(const struct Setting *);
+	void		(*onchangefunc)(const struct Setting *);
 
 } Setting;
 
@@ -515,7 +517,6 @@ typedef struct Server
 
 	int		ident;
 	int		usenum;
-	int		servergroup;
 	int		port;
 	int		err;
 	time_t		lastconnect;
@@ -524,18 +525,10 @@ typedef struct Server
 
 	char		realname[NAMEBUF];
 	char		name[NAMEBUF];
-	char		pass[PASSLEN];
+	char		pass[PASSBUF];
+	char		group[SERVERGROUPBUF];
 
 } Server;
-
-typedef struct ServerGroup
-{
-	struct		ServerGroup *next;
-
-	int		servergroup;
-	char		name[1];
-
-} ServerGroup;
 
 typedef struct FileMon
 {

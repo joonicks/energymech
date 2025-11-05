@@ -21,12 +21,18 @@
 #ifndef H_H
 #define H_H 1
 
+#if !defined(__STRICT_ANSI__)
+#define __INLINE__		inline
+#else
+#define __INLINE__
+#endif
+
 #define ischannel(x)		(*x == '#')
 
-#define nullstr(x)		((x)) ? (x) : NULLSTR
+#define nullstr(x)		((x) ? x : NULLSTR)
 #define nullbuf(x)		(x && *x) ? x : NULLSTR
 
-#define chkhigh(x)		if (x > hisock) { hisock = x; }
+#define chkhigh(x)		if (x > cx.hisock) { cx.hisock = x; }
 
 #define COMMAND_ARGS		char *from, const char *to, char *rest, const int cmdaccess
 
@@ -110,23 +116,24 @@
 
 /* alias.c */
 
-LS void afmt(char *, const char *, const char *)			__page(CORE_SEG);
-LS void do_alias(COMMAND_ARGS)						__page(CMD1_SEG);
-LS void do_unalias(COMMAND_ARGS)					__page(CMD1_SEG);
+void afmt(char *, const char *, const char *)				__page(CORE_SEG);
+void do_alias(COMMAND_ARGS)						__page(CMD1_SEG);
+void do_unalias(COMMAND_ARGS)						__page(CMD1_SEG);
 
 /* auth.c */
 
-LS char *cipher(char *)							__page(CMD1_SEG);
-LS char *makepass(char *)						__page(CMD1_SEG);
-LS int passmatch(char *, char *)					__page(CMD1_SEG);
-LS void delete_auth(char *)						__page(CMD1_SEG);
-LS void remove_auth(Auth *)						__page(CMD1_SEG);
-LS void change_authnick(char *, char *)					__page(CORE_SEG);
-LS void aucheck(User *)							__page(CORE_SEG);
-LS User *get_authuser(const char *, const char *)			__page(CORE_SEG);
-LS int get_authaccess(const char *, const char *)			__page(CORE_SEG);
-LS int make_auth(const char *, const User *)				__page(CMD1_SEG);
-LS void do_auth(COMMAND_ARGS)						__page(CMD1_SEG);
+char *cipher(char *)							__page(CMD1_SEG);
+char *makepass(char *)							__page(CMD1_SEG);
+int passmatch(char *, char *)						__page(CMD1_SEG);
+void delete_auth(char *)						__page(CMD1_SEG);
+void remove_auth(Auth *)						__page(CMD1_SEG);
+void change_authnick(char *, char *)					__page(CORE_SEG);
+void aucheck(User *)							__page(CORE_SEG);
+User *get_authuser(const char *, const char *)				__page(CORE_SEG);
+int get_authaccess(const char *, const char *)				__page(CORE_SEG);
+int make_auth(const char *, const User *)				__page(CMD1_SEG);
+void do_auth_noargs(const char *)					__page(CMD1_SEG);
+void do_auth(COMMAND_ARGS)						__page(CMD1_SEG);
 
 /* bounce.c */
 
@@ -138,15 +145,15 @@ void process_bounce(void)						__page(CORE_SEG);
 
 /* calc.c */
 
-LS void do_convert(COMMAND_ARGS)					__page(CMD1_SEG);
-LS void do_calc(COMMAND_ARGS)						__page(CMD1_SEG);
+void do_convert(COMMAND_ARGS)						__page(CMD1_SEG);
+void do_calc(COMMAND_ARGS)						__page(CMD1_SEG);
 
 /* channel.c */
 
 void check_idlekick(void);
-LS Chan *find_channel(const char *, int)				__attr(CORE_SEG, __regparm(2));
-LS Chan *find_channel_ac(const char *)					__attr(CORE_SEG, __regparm(1));
-LS Chan *find_channel_ny(const char *)					__attr(CORE_SEG, __regparm(1));
+Chan *find_channel(const char *, int)					__attr(CORE_SEG, __regparm(2));
+Chan *find_channel_ac(const char *)					__attr(CORE_SEG, __regparm(1));
+Chan *find_channel_ny(const char *)					__attr(CORE_SEG, __regparm(1));
 void remove_chan(Chan *)						__page(CMD1_SEG);
 void join_channel(char *, char *)					__page(CFG1_SEG);
 void reverse_topic(Chan *, char *, char *)				__page(CORE_SEG);
@@ -159,23 +166,23 @@ void delete_ban(Chan *, char *);
 void delete_modemask(Chan *, char *, int);
 void channel_massmode(const Chan *, char *, int, char, char);
 void channel_massunban(Chan *, char *, time_t);
-LS ChanUser *find_chanuser(Chan *, const char *)			__page(CORE_SEG);
-LS ChanUser *find_chanbot(Chan *, const char *)				__page(CORE_SEG);
-LS void remove_chanuser(Chan *, const char *)				__page(CORE_SEG);
-LS void make_chanuser(char *, char *)					__page(CORE_SEG);
-LS void purge_chanusers(Chan *)						__page(CMD1_SEG);
-LS char *get_nuh(const ChanUser *)					__page(CORE_SEG);
-LS void do_join(COMMAND_ARGS)						__page(CMD1_SEG);
-LS void do_part(COMMAND_ARGS)						__page(CMD1_SEG);
-LS void do_cycle(COMMAND_ARGS)						__page(CMD1_SEG);
-LS void do_forget(COMMAND_ARGS)						__page(CMD1_SEG);
-LS void do_channels(COMMAND_ARGS)					__page(CMD1_SEG);
-LS void do_wall(COMMAND_ARGS)						__page(CMD1_SEG);
-LS void do_mode(COMMAND_ARGS)						__page(CMD1_SEG);
-LS void do_names(COMMAND_ARGS)						__page(CMD1_SEG);
-LS void do_cchan(COMMAND_ARGS)						__page(CMD1_SEG);
-LS void do_invite(COMMAND_ARGS)						__page(CMD1_SEG);
-LS void do_sayme(COMMAND_ARGS)						__page(CMD1_SEG);
+ChanUser *find_chanuser(Chan *, const char *)				__page(CORE_SEG);
+ChanUser *find_chanbot(Chan *, const char *)				__page(CORE_SEG);
+void remove_chanuser(Chan *, const char *)				__page(CORE_SEG);
+void make_chanuser(char *, char *)					__page(CORE_SEG);
+void purge_chanusers(Chan *)						__page(CMD1_SEG);
+char *get_nuh(const ChanUser *)						__page(CORE_SEG);
+void do_join(COMMAND_ARGS)						__page(CMD1_SEG);
+void do_part(COMMAND_ARGS)						__page(CMD1_SEG);
+void do_cycle(COMMAND_ARGS)						__page(CMD1_SEG);
+void do_forget(COMMAND_ARGS)						__page(CMD1_SEG);
+void do_channels(COMMAND_ARGS)						__page(CMD1_SEG);
+void do_wall(COMMAND_ARGS)						__page(CMD1_SEG);
+void do_mode(COMMAND_ARGS)						__page(CMD1_SEG);
+void do_names(COMMAND_ARGS)						__page(CMD1_SEG);
+void do_cchan(COMMAND_ARGS)						__page(CMD1_SEG);
+void do_invite(COMMAND_ARGS)						__page(CMD1_SEG);
+void do_sayme(COMMAND_ARGS)						__page(CMD1_SEG);
 LS void do_who(COMMAND_ARGS)						__page(CMD1_SEG);
 LS void do_topic(COMMAND_ARGS)						__page(CMD1_SEG);
 LS void do_showidle(COMMAND_ARGS)					__page(CMD1_SEG);
@@ -196,14 +203,12 @@ void set_mix16(Mix16 *, const char *)					__page(CORE_SEG);
 void set_mix64(Mix64 *, const char *)					__page(CORE_SEG);
 
 int conf_callback(char *line)						__page(CFG1_SEG);
-void readcfgfile(void)							__page(CFG1_SEG);
+void readcfgfile(void)							__page(INIT_SEG);
 int write_session(void)							__page(CORE_SEG);
 Mech *add_bot(int guid, char *nick)					__page(CFG1_SEG);
 void signoff(char *from, char *reason)					__page(RARE_SEG);
 void kill_all_bots(char *reason)					__attr(RARE_SEG, __noreturn__);;
-Server *add_server(char *host, int port, char *pass)			__page(CFG1_SEG);
-ServerGroup *getservergroup(const char *name);
-ServerGroup *getservergroupid(int id);
+Server *add_server(const char *host, const int port, const char *pass, const char *group) __page(CFG1_SEG);
 Server *find_server(int id)						__page(CORE_SEG);
 int try_server(Server *sp, char *hostname)				__page(CORE_SEG);
 void connect_to_server(void)						__page(CORE_SEG);
@@ -216,7 +221,7 @@ void do_version(COMMAND_ARGS)						__page(CMD1_SEG);
 void do_core(COMMAND_ARGS)						__page(CMD1_SEG);
 void do_die(COMMAND_ARGS)						__page(RARE_SEG);
 void do_shutdown(COMMAND_ARGS)						__page(RARE_SEG);
-void do_servergroup(COMMAND_ARGS)					__page(CMD1_SEG);
+void do_server_noargs(const char *from)					__page(CMD1_SEG);
 void do_server(COMMAND_ARGS)						__page(CMD1_SEG);
 void do_cserv(COMMAND_ARGS)						__page(CMD1_SEG);
 void do_away(COMMAND_ARGS)						__page(CMD1_SEG);
@@ -428,8 +433,9 @@ LS void sig_segv(int, siginfo_t *, void *)				__attr(RARE_SEG, __noreturn__);
 LS void sig_segv(int)							__attr(RARE_SEG, __noreturn__);
 #endif
 LS void sig_term(int)							__attr(RARE_SEG, __noreturn__);	/* rare */
-LS void doit(void)							__page(CORE_SEG);
-LS int main(int argc, char **argv, char **envp)				__page(INIT_SEG);
+int main(int argc, char **argv, char **envp)				__page(INIT_SEG);
+int parse_commandline(int argc, char **argv, char **envp)		__page(INIT_SEG);
+void mainloop(void)							__attr(CORE_SEG, __noreturn__);
 
 /* net.c */
 
@@ -444,15 +450,15 @@ void botnet_binfo_relay(BotNet *source, BotInfo *binfo);
 void botnet_binfo_tofile(int sock, BotInfo *binfo);
 void botnet_dumplinklist(BotNet *bn);
 int connect_to_bot(NetCfg *cfg);
-LS void check_botjoin(Chan *chan, ChanUser *cu);
-LS void check_botinfo(BotInfo *binfo, const char *channel);
+void check_botjoin(Chan *chan, ChanUser *cu);
+void check_botinfo(BotInfo *binfo, const char *channel);
 void basicAuth(BotNet *bn, char *rest);
 void basicAuthOK(BotNet *bn, char *rest);
 void basicBanner(BotNet *bn, char *rest);
 void basicLink(BotNet *bn, char *version);
 void basicQuit(BotNet *bn, char *rest);
-LS void netchanNeedop(BotNet *source, char *rest);
-LS void netchanSuppress(BotNet *, char *)				__page(CORE_SEG);
+void netchanNeedop(BotNet *source, char *rest);
+void netchanSuppress(BotNet *, char *)					__page(CORE_SEG);
 void partyAuth(BotNet *bn, char *rest);
 int commandlocal(int dg, int sg, char *from, char *command);
 void partyCommand(BotNet *bn, char *rest);
@@ -464,12 +470,13 @@ void parse_botnet(BotNet *bn, char *rest);
 void botnet_newsock(void);
 void select_botnet(void)						__page(CORE_SEG);
 void process_botnet(void)						__page(CORE_SEG);
+void do_link_noargs(const char *)					__page(CMD1_SEG);
 void do_link(COMMAND_ARGS)						__page(CMD1_SEG);
 void do_cmd(COMMAND_ARGS)						__page(CMD1_SEG);
 
 /* note.c */
 
-int catch_note(char *from, char *to, char *rest);
+int catch_note(char *from, char *to, char *rest)			__page(CMD1_SEG);
 void do_note(COMMAND_ARGS)						__page(CMD1_SEG);
 void do_read(COMMAND_ARGS)						__page(CMD1_SEG);
 
@@ -519,37 +526,37 @@ LS void parse_privmsg(char *from, char *rest)				__page(CORE_SEG);
 LS void parse_quit(char *from, char *rest)				__page(CORE_SEG);
 LS void parse_topic(char *from, char *rest)				__page(CORE_SEG);
 LS void parse_wallops(char *from, char *rest)				__page(CORE_SEG);
-LS void parse_213(char *from, char *rest);
-LS void parse_219(char *from, char *rest);
-LS void parse_251(char *from, char *rest);
-LS void parse_252(char *from, char *rest);
-LS void parse_253(char *from, char *rest);
-LS void parse_254(char *from, char *rest);
-LS void parse_255(char *from, char *rest);
-LS void parse_301(char *from, char *rest);
-LS void parse_303(char *from, char *rest);
-LS void parse_311(char *from, char *rest);
-LS void parse_312(char *from, char *rest);
-LS void parse_313(char *from, char *rest);
-LS void parse_315(char *from, char *rest);
-LS void parse_317(char *from, char *rest);
-LS void parse_318(char *from, char *rest);
-LS void parse_319(char *from, char *rest);
-LS void parse_324(char *from, char *rest);
-LS void parse_352(char *from, char *rest);
-LS void parse_367(char *from, char *rest);
-LS void parse_376(char *from, char *rest);
-LS void parse_401(char *from, char *rest);
-LS void parse_433(char *from, char *rest);
-LS void parse_451(char *from, char *rest);
-LS void parse_471(char *from, char *rest);
-LS void parse_473(char *from, char *rest);
-LS void parse_346(char *from, char *rest);
-LS void parse_348(char *from, char *rest);
-LS void parse_368(char *from, char *rest);
-LS void parse_005(char *from, char *rest);
-LS uint32_t stringhash(char *s)						__page(CORE_SEG);
-LS void parse_server_input(char *rest)					__page(CORE_SEG);
+void parse_213(char *from, char *rest);
+void parse_219(char *from, char *rest);
+void parse_251(char *from, char *rest);
+void parse_252(char *from, char *rest);
+void parse_253(char *from, char *rest);
+void parse_254(char *from, char *rest);
+void parse_255(char *from, char *rest);
+void parse_301(char *from, char *rest);
+void parse_303(char *from, char *rest);
+void parse_311(char *from, char *rest);
+void parse_312(char *from, char *rest);
+void parse_313(char *from, char *rest);
+void parse_315(char *from, char *rest);
+void parse_317(char *from, char *rest);
+void parse_318(char *from, char *rest);
+void parse_319(char *from, char *rest);
+void parse_324(char *from, char *rest);
+void parse_352(char *from, char *rest);
+void parse_367(char *from, char *rest);
+void parse_376(char *from, char *rest);
+void parse_401(char *from, char *rest);
+void parse_433(char *from, char *rest);
+void parse_451(char *from, char *rest);
+void parse_471(char *from, char *rest);
+void parse_473(char *from, char *rest);
+void parse_346(char *from, char *rest);
+void parse_348(char *from, char *rest);
+void parse_368(char *from, char *rest);
+void parse_005(char *from, char *rest);
+static __INLINE__ uint32_t stringhash(char *)				__page(CORE_SEG);
+void parse_server_input(char *)						__page(CORE_SEG);
 
 /* partyline.c */
 

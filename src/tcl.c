@@ -99,7 +99,7 @@ char *tcl_var_read(Tcl_TVInfo *vinfo, Tcl_Interp *I, char *n1, char *n2, int fla
 		rdata.i = (current) ? current->guid : -1;
 		break;
 	case TVINFO_nick:
-		rdata.c = (current) ? current->nick : "(undefined variable)";
+		rdata.c = (current) ? getbotnick(current) : "(undefined variable)";
 		break;
 	case TVINFO_wantnick:
 		rdata.c = (current) ? current->wantnick : "(undefined variable)";

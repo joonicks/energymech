@@ -409,7 +409,7 @@ void basicAuth(BotNet *bn, char *rest)
 	{
 	case BNAUTH_PLAINTEXT:
 /*
->> plain text given: "DomoOmiGato" stored "kooplook0988"
+>> plain text given: "DomoOmiGato" stored "........."
 (reset_linkable) guid 1337 reset to linkable
 (basicAuth) bad password [ guid = 1337 ]
 */
@@ -420,6 +420,12 @@ void basicAuth(BotNet *bn, char *rest)
 			goto badpass;
 		break;
 #ifdef SHACRYPT
+/*
+(in)  {6} BB1881 634704033 PTA SHA
+(out) {6} BB9344 1233037145 PTA SHA
+>> sha pass exchange: "........ ......... 634704033 1233037145"
+(out) {2} BASHA $6$5525$mZLr762......
+*/
 	case BNAUTH_SHA:
 		{
 		char	*enc,temppass[24 + Strlen2(pass,linkpass)]; /* linkpass is never NULL */
@@ -1474,14 +1480,14 @@ void select_botnet(void)
 		}
 	}
 
-	short_tv &= ~TV_BOTNET;
+	cx.short_tv &= ~TV_BOTNET;
 	for(bn=botnetlist;bn;bn=bn->next)
 	{
 		chkhigh(bn->sock);
 		if (bn->status == BN_CONNECT)
 		{
 			FD_SET(bn->sock,&write_fds);
-			short_tv |= TV_BOTNET;
+			cx.short_tv |= TV_BOTNET;
 		}
 		else
 		{
@@ -1639,6 +1645,22 @@ clean:
  *
  */
 
+void do_link_noargs(const char *from)
+{
+	NetCfg	*cfg;
+
+	/*
+	 *  list all the known links
+	 */
+	table_buffer("guid\tpass\thost\tport");
+	for(cfg=netcfglist;cfg;cfg=cfg->next)
+	{
+		table_buffer("%i\t%s\t%s\t%i",cfg->guid,(cfg->pass) ? cfg->pass : EMPTYSTR,
+			(cfg->host) ? cfg->host : EMPTYSTR,cfg->port);
+	}
+	table_send(from,2);
+}
+
 void do_link(COMMAND_ARGS)
 {
 	/*
@@ -1648,21 +1670,6 @@ void do_link(COMMAND_ARGS)
 	char	*guid,*pass,*host,*port;
 	int	iguid,iport;
 	int	mode;
-
-	/*
-	 *  list all the known links
-	 */
-	if (!*rest)
-	{
-		table_buffer("guid\tpass\thost\tport");
-		for(cfg=netcfglist;cfg;cfg=cfg->next)
-		{
-			table_buffer("%i\t%s\t%s\t%i",cfg->guid,(cfg->pass) ? cfg->pass : "",
-				(cfg->host) ? cfg->host : "",cfg->port);
-		}
-		table_send(from,2);
-		return;
-	}
 
 	guid = chop(&rest);
 	if (*guid == '+' || *guid == '-')
@@ -1726,6 +1733,7 @@ usage:
 
 	if (mode == '-')
 	{
+		to_user(from,"removing link guid: %i",iguid);
 		*pp = cfg->next;
 		Free((char**)&cfg);
 		return;

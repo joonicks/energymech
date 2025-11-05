@@ -355,6 +355,9 @@
 #define NAMELEN				79
 #define NAMEBUF				NAMELEN+1
 
+#define SERVERGROUPBUF			16
+#define SERVERGROUPLEN			SERVERGROUPBUF-1
+
 #define MINPASSCHARS			4
 #define MAXPASSCHARS			50
 
@@ -394,6 +397,7 @@
 #define CBANG	0x040000		/* command may be prefixed with a bang (!)		*/
 #define ACCHAN  0x080000		/* needs an active channel				*/
 #define SUPRES	0x100000		/* command is not suitable to run on many bots at once, try to suppress it */
+#define NOARGF	0x200000		/* run a special function if no arguments are supplied	*/
 
 /*
  *  integer only version of RANDOM()

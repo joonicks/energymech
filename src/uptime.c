@@ -41,7 +41,7 @@ typedef struct
 	uint32_t cookie;
 	uint32_t uptime;
 	uint32_t ontime;
-	uint32_t now;
+	uint32_t mytime;
 	uint32_t sysup;
 
 } PackStub;
@@ -54,7 +54,7 @@ typedef struct
 	uint32_t cookie;
 	uint32_t uptime;
 	uint32_t ontime;
-	uint32_t now;
+	uint32_t mytime;
 	uint32_t sysup;
 	char	string[512];
 
@@ -137,7 +137,7 @@ void send_uptime(int type)
 	uptimecookie  = (uptimecookie + 1) * 18457;
 	upPack.cookie = htonl(uptimecookie);
 
-	upPack.now    = htonl(now);
+	upPack.mytime = htonl(now);
 	upPack.regnr  = uptimeregnr;
 	upPack.type   = htonl(type);
 	upPack.uptime = htonl(uptime);

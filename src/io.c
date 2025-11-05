@@ -458,7 +458,7 @@ void to_user(const char *target, const char *format, ...)
  *  2: If <rest> data is insufficient, try to read in more
  *  3: Try again to make a whole line
  */
-char *sockread(int s, char *rest, char *line)
+char *sockread(int socket, char *rest, char *output)
 {
 	char	*src,*dst,*rdst;
 	int	n;
@@ -466,7 +466,7 @@ char *sockread(int s, char *rest, char *line)
 	errno = EAGAIN;
 
 	src = rest;
-	dst = line;
+	dst = output;
 
 	while(*src)
 	{
@@ -476,20 +476,26 @@ char *sockread(int s, char *rest, char *line)
 			while(*src == '\n' || *src == '\r')
 				src++;
 			*dst = 0;
+#if !defined(GENCMD_C)
+			cx.rest_end = dst;
+#endif /* !defined(GENCMD_C) */
+
+			/* move remainder of rest to the beginning of the buffer */
+			/* src can be end of rest or globaldata */
 			dst = rest;
 			while(*src)
 				*(dst++) = *(src++);
 			*dst = 0;
+
 #if defined(DEBUG) && !defined(GENCMD_C)
-			debug("(in)  {%i} %s\n",s,line);
+			debug("(in)  {%i} %s\n",socket,output);
 #endif /* DEBUG */
-			return((*line) ? line : NULL);
+			return((*output) ? output : NULL);
 		}
 		*(dst++) = *(src++);
 	}
-	rdst = src;
 
-	n = read(s,globaldata,MSGLEN-2);
+	n = read(socket,globaldata,MSGLEN-2);
 	switch(n)
 	{
 	case 0:
@@ -498,14 +504,15 @@ char *sockread(int s, char *rest, char *line)
 		return(NULL);
 	}
 
+	rdst = src;
 	globaldata[n] = 0;
 	src = globaldata;
 
 	while(*src)
 	{
 		if (*src == '\r' || *src == '\n')
-			goto gotline;
-		if ((dst - line) >= (MSGLEN-2))
+			goto gotline; /* gotline will move the rest of globaldata to rest */
+		if ((dst - output) >= (MSGLEN-2))
 		{
 			/*
 			 *  line is longer than buffer, let the wheel spin

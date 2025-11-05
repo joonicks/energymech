@@ -847,7 +847,7 @@ void do_seen(COMMAND_ARGS)
 		return;
 	}
 
-	if (!nickcmp(n,current->nick))
+	if (!nickcmp(n,getbotnick(current)))
 	{
 		fmt = "%s is me you dweeb!";
 	}

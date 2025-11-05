@@ -58,7 +58,7 @@ LS int triv_halt_flag;
 
 #endif /* TRIVIA */
 
-#define BIGSAY_DEFAULTFONT	"default"
+#define BIGSAY_DEFAULTFONT	DEFAULTSTR
 #define FONT_EXTENSION		".bigchars"
 
 BigC *newchar;
@@ -544,7 +544,7 @@ stop_trivia:
 		triv_chan = NULL;
 		triv_next_time = 0;
 		triv_halt_flag = FALSE;
-		short_tv &= ~TV_TRIVIA;
+		cx.short_tv &= ~TV_TRIVIA;
 		return;
 	}
 
@@ -1068,7 +1068,7 @@ void do_trivia(COMMAND_ARGS)
 		triv_next_time = now + triv_qdelay;
 		triv_weektop10 = now;
 		lastwinner = NULL;
-		short_tv |= TV_TRIVIA;
+		cx.short_tv |= TV_TRIVIA;
 		if (!scorelist)
 		{
 			read_triviascore();

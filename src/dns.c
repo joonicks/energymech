@@ -59,9 +59,6 @@ typedef struct dnsRType
 
 #define MAX_QUESTIONS		16
 
-LS int dnssock = -1;
-LS int dnsserver = 0;
-
 #ifdef DEBUG
 char *type_textlist[] =
 { NULL, "A", "NS", "MD", "MF", "CNAME", "SOA", "MB", "MG", "MR", "NULL", "WKS", "PTR", "HINFO", "MINFO", "MX", "TXT", };
@@ -643,8 +640,6 @@ void process_rawdns(void)
 	char	packet[512];
 	int	sz,n;
 
-	if (dnssock == -1)
-		return;
 	if (FD_ISSET(dnssock,&read_fds))
 	{
 		sz = sizeof(sai);

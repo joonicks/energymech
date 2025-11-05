@@ -498,14 +498,14 @@ void process_chanbans(void)
 		{
 #ifdef DEBUG
 			debug("(process_chanbans) skipping %s (%i), (lastchanban (%lu) > now - 10 (%lu)\n",
-				current->nick,current->guid,current->lastchanban,(now - 10));
+				getbotnick(current),current->guid,current->lastchanban,(now - 10));
 #endif /* DEBUG */
 			continue;
 		}
 		if (current->sendq) /* only do chanbans on empty queue */
 		{
 #ifdef DEBUG
-			debug("(process_chanbans) skipping %s (%i), sendq not empty\n",current->nick,current->guid);
+			debug("(process_chanbans) skipping %s (%i), sendq not empty\n",getbotnick(current),current->guid);
 #endif /* DEBUG */
 			continue;
 		}

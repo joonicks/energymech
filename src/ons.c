@@ -403,6 +403,11 @@ void on_msg(char *from, char *to, char *rest)
 	 */
 
 	/*
+	 *  remember where the string started
+	 */
+	origstart = rest;
+
+	/*
 	 *  Are we recording a note?
 	 */
 #ifdef NOTE
@@ -415,10 +420,7 @@ void on_msg(char *from, char *to, char *rest)
 	 * public commands, we can go directly to common_public()
 	 */
 	if (CurrentChan && !CurrentChan->setting[TOG_PUB].int_var)
-	{
-		common_public(CurrentChan,from,"<%s> %s",rest);
-		return;
-	}
+		goto public_msg_unchopped;
 
 	if (CurrentDCC)
 	{
@@ -433,10 +435,6 @@ void on_msg(char *from, char *to, char *rest)
 		return;
 	}
 
-	/*
-	 *  remember where the string started
-	 */
-	origstart = rest;
 
 	if (from == CoreUser.name)
 	{
@@ -537,179 +535,178 @@ recheck_alias:
 	if (i == 255)
 		goto public_msg;
 
-		if (!has_cc && mcmd[i].cc && !(has_bang && mcmd[i].cbang))
-			goto public_msg;
-		if (uaccess < acmd[i])
-			goto public_msg;
-		/*
-		 *  The string hash matches a command, but is it a false positive?
-		 */
-		if (stringcasecmp(mcmd[i].name,command) != 0)
-			goto public_msg;
+	if (!has_cc && mcmd[i].cc && !(has_bang && mcmd[i].cbang))
+		goto public_msg;
+	if (uaccess < acmd[i])
+		goto public_msg;
+	/*
+	 *  The string hash matches a command, but is it a false positive?
+	 */
+	if (stringcasecmp(mcmd[i].name,command) != 0)
+		goto public_msg;
 
 #if defined(BOTNET) && defined(REDIRECT)
-		if (mcmd[i].nocmd && redirect.to)
-			return;
+	if (mcmd[i].nocmd && redirect.to)
+		return;
 #endif /* BOTNET && REDIRECT */
 
-		if (mcmd[i].nopub && CurrentChan)
-		{
+	if (mcmd[i].nopub && CurrentChan)
+	{
 #ifdef DEBUG
-			debug("(on_msg) Public command (%s) ignored\n",command);
+		debug("(on_msg) Public command (%s) ignored\n",command);
 #endif /* DEBUG */
-			return;
-		}
+		return;
+	}
 
-		CurrentCmd = &mcmd[i];
+	CurrentCmd = &mcmd[i];
 
 #ifdef SUPPRESS
 #ifdef BOTNET
-		/* experimental command supression */
-		if (CurrentCmd->name == current->supres_cmd)
-		{
-			int	crc;
+	/* experimental command supression */
+	if (CurrentCmd->name == current->supres_cmd)
+	{
+		int	crc;
 
-			crc = makecrc(rest);
-			if (current->supres_crc == crc)
-			{
-				/* another bot has already executed this command and is trying to supress its execution on other bots */
-				current->supres_cmd = NULL;
-				current->supres_crc = 0;
-#ifdef DEBUG
-				debug("(on_msg) command \"%s\" from %s was supressed\n",CurrentCmd->name,CurrentNick);
-#endif
-				return;
-			}
-		}
-		/*if command should be supressed ... */
-		if (mcmd[i].supres && CurrentChan)
+		crc = makecrc(rest);
+		if (current->supres_crc == crc)
 		{
-			send_suppress(CurrentCmd->name,rest);
+			/* another bot has already executed this command and is trying to supress its execution on other bots */
+			current->supres_cmd = NULL;
+			current->supres_crc = 0;
+#ifdef DEBUG
+			debug("(on_msg) command \"%s\" from %s was supressed\n",CurrentCmd->name,CurrentNick);
+#endif
+			return;
 		}
+	}
+	/*if command should be supressed ... */
+	if (mcmd[i].supres && CurrentChan)
+	{
+		send_suppress(CurrentCmd->name,rest);
+	}
 #endif
 #endif /* SUPPRESS */
-		/*
-		 *  convert the command to uppercase
-		 */
-		stringcpy(command,mcmd[i].name);
+	/*
+	 *  convert the command to uppercase
+	 */
+	stringcpy(command,mcmd[i].name);
 
-		/*
-		 *  send statmsg with info on the command executed
-		 */
-		if (current->setting[TOG_SPY].int_var)
+	/*
+	 *  send statmsg with info on the command executed
+	 */
+	if (current->setting[TOG_SPY].int_var)
+	{
+		send_spy(SPYSTR_STATUS,":%s[%i]: Executing %s[%i]",
+			CurrentNick,uaccess,command,(int)acmd[i]);
+	}
+
+	/*
+	 *  CAXS check: first argument might be a channel
+	 *              check user access on target channel
+	 */
+	if (mcmd[i].caxs)
+	{
+		/* get channel name; 1: msg, 2: to, 3: active channel */
+		to = (char*)get_channel(to,&rest);
+		if (!ischannel(to))
+			return;
+		uaccess = get_authaccess(from,to);
+		if (uaccess < acmd[i])
+			return;
+		CurrentChan = find_channel_ny(to);
+		if (mcmd[i].acchan && (CurrentChan == NULL || CurrentChan->active == 0))
 		{
-			send_spy(SPYSTR_STATUS,":%s[%i]: Executing %s[%i]",
-				CurrentNick,uaccess,command,(int)acmd[i]);
+			to_user(from,ERR_CHAN,to);
+			return;
 		}
+	}
+	else
+	/*
+	 *  GAXS check: user needs global access
+	 */
+	if (mcmd[i].gaxs)
+	{
+		uaccess = get_authaccess(from,MATCH_ALL);
+		if (uaccess < acmd[i])
+			return;
+	}
 
-		/*
-		 *  CAXS check: first argument might be a channel
-		 *              check user access on target channel
-		 */
-		if (mcmd[i].caxs)
+	/*
+	 *  list of last LASTCMDSIZE commands
+	 */
+	if (from != CoreUser.name)
+	{
+		Free(&current->lastcmds[LASTCMDSIZE-1]);
+		for(j=LASTCMDSIZE-2;j>=0;j--)
+			current->lastcmds[j+1] = current->lastcmds[j];
+		if ((pt = STRCHR(from,'@')) == NULL)
+			pt = from;
+		set_mallocdoer(on_msg);
+		current->lastcmds[0] = (char*)Calloc(strlen(pt) + 45);
+		if (CurrentUser)
 		{
-			/* get channel name; 1: msg, 2: to, 3: active channel */
-			to = (char*)get_channel(to,&rest);
-			if (!ischannel(to))
-				return;
-			uaccess = get_authaccess(from,to);
-			if (uaccess < acmd[i])
-				return;
-			CurrentChan = find_channel_ny(to);
-			if (mcmd[i].acchan && (CurrentChan == NULL || CurrentChan->active == 0))
-			{
-				to_user(from,ERR_CHAN,to);
-				return;
-			}
+			sprintf(current->lastcmds[0],"[%s] %s\r%s[%-3i]\t(*%s)",
+				time2medium(now),command,CurrentUser->name,
+				(CurrentUser->x.x.access),pt);
 		}
 		else
-		/*
-		 *  GAXS check: user needs global access
-		 */
-		if (mcmd[i].gaxs)
 		{
-			uaccess = get_authaccess(from,MATCH_ALL);
-			if (uaccess < acmd[i])
-				return;
+			sprintf(current->lastcmds[0],"[%s] %s\r%s[---]\t(*%s)",
+				time2medium(now),command,CurrentNick,pt);
 		}
+	}
 
-		/*
-		 *  list of last LASTCMDSIZE commands
-		 */
-		if (from != CoreUser.name)
-		{
-			Free(&current->lastcmds[LASTCMDSIZE-1]);
-			for(j=LASTCMDSIZE-2;j>=0;j--)
-				current->lastcmds[j+1] = current->lastcmds[j];
-			if ((pt = STRCHR(from,'@')) == NULL)
-				pt = from;
-			set_mallocdoer(on_msg);
-			current->lastcmds[0] = (char*)Calloc(strlen(pt) + 45);
-			if (CurrentUser)
-			{
-				sprintf(current->lastcmds[0],"[%s] %s\r%s[%-3i]\t(*%s)",
-					time2medium(now),command,CurrentUser->name,
-					(CurrentUser->x.x.access),pt);
-			}
-			else
-			{
-				sprintf(current->lastcmds[0],"[%s] %s\r%s[---]\t(*%s)",
-					time2medium(now),command,CurrentNick,pt);
-			}
-		}
-
-		/*
-		 *  CARGS check: at least one argument is required
-		 */
-		if (mcmd[i].args && !*rest)
-		{
-			if (uaccess) usage_command(from,command);
-			return;
-		}
+	/*
+	 *  CARGS check: at least one argument is required
+	 */
+	if (mcmd[i].args && !*rest)
+	{
+		if (uaccess) usage_command(from,command);
+		return;
+	}
 
 #ifdef REDIRECT
-		/*
-		 *  can this command be redirected?
-		 */
-		if (!redirect.to && mcmd[i].redir)
+	/*
+	 *  can this command be redirected?
+	 */
+	if (!redirect.to && mcmd[i].redir)
+	{
+		if (mcmd[i].lbuf && ischannel(orig_to))
 		{
-			if (mcmd[i].lbuf && ischannel(orig_to))
-			{
-				set_mallocdoer(on_msg);
-				redirect.to = stringdup(to);
-				redirect.method = R_PRIVMSG;
-			}
-			else
-			if (begin_redirect(from,rest) < 0)
-				return;
+			set_mallocdoer(on_msg);
+			redirect.to = stringdup(to);
+			redirect.method = R_PRIVMSG;
 		}
+		else
+		if (begin_redirect(from,rest) < 0)
+			return;
+	}
 #endif /* REDIRECT */
 
-		if (mcmd[i].dcc && partyline_only_command(from))
-			return;
+	if (mcmd[i].dcc && partyline_only_command(from))
+		return;
 
+	/*
+	 *  Run command function
+	 */
+	if (mcmd[i].noargfunc && *rest == 0)
+		mcmd[i].noargfunc(from);
+	else
 		mcmd[i].func(from,to,rest,acmd[i]);
 
-#ifdef DEBUG
-		CurrentCmd = NULL;
-#endif /* DEBUG */
 #ifdef REDIRECT
-		end_redirect();
+	end_redirect();
 #endif /* REDIRECT */
 
-		/*
-		 *  be quick to exit afterwards, there are "dangerous" commands like DIE and USER -...
-		 */
-		return;
-/* todo: delete - hash
-	}
-*/
+	/*
+	 *  be quick to exit afterwards, there are "dangerous" commands like DIE and USER -...
+	 */
+	return;
 
 	/*
 	 *  If the input isnt a command or the sender lacks access
 	 */
 public_msg:
-
 	/*
 	 *  un-chop() the message string
 	 */
@@ -717,6 +714,7 @@ public_msg:
 
 	if (CurrentChan)
 	{
+public_msg_unchopped:
 		common_public(CurrentChan,from,"<%s> %s",origstart);
 	}
 	else

@@ -36,6 +36,7 @@
 	CBANG	0x040000		command may be prefixed with a bang (!)
 	ACCHAN  0x080000		needs an active channel
 	SUPRES  0x100000		command is not suitable to run on many bots at once, try to suppress it
+	NOARGF  0x200000                run a special function if no arguments are supplied
 
 	CLEVEL	0x000ff
 
@@ -56,8 +57,8 @@ struct
 	/*
 	 *  public access commands
 	 */
-	{ 0, "AUTH",		"do_auth",		 0		| NOPUB	| CBANG			}, // double up on AUTH/VERIFY to better
-	{ 0, "VERIFY",		"do_auth",		 0		| NOPUB	| CBANG			}, // catch login attempts
+	{ 0, "AUTH",		"do_auth",		 0		| NOPUB	| CBANG	| NOARGF	}, // double up on AUTH/VERIFY to better
+	{ 0, "VERIFY",		"do_auth",		 0		| NOPUB	| CBANG | NOARGF	}, // catch login attempts
 #ifdef TOYBOX
 	{ 0, "8BALL",		"do_8ball",		 0		| CBANG	| SUPRES		},
 	{ 0, "RAND",		"do_rand",		 0		| CBANG	| SUPRES		},
@@ -199,8 +200,7 @@ struct
 	{ 0, "MSG",		"do_msg",		80	| CCPW	| CARGS				},
 	{ 0, "NEXTSERVER",	"do_server",		80	| CCPW	| GAXS				},
 	{ 0, "SAVE",		"do_save",		80	| CCPW	| GAXS				},
-	{ 0, "SERVER",		"do_server",		80	| CCPW	| GAXS | REDIR | LBUF		},
-	{ 0, "SERVERGROUP",	"do_servergroup",	80	| CCPW	| GAXS | REDIR | LBUF		},
+	{ 0, "SERVER",		"do_server",		80	| CCPW	| GAXS | REDIR | NOPUB | NOARGF },
 	{ 0, "STATS",		"do_ircstats",		80	| CCPW	| DCC | CARGS			},
 #ifdef ALIAS
 	{ 0, "ALIAS",		"do_alias",		80	| CCPW	| GAXS				},
@@ -219,7 +219,7 @@ struct
 	{ 0, "RSPY",		"do_rspy",		90	| CCPW	| CARGS				},
 	{ 0, "SPY",		"do_spy",		90	| CCPW					},
 #ifdef BOTNET
-	{ 0, "LINK",		"do_link",		90	| CCPW	| GAXS				},
+	{ 0, "LINK",		"do_link",		90	| CCPW	| GAXS | NOPUB | NOARGF		},
 #endif /* BOTNET */
 #ifdef DYNCMD
 	{ 0, "CHACCESS",	"do_chaccess",		90	| CCPW	| GAXS | CARGS			},

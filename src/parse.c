@@ -367,7 +367,7 @@ void parse_pong(char *from, char *rest)
 			ot = (ot * 10) + (*src++ - '0');
 		current->ontime = ot;
 #ifdef DEBUG
-		debug("(parse_pong) recovering ontime = %lu (%s)\n",ot,idle2str(now - ot,TRUE));
+		debug("(parse_pong) recovering ontime = %lu (%s)\n",ot,idle2str(ot,TRUE));
 #endif
 	}
 }
@@ -1444,7 +1444,7 @@ LS const struct
 	{ 0,		0,			NULL		}
 };
 
-uint32_t stringhash(char *s)
+static __INLINE__ uint32_t stringhash(char *s)
 {
 	uint32_t hash;
 	int	i;
@@ -1459,6 +1459,7 @@ void parse_server_input(char *rest)
 {
 #ifdef SCRIPTING
 	Hook	*hook;
+	int	skip;
 #endif /* SCRIPTING */
 	char	*from,*command;
 	uint32_t cmdhash;
@@ -1467,8 +1468,8 @@ void parse_server_input(char *rest)
 	if (current->spy & (SPYF_RAWIRC|SPYF_RANDSRC))
 		send_spy(SPYSTR_RAWIRC,rest);
 
-/*new undernet amusements */
-/*(in)  {5} NOTICE AUTH :*** You have identd disabled (or broken), to continue to connect you must type /QUOTE PASS 17071 */
+/* New undernet amusements */
+/* NOTICE AUTH :*** You have identd disabled (or broken), to continue to connect you must type /QUOTE PASS 17071 */
 	if (current->connect == CN_CONNECTED && *rest == 'N' && !matches("NOTICE AUTH * /QUOTE PASS *",rest))
 	{
 		from = STREND(rest);
@@ -1498,7 +1499,7 @@ void parse_server_input(char *rest)
 		rest++;
 
 #ifdef SCRIPTING
-	cmdhash = 1;
+	skip = 0;
 	for(hook=hooklist;hook;hook=hook->next)
 	{
 		/*
@@ -1511,18 +1512,16 @@ void parse_server_input(char *rest)
 		 */
 		if (hook->flags == MEV_PARSE && !stringcasecmp(command,hook->type.command))
 		{
-			if (hook->func(from,rest,hook))
-				/* if the hook returns non-zero, the input should not be parsed internally */
-				cmdhash = 0;
+			/* if the hook returns non-zero, the input should not be parsed internally */
+			skip += hook->func(from,rest,hook);
 		}
 	}
-	if (cmdhash == 0)
+	if (skip)
 		return;
 #endif /* SCRIPTING */
 
 	cmdhash = stringhash(command);
 
-	/*debug("cmdhash = %08X\n",cmdhash); */
 	for(i=0;pFuncs[i].hash;i++)
 	{
 		if (cmdhash == pFuncs[i].hash)
@@ -1535,5 +1534,4 @@ void parse_server_input(char *rest)
 			return;
 		}
 	}
-	/*debug("unmatched cmdhash %08X\n",cmdhash); */
 }

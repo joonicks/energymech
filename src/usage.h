@@ -115,6 +115,9 @@ LS const UsageList ulist[] =
 #endif /* CTCP */
 { C_QSHIT,	"<nick> [reason]"							},
 #ifdef NOTE
+#ifdef TOYBOX
+{ C_RAND,	"[#|#-#|# #|\"nick\"|\"luser\"]"					},
+#endif /* TOYBOX */
 { C_READ,	"[-]<number>"								},
 #endif /* NOTE */
 { C_RESET,	NULL									},
@@ -137,7 +140,6 @@ LS const UsageList ulist[] =
 { C_SEND,	"[to] <filename>"							},
 #endif /* DCC_FILE */
 { C_SERVER,	"[[+|-]servername] [port] [pass]"					},
-{ C_SERVERGROUP,"[identifier]"								},
 { C_SET,	"[channel|*] [setting [value]]"						},
 { C_SETPASS,	"<handle> <password>"							},
 { C_SHIT,	"<channel|*> <nick|mask> <action> [expire] <reason>"			},

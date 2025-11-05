@@ -51,7 +51,6 @@
 #include "hostinfo.c"
 #include "io.c"
 #include "irc.c"
-#include "lib/string.c"
 #include "net.c"
 #include "note.c"
 #include "ons.c"
@@ -67,6 +66,7 @@
 #include "seen.c"
 #include "shit.c"
 #include "spy.c"
+#include "string.c"
 #include "tcl.c"
 #include "toybox.c"
 #include "uptime.c"
@@ -522,17 +522,15 @@ void sig_term(int signum)
  *
  */
 
-#ifdef __GNUC__
-LS void doit(void) __attribute__ ((__noreturn__, __sect(CORE_SEG)));
-#endif
-void doit(void)
+void mainloop(void)
 {
-	struct	timeval tv;
+	SequenceTime this;
 	Chan	*chan;
 	Client	*client;
-	SequenceTime this;
 	Strp	*qm;
+	struct	timeval tv;
 	time_t	last_update;
+
 
 	last_update = now;
 
@@ -574,7 +572,7 @@ mainloop:
 
 	FD_ZERO(&read_fds);
 	FD_ZERO(&write_fds);
-	hisock = -1;
+	cx.hisock = -1;
 
 #ifdef BOTNET
 	select_botnet();
@@ -599,7 +597,7 @@ mainloop:
 	/*
 	 *  unset here, reset if needed in bot loop
 	 */
-	short_tv &= ~(TV_SERVCONNECT|TV_LINEBUF);
+	cx.short_tv &= ~(TV_SERVCONNECT|TV_LINEBUF);
 	for(current=botlist;current;current=current->next)
 	{
 		if (current->sock == -1)
@@ -644,7 +642,7 @@ mainloop:
 				else
 				{
 doit_jumptonext:
-					short_tv |= TV_SERVCONNECT;
+					cx.short_tv |= TV_SERVCONNECT;
 					if ((now - current->conntry) >= 2)
 						connect_to_server();
 				}
@@ -657,7 +655,7 @@ doit_jumptonext:
 			}
 			else
 			{
-				short_tv |= TV_SERVCONNECT;
+				cx.short_tv |= TV_SERVCONNECT;
 				if ((now - current->conntry) >= 2)
 					connect_to_server();
 			}
@@ -677,7 +675,7 @@ doit_jumptonext:
 			}
 			if ((current->connect == CN_TRYING) || (current->connect == CN_CONNECTED))
 			{
-				short_tv |= TV_SERVCONNECT;
+				cx.short_tv |= TV_SERVCONNECT;
 				if ((now - current->conntry) > ctimeout)
 				{
 #ifdef DEBUG
@@ -692,7 +690,7 @@ doit_jumptonext:
 			}
 			if (current->sendq)
 			{
-				short_tv |= TV_LINEBUF;
+				cx.short_tv |= TV_LINEBUF;
 			}
 			else
 			{
@@ -700,7 +698,7 @@ doit_jumptonext:
 				{
 					if (chan->kicklist || chan->modelist)
 					{
-						short_tv |= TV_LINEBUF;
+						cx.short_tv |= TV_LINEBUF;
 						break;
 					}
 				}
@@ -746,13 +744,13 @@ restart_dcc:
 	 *  Longer delay saves CPU but some features require shorter delays
 	 */
 #ifdef NOTIFY
-	tv.tv_sec = (short_tv) ? 1 : 5;
+	tv.tv_sec = (cx.short_tv) ? 1 : 5;
 #else /* NOTIFY */
-	tv.tv_sec = (short_tv) ? 1 : 30;
+	tv.tv_sec = (cx.short_tv) ? 1 : 30;
 #endif /* NOTIFY */
 	tv.tv_usec = 0;
 
-	if ((select(hisock+1,&read_fds,&write_fds,0,&tv) == -1) && (errno == EINTR))
+	if ((select(cx.hisock+1,&read_fds,&write_fds,0,&tv) == -1) && (errno == EINTR))
 		goto mainloop;
 
 	/*
@@ -851,7 +849,8 @@ restart_die:
 #endif /* BOTNET */
 
 #ifdef BOUNCE
-	process_bounce();
+	if (bounce_sock != -1 || bnclist)
+		process_bounce();
 #endif /* BOUNCE */
 
 #ifdef CHANBAN
@@ -859,7 +858,8 @@ restart_die:
 #endif /* CHANBAN */
 
 #ifdef RAWDNS
-	process_rawdns();
+	if (dnssock != -1)
+		process_rawdns();
 #endif /* RAWDNS */
 
 #ifdef UPTIME
@@ -889,15 +889,12 @@ restart_die:
 }
 
 /*
- *  main(), we love it and cant live without it
+ *  parse commandline
  */
 
-LS char *bad_exe = "init: Error: Improper executable name\n";
+const char *bad_exe = "init: Error: Improper executable name\n";
 
-#ifdef __GNUC__
-int main(int argc, char **argv, char **envp) __attribute__ ((__sect(INIT_SEG)));
-#endif
-int main(int argc, char **argv, char **envp)
+int parse_commandline(int argc, char **argv, char **envp)
 {
 	struct stat st;
 	char	*opt;
@@ -1084,9 +1081,6 @@ int main(int argc, char **argv, char **envp)
 		}
 	}
 
-	servergrouplist = (ServerGroup*)&defaultServerGroup;
-	currentservergroup = (ServerGroup*)&defaultServerGroup;
-
 	if (!mechresetenv)
 	{
 		to_file(1,TEXT_HDR_VERS,VERSION,SRCDATE);
@@ -1191,7 +1185,10 @@ int main(int argc, char **argv, char **envp)
 		}
 		if (current->userlist == NULL)
 		{
-			to_file(1,"init: No userlist loaded for %s\n",nullstr(current->nick));
+			char *nick;
+
+			nick = getbotnick(current);
+			to_file(1,"init: No userlist loaded for %s\n",nullstr(nick));
 			n++;
 		}
 	}
@@ -1291,7 +1288,16 @@ int main(int argc, char **argv, char **envp)
 	}
 	startup = STARTUP_RUNNING;
 #ifdef DEBUG
-	debug("(main) entering doit()...\n");
+	debug("(main) entering main loop...\n");
 #endif
-	doit();
+}
+
+/*
+ *  Make main short and sweet, reduce stack data
+ *  Main(), we love it and cant live without it
+ */
+int main(int argc, char **argv, char **envp)
+{
+	parse_commandline(argc, argv, envp);
+	mainloop();
 }
