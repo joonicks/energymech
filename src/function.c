@@ -293,9 +293,10 @@ void table_send(const char *from, const int space)
 	char	message[MAXLEN];
 	Strp	*sp,*next;
 	char	*src,*o,*end;
-	int	i,u,g,x,z[6];
+	int	i,u,g,x,tabs[16];
 
-	z[0] = z[1] = z[2] = z[3] = z[4] = z[5] = 0;
+	memset(tabs,0,sizeof(tabs));
+
 	for(sp=e_table;sp;sp=sp->next)
 	{
 		u = i = 0;
@@ -307,8 +308,8 @@ void table_send(const char *from, const int space)
 			if (*src == '\t' || *src == '\r')
 			{
 				x = (src - o) - u;
-				if (x > z[i])
-					z[i] = x;
+				if (x > tabs[i])
+					tabs[i] = x;
 				i++;
 				o = src+1;
 				u = 0;
@@ -340,9 +341,9 @@ void table_send(const char *from, const int space)
 			if (*src == '\t' || *src == '\r')
 			{
 				if (*src == '\r')
-					g = z[i+1];
+					g = tabs[i+1];
 				src++;
-				x += (z[i++] + space);
+				x += (tabs[i++] + space);
 				while(o < (message + x))
 					*(o++) = ' ';
 			}
