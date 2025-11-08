@@ -780,7 +780,7 @@ void basicLink(BotNet *bn, char *version)
 	binfo = make_botinfo(guid,hops,nuh,server,version);
 
 	if (bn->botinfo == NULL)
-		send_global(SPYSTR_BOTNET,"connecting to %s [guid %i]",nickcpy(NULL,nuh),bn->guid);
+		send_global(SPYSTR_STATUS,"connecting to %s [guid %i]",nickcpy(NULL,nuh),bn->guid);
 	pp = &bn->botinfo;
 	while(*pp)
 	{
