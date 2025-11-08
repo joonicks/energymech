@@ -44,92 +44,96 @@
 
 #define CCPW	CC|PASS
 
-struct
+struct CommandList
 {
-	int	pass;
-	const char *name;
-	const char *func;
-	uint32_t flags;
-	char	*cmdarg;
+	int		pass;		/* multiple passes to sort & such */
+	const char	*name;
+	const char	*func;
+	uint32_t	flags;
+	char		*cmdarg;
 
 } pre_mcmd[] =
 {
 	/*
-	 *  public access commands
+	 *  Level 0: public access commands, no CCPW
 	 */
-	{ 0, "AUTH",		"do_auth",		 0		| NOPUB	| CBANG	| NOARGF	}, // double up on AUTH/VERIFY to better
-	{ 0, "VERIFY",		"do_auth",		 0		| NOPUB	| CBANG | NOARGF	}, // catch login attempts
+	{ 0, "AUTH",		"do_auth",		 0	| NOPUB	| CBANG	| NOARGF		}, // double up on AUTH/VERIFY to better
+	{ 0, "VERIFY",		"do_auth",		 0	| NOPUB	| CBANG | NOARGF		}, // catch login attempts
 #ifdef TOYBOX
-	{ 0, "8BALL",		"do_8ball",		 0		| CBANG	| SUPRES		},
-	{ 0, "RAND",		"do_rand",		 0		| CBANG	| SUPRES		},
+	{ 0, "8BALL",		"do_8ball",		 0	| CBANG	| SUPRES			},
+	{ 0, "RAND",		"do_rand",		 0	| CBANG	| SUPRES			},
 #endif /* TOYBOX */
-	{ 0, "CV",		"do_convert",		 0		| CBANG | SUPRES		},
-	{ 0, "CALC",		"do_calc",		 0		| CBANG | SUPRES		},
+	{ 0, "CV",		"do_convert",		 0	| CBANG | SUPRES			},
+	{ 0, "CALC",		"do_calc",		 0	| CBANG | SUPRES			},
 
 	/*
-	 *  Level 10
+	 *  Level 5: Semi-public commands, No PW required. CC included by default.
 	 */
-	{ 0, "ACCESS",		"do_access",		10	| CCPW					},
-	{ 0, "BYE",		"do_bye",		10	| CC					},
-	{ 0, "CHAT",		"do_chat",		10	| CCPW	| NOCMD				},
-#ifdef RAWDNS
-	{ 0, "DNS",		"do_dns",		10	| CCPW	| GAXS | CARGS | SUPRES		},
-#endif /* RAWDNS */
-	{ 0, "DOWN",		"do_opdeopme",		10	| CC	| CAXS				},
-	{ 0, "ECHO",		"do_echo",		10	| CCPW	| CARGS				},
-	{ 0, "HELP",		"do_help",		10	| CCPW	| REDIR | LBUF | SUPRES		},
-	{ 0, "PASSWD",		"do_passwd",		10	| PASS	| NOPUB | CARGS			},
+	{ 0, "BYE",		"do_bye",		5						},
+	{ 0, "DOWN",		"do_opdeopme",		5	| CAXS					},
 #ifdef DCC_FILE
-	{ 0, "SEND",		"do_send",		10	| CC	| NOCMD	| CBANG	| CARGS		},
+	{ 0, "SEND",		"do_send",		5	| NOCMD | CBANG | CARGS	| LBUF		},
 #endif /* DCC_FILE */
-	{ 0, "USAGE",		"do_usage",		10	| CCPW	| REDIR	| CARGS			},
+
+	/*
+	 *  Level 10: All commands level 10+ PW by default (plus CC from Level 5+).
+	 */
+	{ 0, "ACCESS",		"do_access",		10						},
+	{ 0, "CHAT",		"do_chat",		10	| NOCMD					},
+#ifdef RAWDNS
+	{ 0, "DNS",		"do_dns",		10	| GAXS | CARGS | SUPRES			},
+#endif /* RAWDNS */
+	{ 0, "ECHO",		"do_echo",		10	| CARGS					},
+	{ 0, "HELP",		"do_help",		10	| REDIR | LBUF | SUPRES			},
+	{ 0, "PASSWD",		"do_passwd",		10	| NOPUB | CARGS				},
+	{ 0, "USAGE",		"do_usage",		10	| REDIR	| CARGS				},
 
 	/*
 	 *  Level 20
 	 */
-	{ 0, "ONTIME",		"do_upontime",		20	| CCPW					, "Ontime: %s" },
-	{ 0, "UPTIME",		"do_upontime",		20	| CCPW					, "Uptime: %s" },
-	{ 0, "VER",		"do_version",		20	| CCPW					},
-	{ 0, "WHOM",		"do_whom",		20	| CCPW	| REDIR | LBUF			},
+	{ 0, "ONTIME",		"do_upontime",		20						, "Ontime: %s" },
+	{ 0, "UPTIME",		"do_upontime",		20						, "Uptime: %s" },
+	{ 0, "VER",		"do_version",		20						},
+	{ 0, "WHOM",		"do_whom",		20	| REDIR | LBUF				},
 #ifdef SEEN
-	{ 0, "SEEN",		"do_seen",		20	| CCPW	| CBANG				},
+	{ 0, "SEEN",		"do_seen",		20	| CBANG					},
 #endif /* SEEN */
 #ifdef URLCAPTURE
-	{ 0, "URLHIST",		"do_urlhist",		20	| CCPW	| REDIR | LBUF			},
+	{ 0, "URLHIST",		"do_urlhist",		20	| REDIR | LBUF				},
 #endif /* ifdef URLCAPTURE */
 
 	/*
 	 *  Level 40
 	 */
 	{ 0, "BAN",		"do_kickban",		40	| CCPW	| CAXS | CARGS | ACCHAN		, "\\x00ban\\0bann" },
-	{ 0, "BANLIST",		"do_banlist",		40	| CCPW	| CAXS | DCC | REDIR | LBUF | ACCHAN },
+	{ 0, "BANLIST",		"do_banlist",		40	| CAXS | DCC | REDIR | LBUF | ACCHAN	},
 	{ 0, "CCHAN",		"do_cchan",		40	| CCPW					},	/* global_access ? */
 	{ 0, "CSERV",		"do_cserv",		40	| CCPW					},
 	{ 0, "CHANNELS",	"do_channels",		40	| CCPW	| DCC				},
-	{ 0, "DEOP",		"do_opvoice",		40	| CCPW	| CAXS | CARGS			, "o-" },
-	{ 0, "ESAY",		"do_esay",		40	| CCPW	| CAXS | CARGS			},
+	{ 0, "DEOP",		"do_opvoice",		40	| CAXS | CARGS				, "o-" },
+	{ 0, "ESAY",		"do_esay",		40	| CAXS | CARGS				},
 	{ 0, "IDLE",		"do_idle",		40	| CCPW	| CARGS				},
-	{ 0, "INVITE",		"do_invite",		40	| CCPW	| CAXS | ACCHAN			},
-	{ 0, "KB",		"do_kickban",		40	| CCPW	| CAXS | CARGS | ACCHAN		, "\\x04kickban\\0kickbann" },
-	{ 0, "KICK",		"do_kickban",		40	| CCPW	| CAXS | CARGS | ACCHAN		, "\\x07kick\\0kick" },
+	{ 0, "INVITE",		"do_invite",		40	| CAXS | ACCHAN				},
+	{ 0, "KB",		"do_kickban",		40	| CAXS | CARGS | ACCHAN			, "\\x04kickban\\0kickbann" },
+	{ 0, "KICK",		"do_kickban",		40	| CAXS | CARGS | ACCHAN			, "\\x07kick\\0kick" },
 	{ 0, "LUSERS",		"do_irclusers",		40	| CCPW	| DCC | REDIR | LBUF		},
 	{ 0, "ME",		"do_sayme",		40	| CCPW	| CARGS				},
 	{ 0, "MODE",		"do_mode",		40	| CCPW	| CARGS				},
 	{ 0, "NAMES",		"do_names",		40	| CCPW					},
-	{ 0, "OP",		"do_opvoice",		40	| CCPW	| CAXS				, "o+" },
+	{ 0, "OP",		"do_opvoice",		40	| CAXS					, "o+" },
 	{ 0, "SAY",		"do_sayme",		40	| CCPW	| CARGS				},
-	{ 0, "SCREW",		"do_kickban",		40	| CCPW	| CAXS | CARGS | ACCHAN		, "\\x02screwban\\0screwbann" },
+	{ 0, "SCREW",		"do_kickban",		40	| CAXS | CARGS | ACCHAN			, "\\x02screwban\\0screwbann" },
 	{ 0, "SET",		"do_set",		40	| CCPW					},
-	{ 0, "SITEBAN",		"do_kickban",		40	| CCPW	| CAXS | CARGS | ACCHAN		, "\\x01siteban\\0sitebann" },
-	{ 0, "SITEKB",		"do_kickban",		40	| CCPW	| CAXS | CARGS | ACCHAN		, "\\x05sitekickban\\0sitekickbann" },
+	{ 0, "SITEBAN",		"do_kickban",		40	| CAXS | CARGS | ACCHAN			, "\\x01siteban\\0sitebann" },
+	{ 0, "SITEKB",		"do_kickban",		40	| CAXS | CARGS | ACCHAN			, "\\x05sitekickban\\0sitekickbann" },
 	{ 0, "TIME",		"do_time",		40	| CCPW					},
-	{ 0, "TOPIC",		"do_topic",		40	| CCPW	| CAXS | CARGS | ACCHAN	| SUPRES },
-	{ 0, "UNBAN",		"do_unban",		40	| CCPW	| CAXS				},
-	{ 0, "UNVOICE",		"do_opvoice",		40	| CCPW	| CAXS | CARGS			, "v-" },
-	{ 0, "UP",		"do_opdeopme",		40	| CCPW	| CAXS				},
+	{ 0, "TOPIC",		"do_topic",		40	| CAXS | CARGS | ACCHAN | SUPRES	},
+	{ 0, "UNBAN",		"do_unban",		40	| CAXS					},
+	{ 0, "UNVOICE",		"do_opvoice",		40	| CAXS | CARGS				, "v-" },
+	{ 0, "UP",		"do_opdeopme",		40	| CAXS					},
 	{ 0, "USER",		"do_user",		40	| CCPW	| CARGS				},
 	{ 0, "USERHOST",	"do_ircwhois",		40	| CCPW	| CARGS				},
-	{ 0, "VOICE",		"do_opvoice",		40	| CCPW	| CAXS				, "v+" },
+	{ 0, "VOICE",		"do_opvoice",		40	| CAXS					, "v+" },
 	{ 0, "WALL",		"do_wall",		40	| CCPW	| CAXS | CARGS | ACCHAN		},
 	{ 0, "WHO",		"do_who",		40	| CCPW	| CAXS | DCC			},
 	{ 0, "WHOIS",		"do_ircwhois",		40	| CCPW	| CARGS | DCC | REDIR | LBUF	},
@@ -152,9 +156,9 @@ struct
 	{ 0, "GREET",		"do_greet",		50	| CCPW	| CARGS				},
 #endif /* GREET */
 #ifdef TOYBOX
-	{ 0, "INSULT",		"do_random_msg",	50	| CCPW					, RANDINSULTFILE },
-	{ 0, "PICKUP",		"do_random_msg",	50	| CCPW					, RANDPICKUPFILE },
-	{ 0, "RSAY",		"do_random_msg",	50	| CCPW					, RANDSAYFILE },
+	{ 0, "INSULT",		"do_randmsg",		50	| CCPW					, RANDINSULTFILE },
+	{ 0, "PICKUP",		"do_randmsg",		50	| CCPW					, RANDPICKUPFILE },
+	{ 0, "RSAY",		"do_randmsg",		50	| CCPW					, RANDSAYFILE },
 	{ 0, "RT",		"do_randtopic",		50	| CCPW	| CAXS | ACCHAN			},
 	{ 0, "ASCII",		"do_ascii",		50	| CCPW	| CAXS | CARGS | SUPRES		},
 #endif /* TOYBOX */

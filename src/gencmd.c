@@ -237,9 +237,12 @@ void make_mcmd(int mode)
 
 				v.defaultaccess = pre_mcmd[cmdidx].flags & CLEVEL;
 				/* + defaultaccess */
+				if (v.defaultaccess >= 5) /* semi-public commands */
+					v.cc = 1;
+				if (v.defaultaccess >= 10) /* normal commands */
+					v.pass = 1;
+
 				v.dcc    = (pre_mcmd[cmdidx].flags & DCC)    ? 1 : 0;
-				v.cc     = (pre_mcmd[cmdidx].flags & CC)     ? 1 : 0;
-				v.pass   = (pre_mcmd[cmdidx].flags & PASS)   ? 1 : 0;
 				v.args   = (pre_mcmd[cmdidx].flags & CARGS)  ? 1 : 0;
 				v.nopub  = (pre_mcmd[cmdidx].flags & NOPUB)  ? 1 : 0;
 				v.nocmd  = (pre_mcmd[cmdidx].flags & NOCMD)  ? 1 : 0;
@@ -282,9 +285,9 @@ void make_mcmd(int mode)
 					tabx = tabs + 3;
 
 				if (v.noargf)
-					sprintf(noargfunc,"%s_noargs",pre_mcmd[cmdidx].func);
+					sprintf(noargfunc,"\n\t\t\t%s_noargs",pre_mcmd[cmdidx].func);
 				else
-					strcpy(noargfunc,"0");
+					strcpy(noargfunc," 0");
 				adj = strlen(pre_mcmd[cmdidx].func);
 				tabs += 1 + ((adj > 6));
 
