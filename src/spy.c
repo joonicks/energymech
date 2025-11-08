@@ -1031,6 +1031,7 @@ void do_info(COMMAND_ARGS)
 	Chan	*chan;
 	char	*p;
 	char	text[MSGLEN];
+	char	modes[128];
 	uint32_t avg;
 
 	if (current->chanlist == NULL)
@@ -1038,39 +1039,34 @@ void do_info(COMMAND_ARGS)
 		to_user(from,ERR_NOCHANNELS);
 		return;
 	}
-	to_user(from,"\037channel\037                            "
-		"\037average\037 \037peak\037 \037low\037");
+	table_buffer(str_underline("Channel") "\t" str_underline("Statistics") "\t");
+
 	for(chan=current->chanlist;chan;chan=chan->next)
 	{
-		*(p = text) = 0;
-		p = stringcat(p,chan->name);
-		if (chan == current->activechan)
-			p = stringcat(p," (current)");
-		if ((stats = chan->stats))
+		stats = chan->stats;
+		if (stats == NULL)
 		{
-			if (stats && stats->flags == CSTAT_PARTIAL)
-				p = stringcat(p," (partial)");
-			while(p < text+35)
-				*(p++) = ' ';
-			if (stats->LHuserseconds > 0)
-			{
-				avg = stats->LHuserseconds / (60*60);
-			}
-			else
-			{
-				avg = (stats->userpeak + stats->userlow) / 2;
-			}
-			sprintf(p,"%-7u %-4i %i",avg,stats->userpeak,stats->userlow);
-			to_user(from,FMT_PLAIN,text);
-			sprintf(text,"Messages: %i   Notices: %i   Joins: %i   Parts: %i   Kicks: %i   Quits: %i",
-				stats->privmsg,stats->notice,stats->joins,stats->parts,stats->kicks,stats->quits);
+			table_buffer("%s (no current data)",chan->name);
+			continue;
 		}
+
+		if (stats->LHuserseconds > 0)
+			avg = stats->LHuserseconds / (60*60);
 		else
-		{
-			stringcpy(p," (no current data)");
-		}
-		to_user(from,FMT_PLAIN,text);
+			avg = (stats->userpeak + stats->userlow) / 2;
+
+		chan_modestr(chan,modes);
+
+		table_buffer("%s%s%s\tUsers:\tAvg\t%u\tPeak\t%i\tLow\t%i",
+			chan->name,(chan == current->activechan) ? " (current)" : EMPTYSTR,
+			(stats->flags == CSTAT_PARTIAL) ? " (partial)" : EMPTYSTR,
+			avg,stats->userpeak,stats->userlow);
+		table_buffer("Modes: %s\tMessages:\t\t%i\tNotices:\t%i\tJoins:\t%i",modes,
+			stats->privmsg,stats->notice,stats->joins);
+		table_buffer("\tParts:\t\t%i\tKicks:\t%i\tQuits:\t%i",
+			stats->parts,stats->kicks,stats->quits);
 	}
+	table_send(from,2);
 }
 
 #endif /* STATS */

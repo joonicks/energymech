@@ -1,5 +1,6 @@
 3.5(.dev) --
 
+ * Changed: Adjusted output of INFO command.
  * Changed: Rewrote how SERVERGROUP works. Config files might need changes.
  * Removed: SERVERGROUP command.
  * Changed: Nicks/Wantnick/Userhost dynamically allocated only for 'too long' strings.
