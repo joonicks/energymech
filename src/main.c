@@ -858,7 +858,10 @@ restart_die:
 #endif /* CHANBAN */
 
 #ifdef RAWDNS
-	if (dnssock != -1)
+	/*
+	 *  Only a single socket to check.
+	 */
+	if (dnssock != -1 && FD_ISSET(dnssock,&read_fds))
 		process_rawdns();
 #endif /* RAWDNS */
 

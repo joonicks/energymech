@@ -72,6 +72,8 @@ BEG const char NULLSTR[]		MDEF("<NULL>");
 BEG const char DEFAULTSTR[]		MDEF("default");
 BEG const char UNKNOWNATUNKNOWN[]	MDEF("unknown@unknown");
 #define	       UNKNOWN			(&UNKNOWNATUNKNOWN[8])
+BEG const char FMT_PLAIN[]		MDEF("%s");
+BEG const char FMT_PLAINLINE[]		MDEF("%s\n");
 
 BEG const char ERR_CHAN[]		MDEF("I'm not on %s");
 BEG const char ERR_FILEOPEN[]		MDEF("Couldn't open the file %s");
@@ -97,7 +99,6 @@ BEG const char STR_MECHRESET[]		MDEF("MECHRESET=");
 BEG const char FMT_6XSTRTAB[]		MDEF("%s\t%s\t%s\t%s\t%s\t%s");
 #define FMT_4XSTRTAB			&FMT_6XSTRTAB[6]
 #define FMT_3XSTRTAB			&FMT_6XSTRTAB[9]
-#define FMT_PLAIN			&FMT_6XSTRTAB[15]
 
 BEG Mech	*botlist		MDEF(NULL);
 

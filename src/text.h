@@ -25,14 +25,6 @@
  *  These are more or less globally used..
  */
 
-/*
-#define FMT_PLAIN		"%s"
-#define FMT_6XSTRTAB		"%s\t%s\t%s\t%s\t%s\t%s"
-#define FMT_4XSTRTAB		"%s\t%s\t%s\t%s"
-#define FMT_3XSTRTAB		"%s\t%s\t%s"
-*/
-
-#define FMT_PLAINLINE		"%s\n"
 #define MATCH_ALL		"*"
 
 #define TEXT_NOTINSERVLIST	"(not in serverlist)"

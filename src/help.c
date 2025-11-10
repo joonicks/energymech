@@ -229,6 +229,8 @@ void usage_command(char *to, const char *arg)
 	char	*pt;
 	int	i;
 
+	if (to == CoreUser.name) /* dont send usage notices to config file */
+		return;
 	for(i=0;ulist[i].command;i++)
 	{
 		if (!stringcasecmp(arg,ulist[i].command))

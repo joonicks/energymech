@@ -254,18 +254,19 @@ int to_file(const int sock, const char *format, ...)
  *  Format a message and send it to the current bots server
  *  to_server needs a newline (\n) it wont manufacture it itself.
  */
-void to_server(char *format, ...)
+void to_server(const char *format, ...)
 {
 	va_list msg;
 #ifdef DEBUG
 	char	*line,*rest;
 #endif /* DEBUG */
+	int	sz;
 
 	if (current->sock == -1)
 		return;
 
 	va_start(msg,format);
-	vsprintf(globaldata,format,msg);
+	sz = vsprintf(globaldata,format,msg);
 	va_end(msg);
 
 	/*
@@ -274,7 +275,7 @@ void to_server(char *format, ...)
 	 */
 	current->sendq_time += 2;
 
-	if (write(current->sock,globaldata,strlen(globaldata)) < 0)
+	if (write(current->sock,globaldata,sz) < 0)
 	{
 #ifdef DEBUG
 		debug("[StS] {%i} errno = %i\n",current->sock,errno);

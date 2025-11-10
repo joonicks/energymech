@@ -640,17 +640,14 @@ void process_rawdns(void)
 	char	packet[512];
 	int	sz,n;
 
-	if (FD_ISSET(dnssock,&read_fds))
-	{
-		sz = sizeof(sai);
-		n = recvfrom(dnssock,packet,512,0,(struct sockaddr*)&sai,&sz);
-		if (n < sizeof(dnsQuery))
-			return;
+	sz = sizeof(sai);
+	n = recvfrom(dnssock,packet,512,0,(struct sockaddr*)&sai,&sz);
+	if (n < sizeof(dnsQuery))
+		return;
 #ifdef DEBUG
-		debug("(process_rawdns) packet from: %s (%i bytes)\n",inet_ntoa(sai.sin_addr),n);
+	debug("(process_rawdns) packet from: %s (%i bytes)\n",inet_ntoa(sai.sin_addr),n);
 #endif /* DEBUG */
-		parse_query(n,(dnsQuery*)packet);
-	}
+	parse_query(n,(dnsQuery*)packet);
 }
 
 char *poll_rawdns(char *hostname)

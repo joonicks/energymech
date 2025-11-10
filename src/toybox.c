@@ -812,7 +812,7 @@ reuse_font:
 	}
 }
 
-void do_random_msg(COMMAND_ARGS)
+void do_randmsg(COMMAND_ARGS)
 {
 	const char *filename;
 	const char *message;

@@ -33,7 +33,7 @@
 #define INTPROC(x)	.v.numptr=&x
 #define STRPROC(x)	.v.strptr=&x
 
-LS const Setting VarName[SIZE_VARS] =
+const Setting VarName[SIZE_VARS] =
 {
 /*
  *  all channel settings in the beginning

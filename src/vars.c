@@ -53,10 +53,12 @@ int find_setting(const char *name)
 {
 	int	i;
 
-	for(i=0;VarName[i].name;i++)
+	for(i=0;i<SIZE_VARS;i++)
 	{
-		if (!stringcasecmp(name,VarName[i].name))
-			return(i);
+		/* 223 = binary 11011111 -> convert lower case to upper */
+		if ((*name & 223) == *VarName[i].name)
+			if (stringcasecmp(name,VarName[i].name) == 0)
+				return(i);
 	}
 	return(-1);
 }
@@ -86,8 +88,10 @@ void set_binarydefault(UniVar *dst)
 {
 	int	i;
 
-	for(i=0;VarName[i].name;i++)
+	for(i=0;i<SIZE_VARS;i++)
+	{
 		dst[i].str_var = VarName[i].v.str;
+	}
 }
 
 void delete_vars(UniVar *vars, int which)
@@ -403,6 +407,7 @@ void do_set(COMMAND_ARGS)
 
 	/*
 	 *  empty args, its "set" or "set #channel"
+	 *  list setting and values
 	 */
 	if (!name)
 	{
@@ -484,6 +489,10 @@ second_pass:
 	if ((which = find_setting(name)) == -1)
 	{
 set_usage:
+#ifdef DEBUG
+		if (from == CoreUser.name)
+			debug("init: set error: %s\n",nullstr(name));
+#endif
 		usage(from);	/* usage for CurrentCmd->name */
 		return;
 	}

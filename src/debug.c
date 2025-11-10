@@ -1469,6 +1469,7 @@ void do_crash(COMMAND_ARGS)
 void debug(char *format, ...)
 {
 	va_list msg;
+	int	sz;
 
 	if (!dodebug)
 		return;
@@ -1491,10 +1492,10 @@ void debug(char *format, ...)
 	}
 
 	va_start(msg,format);
-	vsnprintf(debugbuf,sizeof(debugbuf),format,msg);
+	sz = vsnprintf(debugbuf,sizeof(debugbuf),format,msg);
 	va_end(msg);
 
-	if ((write(debug_fd,debugbuf,strlen(debugbuf))) < 0)
+	if ((write(debug_fd,debugbuf,sz)) < 0)
 		dodebug = FALSE;
 }
 

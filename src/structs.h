@@ -147,6 +147,7 @@ typedef struct Alias
 {
 	struct		Alias *next;
 
+	int		hash;
 	char		*format;
 	char		alias[1];
 
@@ -233,7 +234,7 @@ typedef struct Setting
 			char	**strptr;
 
 	} v;
-	char		*name;
+	char		name[16];
 	int		max;
 	void		(*onchangefunc)(const struct Setting *);
 
@@ -706,8 +707,8 @@ typedef struct BotNet
 	{
 	uint32_t	pta:1,		/* plain text auth	*/
 			sha:1,		/* SHA */
-			md5:1;		/* MD5 */
-
+			md5:1,		/* MD5 */
+			links_complete; /* All links shared to this bot */
 	} opt;
 
 	Mech		*controller;
@@ -719,7 +720,6 @@ typedef struct BotNet
 	time_t		when;
 
 	struct		BotInfo *botinfo;
-	int		list_complete;
 
 	char		sockdata[MSGLEN];
 

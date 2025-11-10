@@ -73,14 +73,6 @@
 #define __att2(x,y,z)		/* nothing */
 #endif
 
-/* __x86_64__ automatically compiles for regparm optimization */
-#if !defined(__profiling__) && defined(__i386__) && !defined(__i686__)
-# define __regparm(x)		regparm(x)
-#else
-# define __regparm(x)
-#endif
-
-
 #define CORE_SEG	".text.a"
 #define CFG1_SEG	".text.b"
 #define CMD1_SEG	".text.c"
@@ -151,9 +143,9 @@ void do_calc(COMMAND_ARGS)						__page(CMD1_SEG);
 /* channel.c */
 
 void check_idlekick(void);
-Chan *find_channel(const char *, int)					__attr(CORE_SEG, __regparm(2));
-Chan *find_channel_ac(const char *)					__attr(CORE_SEG, __regparm(1));
-Chan *find_channel_ny(const char *)					__attr(CORE_SEG, __regparm(1));
+Chan *find_channel(const char *, int)					__page(CORE_SEG);
+Chan *find_channel_ac(const char *)					__page(CORE_SEG);
+Chan *find_channel_ny(const char *)					__page(CORE_SEG);
 void remove_chan(Chan *)						__page(CMD1_SEG);
 void join_channel(char *, char *)					__page(CFG1_SEG);
 void reverse_topic(Chan *, char *, char *)				__page(CORE_SEG);
@@ -294,15 +286,15 @@ void do_dns(COMMAND_ARGS)						__page(CMD1_SEG);
 /* dynamode.c */
 /* function.c */
 
-LS void *Calloc(int)							__attr(CORE_SEG, __regparm(1));
-LS void Free(char **)							__attr(CORE_SEG, __regparm(1));
-LS Strp *make_strp(Strp **, const char *)				__attr(CORE_SEG, __regparm(2));
-LS Strp *append_strp(Strp **, const char *)				__attr(CORE_SEG, __regparm(2));
-LS Strp *prepend_strp(Strp **, const char *)				__attr(CORE_SEG, __regparm(2));
-LS void purge_linklist(void **)						__attr(CORE_SEG, __regparm(1));
-LS void dupe_strp(Strp *, Strp **)					__attr(CORE_SEG, __regparm(2));
-LS const int StrlenX(const char *, ...)					__attr(CORE_SEG, __regparm(1));
-LS const int Strlen2(const char *, const char *)			__attr(CORE_SEG, __regparm(2));
+LS void *Calloc(int)							__page(CORE_SEG);
+LS void Free(char **)							__page(CORE_SEG);
+LS Strp *make_strp(Strp **, const char *)				__page(CORE_SEG);
+LS Strp *append_strp(Strp **, const char *)				__page(CORE_SEG);
+LS Strp *prepend_strp(Strp **, const char *)				__page(CORE_SEG);
+LS void purge_linklist(void **)						__page(CORE_SEG);
+LS void dupe_strp(Strp *, Strp **)					__page(CORE_SEG);
+LS const int StrlenX(const char *, ...)					__page(CORE_SEG);
+LS const int Strlen2(const char *, const char *)			__page(CORE_SEG);
 LS char *getuh(char *)							__page(CORE_SEG);
 LS char *get_token(char **, const char *)				__page(CORE_SEG);
 LS char *logtime(time_t)						__page(CORE_SEG);
@@ -320,15 +312,15 @@ LS void deop_ban(Chan *, ChanUser *, char *)				__page(CORE_SEG);
 LS void deop_siteban(Chan *, ChanUser *)				__page(CORE_SEG);
 LS void screwban_format(char *)						__page(CORE_SEG);
 LS void deop_screwban(Chan *, ChanUser *)				__page(CORE_SEG);
-LS int is_nick(const char *)						__attr(CORE_SEG, __regparm(1));
-LS int asc2int(const char *)						__attr(CORE_SEG, __regparm(1));
-LS int get_number(const char *)						__attr(CORE_SEG, __regparm(1));
+LS int is_nick(const char *)						__page(CORE_SEG);
+LS int asc2int(const char *)						__page(CORE_SEG);
+LS int get_number(const char *)						__page(CORE_SEG);
 LS void fix_config_line(char *)						__page(CFG1_SEG);
-LS int matches(const char *, const char *)				__attr(CORE_SEG, __regparm(2));
-LS int num_matches(const char *, const char *)				__attr(CORE_SEG, __regparm(2));
+LS int matches(const char *, const char *)				__page(CORE_SEG);
+LS int num_matches(const char *, const char *)				__page(CORE_SEG);
 LS void table_buffer(const char *, ...)					__page(CMD1_SEG);
 LS void table_send(const char *, const int)				__page(CMD1_SEG);
-LS int is_safepath(const char *, int)					__attr(CORE_SEG, __regparm(2));
+LS int is_safepath(const char *, int)					__page(CORE_SEG);
 
 /* greet.c */
 
@@ -365,7 +357,7 @@ LS int SockListener(int)						__page(CORE_SEG);
 LS int SockConnect(char *, int, int)					__page(CORE_SEG);
 LS int SockAccept(int)							__page(CORE_SEG);
 int to_file(const int sock, const char *format, ...)			__page(CORE_SEG);
-void to_server(char *format, ...)					__page(CORE_SEG);
+void to_server(const char *format, ...)					__page(CORE_SEG);
 void to_user_q(const char *, const char *, ...)				__page(CMD1_SEG);
 void to_user(const char *, const char *, ...)				__page(CORE_SEG);
 char *sockread(int, char *, char *)					__page(CORE_SEG);
@@ -393,18 +385,18 @@ void do_rkicksay(COMMAND_ARGS)						__page(CMD1_SEG);
 
 /* lib/string.c */
 
-LS char *chop(char **)							__attr(CORE_SEG, __regparm(1));
-LS void unchop(char *, const char *)					__attr(CORE_SEG, __regparm(2));
-LS int stringcasecmp(const char *, const char *)			__attr(CORE_SEG, __regparm(2));
-LS int stringcmp(const char *, const char *)				__attr(CORE_SEG, __regparm(2));
-LS int nickcmp(const char *, const char *)				__attr(CORE_SEG, __regparm(2));
-LS char *nickcpy(char *, const char *)					__attr(CORE_SEG, __regparm(2));
-LS void stringcpy_n(char *, const char *, int)				__attr(CORE_SEG, __regparm(3));
-LS char *stringcpy(char *, const char *)				__attr(CORE_SEG, __regparm(2));
-LS char *stringchr(const char *, int)					__attr(CORE_SEG, __regparm(2));
-LS char *stringdup(const char *)					__attr(CORE_SEG, __regparm(1));
-LS char *stringcat(char *, const char *)				__attr(CORE_SEG, __regparm(2));
-LS char *tolowercat(char *, const char *)				__attr(CORE_SEG, __regparm(2));
+LS char *chop(char **)							__page(CORE_SEG);
+LS void unchop(char *, const char *)					__page(CORE_SEG);
+LS int stringcasecmp(const char *, const char *)			__page(CORE_SEG);
+LS int stringcmp(const char *, const char *)				__page(CORE_SEG);
+LS int nickcmp(const char *, const char *)				__page(CORE_SEG);
+LS char *nickcpy(char *, const char *)					__page(CORE_SEG);
+LS void stringcpy_n(char *, const char *, int)				__page(CORE_SEG);
+LS char *stringcpy(char *, const char *)				__page(CORE_SEG);
+LS char *stringchr(const char *, int)					__page(CORE_SEG);
+LS char *stringdup(const char *)					__page(CORE_SEG);
+LS char *stringcat(char *, const char *)				__page(CORE_SEG);
+LS char *tolowercat(char *, const char *)				__page(CORE_SEG);
 
 /* main.c */
 
@@ -499,104 +491,105 @@ void do_notify(COMMAND_ARGS)						__page(CMD1_SEG);
 
 /* ons.c */
 
-LS uint32_t makecrc(const char *)					__page(CORE_SEG);
-LS void send_suppress(const char *, const char *)			__page(CORE_SEG);
-LS void on_kick(char *from, char *rest)					__page(CORE_SEG);
-LS void on_join(Chan *chan, char *from)					__page(CORE_SEG);
-LS void on_nick(char *from, char *newnick)				__page(CORE_SEG);
-LS void on_msg(char *from, char *to, char *rest)			__page(CORE_SEG);
-LS void on_mode(char *from, char *channel, char *rest)			__page(CORE_SEG);
-LS void common_public(Chan *chan, char *from, char *spyformat, char *rest) __page(CORE_SEG);
-LS void on_action(char *from, char *to, char *rest)			__page(CORE_SEG);
-LS int access_needed(char *name)					__page(CORE_SEG);
-LS void do_chaccess(COMMAND_ARGS)					__page(CMD1_SEG);
-LS void do_last(COMMAND_ARGS)						__page(CMD1_SEG);
+uint32_t makecrc(const char *)						__page(CORE_SEG);
+void send_suppress(const char *, const char *)				__page(CORE_SEG);
+void on_kick(char *from, char *rest)					__page(CORE_SEG);
+void on_join(Chan *chan, char *from)					__page(CORE_SEG);
+void on_nick(char *from, char *newnick)					__page(CORE_SEG);
+int mkhash(const char *)						__page(CORE_SEG);
+void on_msg(char *from, char *to, char *rest)				__page(CORE_SEG);
+void on_mode(char *from, char *channel, char *rest)			__page(CORE_SEG);
+void common_public(Chan *chan, char *from, char *spyformat, char *rest) __page(CORE_SEG);
+void on_action(char *from, char *to, char *rest)			__page(CORE_SEG);
+int access_needed(char *name)						__page(CORE_SEG);
+void do_chaccess(COMMAND_ARGS)						__page(CMD1_SEG);
+void do_last(COMMAND_ARGS)						__page(CMD1_SEG);
 
 /* parse.c */
 
-LS void parse_error(char *from, char *rest)				__page(CORE_SEG);
-LS void parse_invite(char *from, char *rest)				__page(CMD1_SEG);
-LS void parse_join(char *from, char *rest)				__page(CORE_SEG);
-LS void parse_mode(char *from, char *rest)				__page(CORE_SEG);
-LS void parse_notice(char *from, char *rest)				__page(CORE_SEG);
-LS void parse_part(char *from, char *rest)				__page(CORE_SEG);
-LS void parse_ping(char *from, char *rest)				__page(CORE_SEG);
-LS void parse_pong(char *from, char *rest)				__page(CORE_SEG);
-LS void parse_privmsg(char *from, char *rest)				__page(CORE_SEG);
-LS void parse_quit(char *from, char *rest)				__page(CORE_SEG);
-LS void parse_topic(char *from, char *rest)				__page(CORE_SEG);
-LS void parse_wallops(char *from, char *rest)				__page(CORE_SEG);
-void parse_213(char *from, char *rest);
-void parse_219(char *from, char *rest);
-void parse_251(char *from, char *rest);
-void parse_252(char *from, char *rest);
-void parse_253(char *from, char *rest);
-void parse_254(char *from, char *rest);
-void parse_255(char *from, char *rest);
-void parse_301(char *from, char *rest);
-void parse_303(char *from, char *rest);
-void parse_311(char *from, char *rest);
-void parse_312(char *from, char *rest);
-void parse_313(char *from, char *rest);
-void parse_315(char *from, char *rest);
-void parse_317(char *from, char *rest);
-void parse_318(char *from, char *rest);
-void parse_319(char *from, char *rest);
-void parse_324(char *from, char *rest);
-void parse_352(char *from, char *rest);
-void parse_367(char *from, char *rest);
-void parse_376(char *from, char *rest);
-void parse_401(char *from, char *rest);
-void parse_433(char *from, char *rest);
-void parse_451(char *from, char *rest);
-void parse_471(char *from, char *rest);
-void parse_473(char *from, char *rest);
-void parse_346(char *from, char *rest);
-void parse_348(char *from, char *rest);
-void parse_368(char *from, char *rest);
-void parse_005(char *from, char *rest);
+void parse_error(char *from, char *rest)				__page(CORE_SEG);
+void parse_invite(char *from, char *rest)				__page(CMD1_SEG);
+void parse_join(char *from, char *rest)					__page(CORE_SEG);
+void parse_mode(char *from, char *rest)					__page(CORE_SEG);
+void parse_notice(char *from, char *rest)				__page(CORE_SEG);
+void parse_part(char *from, char *rest)					__page(CORE_SEG);
+void parse_ping(char *from, char *rest)					__page(CORE_SEG);
+void parse_pong(char *from, char *rest)					__page(CORE_SEG);
+void parse_privmsg(char *from, char *rest)				__page(CORE_SEG);
+void parse_quit(char *from, char *rest)					__page(CORE_SEG);
+void parse_topic(char *from, char *rest)				__page(CORE_SEG);
+void parse_wallops(char *from, char *rest)				__page(CORE_SEG);
+void parse_213(char *from, char *rest)					__page(CORE_SEG);
+void parse_219(char *from, char *rest)					__page(CORE_SEG);
+void parse_251(char *from, char *rest)					__page(CORE_SEG);
+void parse_252(char *from, char *rest)					__page(CORE_SEG);
+void parse_253(char *from, char *rest)					__page(CORE_SEG);
+void parse_254(char *from, char *rest)					__page(CORE_SEG);
+void parse_255(char *from, char *rest)					__page(CORE_SEG);
+void parse_301(char *from, char *rest)					__page(CORE_SEG);
+void parse_303(char *from, char *rest)					__page(CORE_SEG);
+void parse_311(char *from, char *rest)					__page(CORE_SEG);
+void parse_312(char *from, char *rest)					__page(CORE_SEG);
+void parse_313(char *from, char *rest)					__page(CORE_SEG);
+void parse_315(char *from, char *rest)					__page(CORE_SEG);
+void parse_317(char *from, char *rest)					__page(CORE_SEG);
+void parse_318(char *from, char *rest)					__page(CORE_SEG);
+void parse_319(char *from, char *rest)					__page(CORE_SEG);
+void parse_324(char *from, char *rest)					__page(CORE_SEG);
+void parse_352(char *from, char *rest)					__page(CORE_SEG);
+void parse_367(char *from, char *rest)					__page(CORE_SEG);
+void parse_376(char *from, char *rest)					__page(CORE_SEG);
+void parse_401(char *from, char *rest)					__page(CORE_SEG);
+void parse_433(char *from, char *rest)					__page(CORE_SEG);
+void parse_451(char *from, char *rest)					__page(CORE_SEG);
+void parse_471(char *from, char *rest)					__page(CORE_SEG);
+void parse_473(char *from, char *rest)					__page(CORE_SEG);
+void parse_346(char *from, char *rest)					__page(CORE_SEG);
+void parse_348(char *from, char *rest)					__page(CORE_SEG);
+void parse_368(char *from, char *rest)					__page(CORE_SEG);
+void parse_005(char *from, char *rest)					__page(CORE_SEG);
 static __INLINE__ uint32_t stringhash(char *)				__page(CORE_SEG);
 void parse_server_input(char *)						__page(CORE_SEG);
 
 /* partyline.c */
 
-LS int check_telnet(int, char *)					__page(CMD1_SEG);
-LS void check_telnet_pass(Client *, char *)				__page(CMD1_SEG);
-LS int partyline_only_command(const char *)				__page(CMD1_SEG);
-LS void partyline_broadcast(const Client *, const char *, const char *) __page(CMD1_SEG);
-LS void partyline_banner(Client *)					__page(CMD1_SEG);
-LS void dcc_chat(char *)						__page(CMD1_SEG);
-LS void whom_printbot(char *, BotInfo *, char *)			__page(CMD1_SEG);
-LS void do_whom(COMMAND_ARGS)						__page(CMD1_SEG);
-LS void do_chat(COMMAND_ARGS)						__page(CMD1_SEG);
-LS void do_bye(COMMAND_ARGS)						__page(CMD1_SEG);
-LS void do_boot(COMMAND_ARGS)						__page(CMD1_SEG);
+int check_telnet(int, char *)						__page(CMD1_SEG);
+void check_telnet_pass(Client *, char *)				__page(CMD1_SEG);
+int partyline_only_command(const char *)				__page(CMD1_SEG);
+void partyline_broadcast(const Client *, const char *, const char *)	__page(CMD1_SEG);
+void partyline_banner(Client *)						__page(CMD1_SEG);
+void dcc_chat(char *)							__page(CMD1_SEG);
+void whom_printbot(char *, BotInfo *, char *)				__page(CMD1_SEG);
+void do_whom(COMMAND_ARGS)						__page(CMD1_SEG);
+void do_chat(COMMAND_ARGS)						__page(CMD1_SEG);
+void do_bye(COMMAND_ARGS)						__page(CMD1_SEG);
+void do_boot(COMMAND_ARGS)						__page(CMD1_SEG);
 
 /* perl.c */
 
-LS void do_perl(COMMAND_ARGS)						__page(CMD1_SEG);
-LS void do_perlscript(COMMAND_ARGS)					__page(CMD1_SEG);
+void do_perl(COMMAND_ARGS)						__page(CMD1_SEG);
+void do_perlscript(COMMAND_ARGS)					__page(CMD1_SEG);
 
 /* prot.c */
 
-LS void send_kick(Chan *chan, const char *nick, const char *format, ...);
-LS void push_kicks(Chan *chan);
-LS void unmode_chanuser(Chan *chan, ChanUser *cu);
-LS void send_mode(Chan *chan, int pri, int type, char plusminus, char modeflag, void *data);
-LS int mode_effect(Chan *chan, qMode *mode);
-LS void push_modes(Chan *chan, int lowpri);
-LS void update_modes(Chan *chan);
-LS int check_mass(Chan *chan, ChanUser *doer, int type);
-LS void mass_action(Chan *chan, ChanUser *doer);
-LS void prot_action(Chan *chan, char *from, ChanUser *doer, char *target, ChanUser *victim);
-LS void process_chanbans(void);
-LS void chanban_action(char *, char *, Shit *);
-LS void check_dynamode(Chan *)						__page(CORE_SEG);
-LS void do_opdeopme(COMMAND_ARGS)					__page(CMD1_SEG);
-LS void do_opvoice(COMMAND_ARGS)					__page(CMD1_SEG);
-LS void do_kickban(COMMAND_ARGS)					__page(CMD1_SEG);
-LS void do_unban(COMMAND_ARGS)						__page(CMD1_SEG);
-LS void do_banlist(COMMAND_ARGS)					__page(CMD1_SEG);
+void send_kick(Chan *chan, const char *nick, const char *format, ...);
+void push_kicks(Chan *chan);
+void unmode_chanuser(Chan *chan, ChanUser *cu);
+void send_mode(Chan *chan, int pri, int type, char plusminus, char modeflag, void *data);
+int mode_effect(Chan *chan, qMode *mode);
+void push_modes(Chan *chan, int lowpri);
+void update_modes(Chan *chan);
+int check_mass(Chan *chan, ChanUser *doer, int type);
+void mass_action(Chan *chan, ChanUser *doer);
+void prot_action(Chan *chan, char *from, ChanUser *doer, char *target, ChanUser *victim);
+void process_chanbans(void);
+void chanban_action(char *, char *, Shit *);
+void check_dynamode(Chan *)						__page(CORE_SEG);
+void do_opdeopme(COMMAND_ARGS)						__page(CMD1_SEG);
+void do_opvoice(COMMAND_ARGS)						__page(CMD1_SEG);
+void do_kickban(COMMAND_ARGS)						__page(CMD1_SEG);
+void do_unban(COMMAND_ARGS)						__page(CMD1_SEG);
+void do_banlist(COMMAND_ARGS)						__page(CMD1_SEG);
 
 /* python.c */
 
@@ -664,7 +657,7 @@ void send_global(const char *src, const char *format, ...)		__page(CORE_SEG);
 void spy_typecount(Mech *bot)						__page(CORE_SEG);
 int spy_source(char *from, int *t_src, const char **src)		__page(CORE_SEG);
 char *urlhost(const char *)						__page(CORE_SEG);
-LS void urlcapture(const char *)					__page(CORE_SEG);
+void urlcapture(const char *)						__page(CORE_SEG);
 int begin_redirect(char *, char *)					__page(CORE_SEG);
 void send_redirect(char *)						__page(CORE_SEG);
 void end_redirect(void)							__page(CORE_SEG);
@@ -673,7 +666,7 @@ void stats_plusminususer(Chan *chan, int plusminus)			__page(CORE_SEG);
 void do_spy(COMMAND_ARGS)						__page(CMD1_SEG);
 void do_rspy(COMMAND_ARGS)						__page(CMD1_SEG);
 void do_info(COMMAND_ARGS)						__page(CMD1_SEG);
-LS void do_urlhist(COMMAND_ARGS)					__page(CMD1_SEG);
+void do_urlhist(COMMAND_ARGS)						__page(CMD1_SEG);
 
 /* tcl.c */
 #ifdef TCL
@@ -682,11 +675,11 @@ LS void do_urlhist(COMMAND_ARGS)					__page(CMD1_SEG);
 LS char *tcl_var_read(Tcl_TVInfo *vinfo, Tcl_Interp *I, char *n1, char *n2, int flags);
 LS char *tcl_var_write(Tcl_TVInfo *vinfo, Tcl_Interp *I, char *n1, char *n2, int flags);
 */
-LS int tcl_timer_jump(Hook *hook);
-LS int tcl_parse_jump(char *from, char *rest, Hook *hook);
-LS void tcl_dcc_complete(Client *client, int cps);
+int tcl_timer_jump(Hook *hook);
+int tcl_parse_jump(char *from, char *rest, Hook *hook);
+void tcl_dcc_complete(Client *client, int cps);
 #if defined(DEBUG_C) || defined(MEGA_C)
-LS int tcl_hook(void *foo, Tcl_Interp *I, int objc, Tcl_Obj *CONST objv[]);
+int tcl_hook(void *foo, Tcl_Interp *I, int objc, Tcl_Obj *CONST objv[]);
 #endif
 /*
 LS int tcl_unhook(void *foo, Tcl_Interp *I, int objc, Tcl_Obj *CONST objv[]);
@@ -698,36 +691,36 @@ LS int tcl_dcc_sendfile(void *foo, Tcl_Interp *I, int objc, Tcl_Obj *CONST objv[
 LS int tcl_dns_jump(char *host, char *resolved, Hook *hook);
 LS int tcl_dns(void *foo, Tcl_Interp *I, int objc, Tcl_Obj *CONST objv[]);
 */
-LS void init_tcl(void);
-LS void do_tcl(COMMAND_ARGS)						__page(CMD1_SEG);
+void init_tcl(void);
+void do_tcl(COMMAND_ARGS)						__page(CMD1_SEG);
 
 #endif /* TCL */
 
 /* toybox.c */
 
-LS int read_charset_callback(char *)					__page(CMD1_SEG);
-LS int read_bigcharset(char *)						__page(CMD1_SEG);
-LS int read_ascii(char *)						__page(CMD1_SEG);
-LS void trivia_week_toppers(void)					__page(CMD1_SEG);
-LS void hint_one(void)							__page(CMD1_SEG);
-LS void hint_two(void)							__page(CMD1_SEG);
-LS void hint_three(void)						__page(CMD1_SEG);
-LS void trivia_cleanup(void)						__page(CMD1_SEG);
-LS void trivia_check(Chan *, char *)					__page(CMD1_SEG);
-LS void trivia_no_answer(void)						__page(CMD1_SEG);
-LS char *random_question(char *)					__page(CMD1_SEG);
-LS void trivia_question(void)						__page(CMD1_SEG);
-LS void trivia_tick(void)						__page(CMD1_SEG);
-LS void write_triviascore(void)						__page(CMD1_SEG);
-LS int trivia_score_callback(char *)					__page(CMD1_SEG);
-LS void read_triviascore(void)						__page(CMD1_SEG);
-LS void do_bigsay(COMMAND_ARGS)						__page(CMD1_SEG);
-LS void do_random_msg(COMMAND_ARGS)					__page(CMD1_SEG);
-LS void do_randtopic(COMMAND_ARGS)					__page(CMD1_SEG);
-LS void do_8ball(COMMAND_ARGS)						__page(CMD1_SEG);
-LS void do_ascii(COMMAND_ARGS)						__page(CMD1_SEG);
-LS void do_rand(COMMAND_ARGS)						__page(CMD1_SEG);
-LS void do_trivia(COMMAND_ARGS)						__page(CMD1_SEG);
+int read_charset_callback(char *)					__page(CMD1_SEG);
+int read_bigcharset(char *)						__page(CMD1_SEG);
+int read_ascii(char *)							__page(CMD1_SEG);
+void trivia_week_toppers(void)						__page(CMD1_SEG);
+void hint_one(void)							__page(CMD1_SEG);
+void hint_two(void)							__page(CMD1_SEG);
+void hint_three(void)							__page(CMD1_SEG);
+void trivia_cleanup(void)						__page(CMD1_SEG);
+void trivia_check(Chan *, char *)					__page(CMD1_SEG);
+void trivia_no_answer(void)						__page(CMD1_SEG);
+char *random_question(char *)						__page(CMD1_SEG);
+void trivia_question(void)						__page(CMD1_SEG);
+void trivia_tick(void)							__page(CMD1_SEG);
+void write_triviascore(void)						__page(CMD1_SEG);
+int trivia_score_callback(char *)					__page(CMD1_SEG);
+void read_triviascore(void)						__page(CMD1_SEG);
+void do_bigsay(COMMAND_ARGS)						__page(CMD1_SEG);
+void do_randmsg(COMMAND_ARGS)						__page(CMD1_SEG);
+void do_randtopic(COMMAND_ARGS)						__page(CMD1_SEG);
+void do_8ball(COMMAND_ARGS)						__page(CMD1_SEG);
+void do_ascii(COMMAND_ARGS)						__page(CMD1_SEG);
+void do_rand(COMMAND_ARGS)						__page(CMD1_SEG);
+void do_trivia(COMMAND_ARGS)						__page(CMD1_SEG);
 
 
 /* uptime.c */
@@ -740,36 +733,36 @@ void do_upsend(COMMAND_ARGS)						__page(CMD1_SEG);
 
 /* user.c */
 
-LS void cfg_user(char *)						__page(CFG1_SEG);
-void cfg_modcount(char *);
-LS void cfg_pass(char *)						__page(CFG1_SEG);
-LS void cfg_mask(char *)						__page(CFG1_SEG);
-LS void cfg_chan(char *)						__page(CFG1_SEG);
-LS void cfg_opt(char *)							__page(CFG1_SEG);
-LS void cfg_shit(char *)						__page(CFG1_SEG);
-void cfg_kicksay(char *);
-LS void cfg_greet(char *)						__page(CFG1_SEG);
-LS void cfg_note(char *)						__page(CFG1_SEG);
-void user_sync(void);
-int read_userlist_callback(char *);
-int read_userlist(char *);
-int write_userlist(char *);
-void rehash_chanusers(void);
-LS void addtouser(Strp **, const char *, int)				__attr(CORE_SEG, __regparm(3));
-LS int remfromuser(Strp **, const char *)				__attr(CORE_SEG, __regparm(2));
+void cfg_user(char *)							__page(CFG1_SEG);
+void cfg_modcount(char *)						__page(CFG1_SEG);
+void cfg_pass(char *)							__page(CFG1_SEG);
+void cfg_mask(char *)							__page(CFG1_SEG);
+void cfg_chan(char *)							__page(CFG1_SEG);
+void cfg_opt(char *)							__page(CFG1_SEG);
+void cfg_shit(char *)							__page(CFG1_SEG);
+void cfg_kicksay(char *)						__page(CFG1_SEG);
+void cfg_greet(char *)							__page(CFG1_SEG);
+void cfg_note(char *)							__page(CFG1_SEG);
+void user_sync(void)							__page(CFG1_SEG);
+int read_userlist_callback(char *)					__page(CFG1_SEG);
+int read_userlist(char *)						__page(CFG1_SEG);
+int write_userlist(char *)						__page(CMD1_SEG);
+void rehash_chanusers(void)						__page(CORE_SEG);
+void addtouser(Strp **, const char *, int)				__page(CORE_SEG);
+int remfromuser(Strp **, const char *)					__page(CORE_SEG);
 void mirror_user(User *)						__page(CORE_SEG);
 void mirror_userlist(void)						__page(CORE_SEG);
-void reset_userlink(User *, User *);
-void remove_user(User *);
-User *add_user(char *, char *, int);
-User *find_handle(const char *);
-int userhaschannel(const User *, const char *);
+void reset_userlink(User *, User *)					__page(CORE_SEG);
+void remove_user(User *)						__page(CFG1_SEG);
+User *add_user(char *, char *, int)					__page(CFG1_SEG);
+User *find_handle(const char *)						__page(CORE_SEG);
+int userhaschannel(const User *, const char *)				__page(CORE_SEG);
 User *get_user(const char *, const char *)				__page(CORE_SEG);
 int get_useraccess(const char *, const char *)				__page(CORE_SEG);
 int get_maxaccess(const char *)						__page(CORE_SEG);
 int is_bot(const char *)						__page(CORE_SEG);
 int get_protaction(Chan *, char *)					__page(CORE_SEG);
-int usercanmodify(const char *, const User *);
+int usercanmodify(const char *, const User *)				__page(CMD1_SEG);
 void change_pass(User *, char *)					__page(CMD1_SEG);
 void do_access(COMMAND_ARGS)						__page(CMD1_SEG);
 void do_userlist(COMMAND_ARGS)						__page(CMD1_SEG);
@@ -787,7 +780,7 @@ int find_setting(const char *)						__page(CORE_SEG);
 void copy_vars(UniVar *, UniVar *)					__page(CFG1_SEG);
 void set_binarydefault(UniVar *)					__page(CFG1_SEG);
 void delete_vars(UniVar *, int)						__page(CMD1_SEG);
-void var_resolve_host(const struct Setting *);
+void var_resolve_host(const struct Setting *)				__page(CMD1_SEG);
 void nobo_strcpy(const char *)						__page(CMD1_SEG);
 void ec_access(char *, const char *)					__page(CMD1_SEG);
 void ec_capabilities(char *, const char *)				__page(CMD1_SEG);

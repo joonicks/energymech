@@ -159,21 +159,30 @@ NetCfg *find_netcfg(int guid)
 
 BotInfo *make_botinfo(int guid, int hops, char *nuh, char *server, char *version)
 {
-	BotInfo	*new;
+	BotInfo	*newbinfo;
+	int	sn,vn;
 
 	set_mallocdoer(make_botinfo);
-	new = (BotInfo*)Calloc(sizeof(BotInfo) + StrlenX(nuh,server,version,NULL));
+	newbinfo = (BotInfo*)Calloc(sizeof(BotInfo) + StrlenX(nuh,server,version,NULL));
 
-	new->guid = guid;
-	new->hops = hops;
+	newbinfo->guid = guid;
+	newbinfo->hops = hops;
 
-	new->server = stringcat(new->nuh,nuh) + 1;
-	new->version = stringcat(new->server,server) + 1;
-	stringcpy(new->version,version);
+/*
+	sprintf(newbinfo->nuh,"%s%c%n%s%c%n%s",nuh,0,&sn,server,0,&vn,version);
+	newbinfo->server = newbinfo->nuh + sn;
+	newbinfo->version = newbinfo->nuh + vn;
+*/
+	newbinfo->server = stringcat(newbinfo->nuh,nuh) + 1;
+	newbinfo->version = stringcat(newbinfo->server,server) + 1;
+	stringcpy(newbinfo->version,version);
 
-	return(new);
+	return(newbinfo);
 }
 
+/*
+ *  broadcast data to all except the source
+ */
 void botnet_relay(BotNet *source, char *format, ...)
 {
 	BotNet	*bn;
@@ -188,9 +197,8 @@ void botnet_relay(BotNet *source, char *format, ...)
 		if (!sz)
 		{
 			va_start(msg,format);
-			vsprintf(globaldata,format,msg);
+			sz = vsprintf(globaldata,format,msg);
 			va_end(msg);
-			sz = strlen(globaldata);
 		}
 
 		if (write(bn->sock,globaldata,sz) < 0)
@@ -199,6 +207,24 @@ void botnet_relay(BotNet *source, char *format, ...)
 		debug("[bnr] {%i} %s",bn->sock,globaldata);
 #endif /* DEBUG */
 	}
+}
+
+void botnet_binfo_relay(BotNet *source, BotInfo *binfo)
+{
+	botnet_relay(source,
+		"BL%i %i %s %s %s\n",binfo->guid,(binfo->hops + 1),
+		(binfo->nuh) ? binfo->nuh : UNKNOWNATUNKNOWN,
+		(binfo->server) ? binfo->server : UNKNOWN,
+		(binfo->version) ? binfo->version : "-");
+}
+
+void botnet_binfo_tofile(int sock, BotInfo *binfo)
+{
+	to_file(sock,
+		"BL%i %i %s %s %s\n",binfo->guid,(binfo->hops + 1),
+		(binfo->nuh) ? binfo->nuh : UNKNOWNATUNKNOWN,
+		(binfo->server) ? binfo->server : UNKNOWN,
+		(binfo->version) ? binfo->version : "-");
 }
 
 void botnet_refreshbotinfo(void)
@@ -213,22 +239,6 @@ void botnet_refreshbotinfo(void)
 #ifdef DEBUG
 	debug("(botnet_refreshbotinfo) sent refreshed information to botnet\n");
 #endif /* DEBUG */
-}
-
-void botnet_binfo_relay(BotNet *source, BotInfo *binfo)
-{
-	botnet_relay(source,"BL%i %i %s %s %s\n",binfo->guid,(binfo->hops + 1),
-		(binfo->nuh) ? binfo->nuh : UNKNOWNATUNKNOWN,
-		(binfo->server) ? binfo->server : UNKNOWN,
-		(binfo->version) ? binfo->version : "-");
-}
-
-void botnet_binfo_tofile(int sock, BotInfo *binfo)
-{
-	to_file(sock,"BL%i %i %s %s %s\n",binfo->guid,(binfo->hops + 1),
-		(binfo->nuh) ? binfo->nuh : UNKNOWNATUNKNOWN,
-		(binfo->server) ? binfo->server : UNKNOWN,
-		(binfo->version) ? binfo->version : "-");
 }
 
 void botnet_dumplinklist(BotNet *bn)
@@ -255,7 +265,7 @@ void botnet_dumplinklist(BotNet *bn)
 	}
 	for(bn2=botnetlist;bn2;bn2=bn2->next)
 	{
-		if ((bn2 == bn) || (bn2->status != BN_LINKED) || !(bn2->list_complete))
+		if ((bn2 == bn) || (bn2->status != BN_LINKED) || (bn2->opt.links_complete == 0))
 			continue;
 		for(binfo=bn2->botinfo;binfo;binfo=binfo->next)
 			botnet_binfo_tofile(bn->sock,binfo);
@@ -707,7 +717,7 @@ void basicBanner(BotNet *bn, char *rest)
 
 void basicLink(BotNet *bn, char *version)
 {
-	BotInfo	*binfo,*delete,**pp;
+	BotInfo	*binfo,**pp;
 	NetCfg	*cfg;
 	char	*nuh,*server;
 	int	guid,hops;
@@ -754,7 +764,7 @@ void basicLink(BotNet *bn, char *version)
 				continue;
 			cfg->linked = TRUE;
 		}
-		bn->list_complete = TRUE;
+		bn->opt.links_complete = TRUE;
 		return;
 	}
 
@@ -780,23 +790,25 @@ void basicLink(BotNet *bn, char *version)
 	binfo = make_botinfo(guid,hops,nuh,server,version);
 
 	if (bn->botinfo == NULL)
-		send_global(SPYSTR_STATUS,"connecting to %s [guid %i]",nickcpy(NULL,nuh),bn->guid);
+		send_global(SPYSTR_STATUS,"Connected to %s [guid %i]",nickcpy(NULL,nuh),bn->guid);
+
 	pp = &bn->botinfo;
 	while(*pp)
 	{
-		delete = *pp;
-		if (guid == delete->guid)
+		BotInfo *trash;
+		if (guid == (*pp)->guid)
 		{
-			*pp = delete->next;
-			Free((char**)&delete);
+			trash = *pp;
+			*pp = trash->next;
+			Free((char**)&trash);
 			break;
 		}
-		pp = &delete->next;
+		pp = &(*pp)->next;
 	}
 	binfo->next = *pp;
 	*pp = binfo;
 
-	if (bn->list_complete)
+	if (bn->opt.links_complete)
 	{
 		if ((cfg = find_netcfg(guid)))
 			cfg->linked = TRUE;
@@ -1617,7 +1629,7 @@ clean:
 				debug("(process_botnet) botnet quit: guid %i child of %i on socket %i\n",
 					binfo->guid,bn->guid,bn->sock);
 #endif /* DEBUG */
-				if (bn->list_complete)
+				if (bn->opt.links_complete)
 				{
 					send_global(SPYSTR_BOTNET,"quit: guid %i (child of %i)",
 						binfo->guid,bn->guid);
@@ -1626,7 +1638,7 @@ clean:
 				}
 				Free((char**)&binfo);
 			}
-			if (bn->list_complete)
+			if (bn->opt.links_complete)
 			{
 				botnet_relay(bn,"BQ%i\n",bn->guid);
 			}
