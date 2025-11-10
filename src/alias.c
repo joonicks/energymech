@@ -270,13 +270,14 @@ void do_alias(COMMAND_ARGS)
 	set_mallocdoer(do_alias);
 	alias = (Alias*)Calloc(sizeof(Alias)+strlen(cmd));
 	stringcpy(alias->alias,cmd);
+	alias->hash = mkhash(cmd);
 	set_mallocdoer(do_alias);
 	alias->format = stringdup(rest);
 	alias->next = aliaslist;
 	aliaslist = alias;
 	to_user(from,"Added alias: %s --> %s",cmd,rest);
 #ifdef DEBUG
-	debug("(do_alias) Added alias: %s --> %s\n",cmd,rest);
+	debug("(do_alias) Added alias: %s [#%i] --> %s\n",cmd,alias->hash,rest);
 #endif
 }
 

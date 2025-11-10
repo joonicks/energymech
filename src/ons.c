@@ -394,7 +394,7 @@ void on_msg(char *from, char *to, char *rest)
 	uchar	*p1,*p2;
 	int	has_cc,has_bang;
 	int	uaccess;
-	int	i,j,h;
+	int	i,j,command_hash;
 
 	/*
 	 *  No line sent to this routine should be longer than MSGLEN
@@ -475,15 +475,15 @@ void on_msg(char *from, char *to, char *rest)
 		command++;
 	}
 
+	command_hash = mkhash(command);
+
 #ifdef ALIAS
 	arec = 0;
 recheck_alias:
-#endif /* ALIAS */
 
-#ifdef ALIAS
 	for(alias=aliaslist;alias;alias=alias->next)
 	{
-		if (!stringcasecmp(alias->alias,command))
+		if (command_hash == alias->hash && stringcasecmp(alias->alias,command) == 0)
 		{
 			unchop(command,rest);
 			afmt(amem,alias->format,command);
@@ -527,10 +527,10 @@ recheck_alias:
 	if (i) return;
 #endif /* SCRIPTING */
 
-	h = mkhash(command);
-	i = hashmap[h];
+	command_hash = mkhash(command);
+	i = hashmap[command_hash];
 #ifdef DEBUG
-	debug("(on_msg) %s = hash %i, mapped to %i %s\n",command,h,i,(i==255)?"(no match)":mcmd[i].name);
+	debug("(on_msg) %s = hash %i, mapped to %i %s\n",command,command_hash,i,(i==255)?"(no match)":mcmd[i].name);
 #endif /* DEBUG */
 	if (i == 255)
 		goto public_msg;
