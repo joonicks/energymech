@@ -55,20 +55,17 @@ static int basepos(char c)
 /*
  -lcrypt converts to [a-zA-Z0-9./]
  included sha1 converts to hex
- included md5 converts to [./0-9A-Za-z]
+ included md5 converts to [./0-9A-Za-z] <-- this is the correct way
 */
-	if (c >= 'a' && c <= 'z')
-		return(c - 'a');
+	if (c >= '.' && c <= '9')
+		return(c - '.');
 	if (c >= 'A' && c <= 'Z')
-		return(c - 'A' + 26);
-	if (c >= '0' && c <= '9')
-		return(c - '0' + 52);
-	if (c == '.')
-		return(62);
-	if (c == '/')
-		return(63);
+		return(c - 'A' + 12);
+	if (c >= 'a' && c <= 'z')
+		return(c - 'a' + 38);
 	return(0);
 }
+
 #if defined(SHACRYPT) || defined(MD5CRYPT)
 char *CRYPT_FUNC(const char *, const char *);
 #endif
@@ -79,26 +76,16 @@ void send_spy(const char *src, const char *format, ...)
 	Mech	*backup;
 	Spy	*spy;
 	va_list	msg;
-	const char *tempsrc;
+	const char *spysrc;
 	const char *printmsg;
 	char	tempdata[MAXLEN],*rnd,*dst,*end;
-	int	fd,a,b,c,d;
+	int	fd;
 	int	printed = FALSE;
 
 	if (src == SPYSTR_RAWIRC)
 	{
-		tempsrc = printmsg = format;
+		printmsg = format;
 		printed = TRUE;
-		format = FMT_PLAIN;
-	}
-	else
-	if (src == SPYSTR_STATUS)
-	{
-		tempsrc = time2medium(now);
-	}
-	else
-	{
-		tempsrc = src;
 	}
 
 #ifdef DEBUG
@@ -113,50 +100,77 @@ void send_spy(const char *src, const char *format, ...)
 		{
 			if (src != SPYSTR_RAWIRC)
 				continue;
-			/* dont use four-char server messages such as "PING :..." */
-			if (tempsrc[5] == ':')
-#ifdef DEBUG
-			{
-				debug("(send_spy) RANDSRC: skipping four-char server message\n");
-#endif /* DEBUG */
-				continue;
-#ifdef DEBUG
-			}
-#endif /* DEBUG */
-
 			if (spy->data.delay > now)
 				continue;
+			/* dont use four-char server messages such as "PING :..." */
+			if (format[5] == ':')
+				continue;
+			/* create delay until next */
 			spy->data.delay = now + 10 + RANDOM(0,9); /* make it unpredictable which messages will be sourced */
 
 /*
- $6$ for sha512, $1$ for MD5
-     MD5     | 22 characters
-     SHA-512 | 86 characters
-*/
-#ifdef SHACRYPT
-			sprintf(tempdata,"$6$%04x",(uint32_t)(now & 0xFFFF));
-			rnd = CRYPT_FUNC(tempsrc,tempdata);
-#endif /* SHACRYPT */
+ *    MD5     | 22 characters, $1$
+ *    SHA-512 | 86 characters, $6$
+ */
 
-#if !defined(SHACRYPT) && defined(MD5CRYPT)
-			sprintf(tempdata,"$1$%04x",(uint32_t)(now & 0xFFFF));
-			rnd = CRYPT_FUNC(tempsrc,tempdata);
-#endif /* !SHACRYPT && MD5CRYPT */
+#if defined(SHACRYPT) || defined(MD5CRYPT)
+			sprintf(tempdata,
+#ifdef SHACRYPT
+				"$6$%04x",
+#else
+				"$1$%04x",
+#endif /* SHACRYPT */
+#endif /* defined(SHACRYPT) || defined(MD5CRYPT) */
+
+				(uint32_t)(now & 0xFFFF));
+			rnd = CRYPT_FUNC(format,tempdata);
 
 			dst = tempdata;
 			end = STREND(rnd);
+
 #if defined(SHACRYPT) || defined(MD5CRYPT)
 			rnd += 8; /* skip salt */
-#endif
-			while(rnd < (end - 3))
+#endif /* defined(SHACRYPT) || defined(MD5CRYPT) */
+
+			while(rnd < (end - 4))
 			{
-				/* base64 to bin, 4 chars to 3 */
+				union WordtoBytes
+				{
+					uint32_t m;
+					uint8_t b[4];
+				} m32;
+				uint32_t n, o, p;
+				int	a,b,c,d;
+
+				m32.m = *((uint32_t*)rnd);
+
+				/*
+				 *  branchless bit operations to do 4 bytes at a time
+				 *  if input is not base64, the output is undefined
+				 */
+				n = (((m32.m - 0x3a3a3a3a) & 0x80808080) >> 7) * 7;
+				o = (((m32.m - 0x5b5b5b5b) & 0x80808080) >> 7) * 6;
+				p = (((m32.m - 0x7b7b7b7b) & 0x80808080) >> 7) * 6;
+
+				m32.m = m32.m - 0x41414141 + n + o + p;
+
+				a = m32.b[0];
+				b = m32.b[1];
+				c = m32.b[2];
+				d = m32.b[3];
+#if 0
 				a = basepos(rnd[0]);
 				b = basepos(rnd[1]);
-				dst[0] = (a << 2) | (b >> 4);		/* aaaaaabb */
 				c = basepos(rnd[2]);
-				dst[1] = (b << 4) | (c >> 2);		/* bbbbcccc */
 				d = basepos(rnd[3]);
+
+				debug("(send_spy) a %i 0 %i, b %i 1 %i, c %i 2 %i, d %i 3 %i\n",
+					a,m32.b[0],b,m32.b[1],c,m32.b[2],d,m32.b[3]);
+#endif
+
+				/* base64 to bin, 4 chars to 3 */
+				dst[0] = (a << 2) | (b >> 4);		/* aaaaaabb */
+				dst[1] = (b << 4) | (c >> 2);		/* bbbbcccc */
 				dst[2] = (c << 6) | (d);		/* ccdddddd */
 				dst += 3;
 				rnd += 4;
@@ -177,6 +191,11 @@ void send_spy(const char *src, const char *format, ...)
 			continue;
 		}
 
+		if (spy->t_src == SPY_STATUS)
+			spysrc = time2medium(now);
+		else
+			spysrc = spy->src;
+
 		if ((*src == '#' || *src == '*') && spy->t_src == SPY_CHANNEL)
 		{
 			if ((*src != '*') && stringcasecmp(spy->src,src))
@@ -185,7 +204,6 @@ void send_spy(const char *src, const char *format, ...)
 				continue;
 			if (find_chanuser(chan,CurrentNick) == NULL)
 				continue;
-			tempsrc = spy->src;
 		}
 		else
 		/*
@@ -202,10 +220,11 @@ void send_spy(const char *src, const char *format, ...)
 			va_end(msg);
 			printmsg = tempdata;
 		}
+
 		switch(spy->t_dest)
 		{
 		case SPY_DCC:
-			to_file(spy->data.dcc->sock,"[%s] %s\n",tempsrc,printmsg);
+			to_file(spy->data.dcc->sock,"[%s] %s\n",spysrc,printmsg);
 			break;
 		case SPY_CHANNEL:
 			if (spy->data.destbot >= 0)
@@ -215,7 +234,7 @@ void send_spy(const char *src, const char *format, ...)
 				{
 					if (current->guid == spy->data.destbot)
 					{
-						to_server("PRIVMSG %s :[%s] %s\n",spy->dest,tempsrc,printmsg);
+						to_server("PRIVMSG %s :[%s] %s\n",spy->dest,spysrc,printmsg);
 						break;
 					}
 				}
@@ -223,7 +242,7 @@ void send_spy(const char *src, const char *format, ...)
 			}
 			else
 			{
-				to_user(spy->dest,"[%s] %s",tempsrc,printmsg);
+				to_user(spy->dest,"[%s] %s",spysrc,printmsg);
 			}
 			break;
 		case SPY_FILE:
