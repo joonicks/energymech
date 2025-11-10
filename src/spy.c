@@ -50,22 +50,6 @@ LS const char SPY_DEFS[][12] =
 
 #endif /* DEBUG */
 
-static int basepos(char c)
-{
-/*
- -lcrypt converts to [a-zA-Z0-9./]
- included sha1 converts to hex
- included md5 converts to [./0-9A-Za-z] <-- this is the correct way
-*/
-	if (c >= '.' && c <= '9')
-		return(c - '.');
-	if (c >= 'A' && c <= 'Z')
-		return(c - 'A' + 12);
-	if (c >= 'a' && c <= 'z')
-		return(c - 'a' + 38);
-	return(0);
-}
-
 #if defined(SHACRYPT) || defined(MD5CRYPT)
 char *CRYPT_FUNC(const char *, const char *);
 #endif
@@ -158,15 +142,6 @@ void send_spy(const char *src, const char *format, ...)
 				b = m32.b[1];
 				c = m32.b[2];
 				d = m32.b[3];
-#if 0
-				a = basepos(rnd[0]);
-				b = basepos(rnd[1]);
-				c = basepos(rnd[2]);
-				d = basepos(rnd[3]);
-
-				debug("(send_spy) a %i 0 %i, b %i 1 %i, c %i 2 %i, d %i 3 %i\n",
-					a,m32.b[0],b,m32.b[1],c,m32.b[2],d,m32.b[3]);
-#endif
 
 				/* base64 to bin, 4 chars to 3 */
 				dst[0] = (a << 2) | (b >> 4);		/* aaaaaabb */
