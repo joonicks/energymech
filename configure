@@ -683,6 +683,20 @@ fi
 rm -f $TESTO $TESTP
 
 #
+#  size of select fd_set
+#
+TESTC=config/fdset.c
+size_fdset=128
+echo $ac_n "checking size of select fd_set ... "$ac_c
+$CC -o $TESTP $TESTC 1> /dev/null 2> /dev/null
+if [ -x $TESTP ]; then
+  size_fdset=`$TESTP`
+fi
+echo $ac_t "$size_fdset bytes"
+
+rm -f $TESTP
+
+#
 #  32bit? 64bit?
 #
 
@@ -695,7 +709,11 @@ if [ -z "$ptr_size" ]; then
   if [ -x $TESTP ]; then
     ptr_size=`$TESTP`
   fi
-  echo $ac_t "$ptr_size"
+  if [ "$ptr_size" = 8 ]; then
+    echo $ac_t "64 bit"
+  else
+    echo $ac_t "$ptr_size"
+  fi
 fi
 
 case _"$ptr_size"_ in
