@@ -1369,11 +1369,12 @@ void parse_005(char *from, char *rest)
 #define NEEDFROM	1
 #define DROPONE		2
 
-LS const struct
+struct ParseFunctions
 {
-	uint32_t hash;
-	short	flags;
-	void	(*func)(char *, char *);
+	const uint32_t	hash;
+	const short	flags;
+	const void	(*func)(char *, char *);
+	int		hits;
 
 } pFuncs[] =
 {
@@ -1465,6 +1466,17 @@ void parse_server_input(char *rest)
 	uint32_t cmdhash;
 	int	i;
 
+#ifdef DEBUG
+	if (rest == NULL)
+	{
+		for(i=0;pFuncs[i].hash;i++)
+		{
+			debug("[PsI] (%i) hash %X: hits %i\n",i,pFuncs[i].hash,pFuncs[i].hits);
+		}
+		return;
+	}
+#endif /* DEBUG */
+
 	if (current->spy & (SPYF_RAWIRC|SPYF_RANDSRC))
 		send_spy(SPYSTR_RAWIRC,rest);
 
@@ -1530,6 +1542,7 @@ void parse_server_input(char *rest)
 				return;
 			if (pFuncs[i].flags & DROPONE)
 				chop(&rest);	/* discard one argument (usually bot nick) */
+			pFuncs[i].hits++;
 			pFuncs[i].func(from,rest);
 			return;
 		}

@@ -1404,6 +1404,7 @@ int wrap_debug(void)
 	dodebug = TRUE;
 
 	run_debug();
+	parse_server_input(NULL);
 
 	close(fd);
 	debug_fd = backup_fd;
