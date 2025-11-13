@@ -83,20 +83,16 @@ LS struct
 	int	modeflag;
 
 } cfg_opt_flags[] =
+/* dont gatekeep these flags with ifdefs,
+   make userfiles compatible between different compiles */
 {
 { 'a',	COMBO_AOP	},
-#ifdef BOUNCE
 { 'b',	COMBO_BOUNCE	},
-#endif /* BOUNCE */
 { 'e',	COMBO_ECHO	},
-#ifdef BOTNET
 { 'L',	COMBO_NOSHARE	},
 { 'R',	COMBO_READONLY	},
-#endif /* BOTNET */
-#ifdef GREET
 { 'g',	COMBO_GREETFILE	},
 { 'r',	COMBO_RANDLINE	},
-#endif /* GREET */
 { 'v',	COMBO_AVOICE	},
 { 0,	0,		}};
 

@@ -282,6 +282,7 @@ void aucheck(User *user)
 
 	if (au_channel)
 	{
+		/* does the user record have channel access? */
 		for(ump=user->chan;ump;ump=ump->next)
 		{
 			if (*ump->p == '*' || !stringcasecmp(au_channel,ump->p))

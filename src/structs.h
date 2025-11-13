@@ -50,31 +50,6 @@ typedef struct Mix64
 
 } Mix64;
 
-typedef union usercombo
-{
-	struct
-	{
-		uint32_t access:8,		/* access level (0-200)		[0-255]	*/
-			prot:3,			/* protlevel (0-4) 		[0-7]	*/
-#ifdef BOTNET
-			noshare:1,		/* dont share this user over botnet	*/
-			readonly:1,		/* botnet cannot alter this user	*/
-#endif /* BOTNET */
-#ifdef GREET
-			greetfile:1,		/* greeting is filename			*/
-			randline:1,		/* grab random line from filename	*/
-#endif /* GREET */
-#ifdef BOUNCE
-			bounce:1,		/* user has access to bouncer		*/
-#endif /* BOUNCE */
-			echo:1,			/* partyline echo of own messages	*/
-			aop:1,			/* auto-opping				*/
-			avoice:1;		/* auto-voicing				*/
-	} x;
-	uint32_t	comboflags;
-
-} usercombo;
-
 typedef struct OnMsg
 {
 	const char	*name;
@@ -100,8 +75,6 @@ typedef struct OnMsg
 } OnMsg;
 
 typedef unsigned char OnMsg_access;
-
-#ifndef GENCMD_C
 
 typedef struct ircLink
 {
@@ -273,6 +246,28 @@ typedef struct Shit
 
 } Shit;
 
+typedef union usercombo
+{
+	struct
+	{
+		/* dont gatekeep these flags with ifdefs,
+		   make userfiles compatible between different compiles */
+		uint32_t access:8,		/* access level (0-200)		[0-255]	*/
+			prot:3,			/* protlevel (0-4) 		[0-7]	*/
+			noshare:1,		/* dont share this user over botnet	*/
+			readonly:1,		/* botnet cannot alter this user	*/
+			greetfile:1,		/* greeting is filename			*/
+			randline:1,		/* grab random line from filename	*/
+			bounce:1,		/* user has access to bouncer		*/
+			echo:1,			/* partyline echo of own messages	*/
+			aop:1,			/* auto-opping				*/
+			avoice:1;		/* auto-voicing				*/
+	} x;
+	uint32_t	comboflags;
+
+} usercombo;
+
+#ifndef GENCMD_C
 
 /*
  *  this struct is put to use in global.h
@@ -595,18 +590,16 @@ typedef struct Mech
 #endif /* NOTIFY */
 
 	time_t		lastreset;		/* last time bot was reset		*/
+	time_t		ontime;			/* how long the bot has been connected	*/
 	time_t		lastantiidle;		/* avoid showing large idle times	*/
+	time_t		activity;		/* Away timer (AAWAY)			*/
 	time_t		lastrejoin;		/* last time channels were reset	*/
 #ifdef CHANBAN
 	time_t		lastchanban;		/* last time a chanban check was run	*/
 #endif /* CHANBAN */
-
 	time_t		conntry;		/* when connect try started		*/
 						/* re-used for server activity once connected */
 	int		heartbeat;		/* handle server timeout stuff		*/
-	time_t		activity;		/* Away timer (AAWAY)			*/
-
-	time_t		ontime;			/* how long the bot has been connected	*/
 
 #ifdef IRCD_EXTENSIONS
 	int		ircx_flags;
