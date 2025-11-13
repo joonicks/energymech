@@ -551,7 +551,7 @@ void debug_settings(UniVar *setting, int type)
 	}
 
 	debug("%s> setting\n",pad+2);
-	for(;VarName[i].name;i++)
+	for(;i<SIZE_VARS;i++)
 	{
 		if ((type == DSET_CHAN) && (i >= CHANSET_SIZE))
 			break;
@@ -634,7 +634,7 @@ void debug_memory(void)
 #endif /* URLCAPTURE */
 	for(bot=botlist;bot;bot=bot->next)
 	{
-		for(i=CHANSET_SIZE;VarName[i].name;i++)
+		for(i=CHANSET_SIZE;i<SIZE_VARS;i++)
 		{
 			if (IsStr(i))
 				memtouch(bot->setting[i].str_var);
