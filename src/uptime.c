@@ -38,7 +38,7 @@ typedef struct
 	int	regnr;
 	int	pid;
 	int	type;
-	uint32_t cookie;
+	uint32_t packets_sent;
 	uint32_t uptime;
 	uint32_t ontime;
 	uint32_t mytime;
@@ -51,7 +51,7 @@ typedef struct
 	int	regnr;
 	int	pid;
 	int	type;
-	uint32_t cookie;
+	uint32_t packets_sent;
 	uint32_t uptime;
 	uint32_t ontime;
 	uint32_t mytime;
@@ -64,7 +64,7 @@ void init_uptime(void)
 {
 	struct	sockaddr_in sai;
 
-	uptimecookie = rand();
+	uptimepackets = 0;
 
 	if (!uptimehost)
 	{
@@ -134,8 +134,8 @@ void send_uptime(int type)
 	sz = (uptimelast + 1) & 7;
 	uptimelast = (now & ~7) + 21600 + sz;		/* 21600 seconds = 6 hours */
 
-	uptimecookie  = (uptimecookie + 1) * 18457;
-	upPack.cookie = htonl(uptimecookie);
+	uptimepackets  = uptimepackets + 1;
+	upPack.packets_sent = htonl(uptimepackets);
 
 	upPack.mytime = htonl(now);
 	upPack.regnr  = uptimeregnr;
@@ -196,6 +196,9 @@ void send_uptime(int type)
 
 	sprintf(upPack.string,"%s %s %s",nick,server,VERSION);
 
+#ifdef DEBUG
+	debug("(send_uptime) packets sent %i, my pid %i, my ident = \"%s\"\n",uptimepackets,ntohl(upPack.pid),upPack.string);
+#endif /* DEBUG */
 	/*
 	 *  udp sending...
 	 */
@@ -238,7 +241,7 @@ void process_uptime(void)
 		res = recvfrom(uptimesock,(void*)&regPack,sizeof(regPack),0,(struct sockaddr*)&sai,&sz);
 		if (res == sizeof(regPack))
 		{
-			if (uptimecookie == ntohl(regPack.cookie))
+			if (uptimepackets == ntohl(regPack.cookie))
 			{
 				if (uptimeregnr == 0)
 					uptimeregnr = ntohl(regPack.regnr);

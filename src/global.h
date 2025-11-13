@@ -273,7 +273,7 @@ BEG char	*uptimehost		MDEF(NULL);	/* proc var */
 BEG char	*uptimenick		MDEF(NULL);	/* proc var */
 BEG int		uptimesock;
 BEG uint32_t	uptimeip		MDEF((uint32_t)-1);
-BEG uint32_t	uptimecookie;
+BEG uint32_t	uptimepackets		MDEF(0);
 BEG uint32_t	uptimeregnr		MDEF(0);
 BEG time_t	uptimelast		MDEF(0);
 BEG const char	*defaultuptimehost	MDEF("uptime.eggheads.org");
