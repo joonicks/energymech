@@ -30,12 +30,13 @@
 #include "h.h"
 #include "text.h"
 
-#ifndef TEST
 
-LS char timebuf[32];		/* max format lentgh == 20+1, round up to 32 */
-LS char idlestr[36];		/* max format lentgh == 24+1, round up to 36 */
-LS const char monlist[12][4] = { "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" };
-LS const char daylist[7][4] = {	"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat" };
+char timebuf[64];		/* max format lentgh == 20+1 */
+char idlestr[64];		/* max format lentgh == 24+1 */
+const char monlist[12][4] = { "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" };
+const char daylist[7][4] = { "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat" };
+
+#ifndef TEST
 
 /*
  *  memory allocation routines
@@ -126,7 +127,8 @@ void Free(char **mem)
 			{
 				debug("(Free) PANIC: Free(0x"mx_pfmt"); Unregistered memory block\n",(mx_ptr)src);
 				run_debug();
-				/*exit(1);	/* overreacting. just ignore it and accept the leak.  */
+				/*exit(1);*/
+				/* overreacting. just ignore it and accept the leak.  */
 				return;
 			}
 			mp = mp->next;
@@ -267,25 +269,18 @@ void dupe_strp(Strp *sp, Strp **pp)
 	}
 }
 
-Strp *e_table = NULL;
+Strp *output_table = NULL;
 
 void table_buffer(const char *format, ...)
 {
-	Strp	**sp;
 	va_list	msg;
-	int	sz;
 
 	va_start(msg,format);
-	sz = sizeof(Strp) + vsprintf(globaldata,format,msg);
+	vsprintf(globaldata,format,msg);
 	va_end(msg);
 
-	for(sp=&e_table;*sp;sp=&(*sp)->next)
-		;
-
 	set_mallocdoer(table_buffer);
-	*sp = (Strp*)Calloc(sz);
-	/* Calloc sets to zero (*sp)->next = NULL; */
-	stringcpy((*sp)->p,globaldata);
+	append_strp(&output_table,globaldata);
 }
 
 void table_send(const char *from, const int space)
@@ -293,23 +288,24 @@ void table_send(const char *from, const int space)
 	char	message[MAXLEN];
 	Strp	*sp,*next;
 	char	*src,*o,*end;
-	int	i,u,g,x,tabs[16];
+	int	i,u,g,x,columns[16];
 
-	memset(tabs,0,sizeof(tabs));
+	memset(columns,0,sizeof(columns));
 
-	for(sp=e_table;sp;sp=sp->next)
+	for(sp=output_table;sp;sp=sp->next)
 	{
 		u = i = 0;
 		src = o = sp->p;
 		while(*src)
 		{
+			/* Dont count control codes */
 			if (*src == '\037' || *src == '\002')
 				u++;
 			if (*src == '\t' || *src == '\r')
 			{
 				x = (src - o) - u;
-				if (x > tabs[i])
-					tabs[i] = x;
+				if (x > columns[i])
+					columns[i] = x;
 				i++;
 				o = src+1;
 				u = 0;
@@ -318,7 +314,7 @@ void table_send(const char *from, const int space)
 		}
 	}
 
-	for(sp=e_table;sp;sp=next)
+	for(sp=output_table;sp;sp=next)
 	{
 		next = sp->next;
 
@@ -341,9 +337,9 @@ void table_send(const char *from, const int space)
 			if (*src == '\t' || *src == '\r')
 			{
 				if (*src == '\r')
-					g = tabs[i+1];
+					g = columns[i+1];
 				src++;
-				x += (tabs[i++] + space);
+				x += (columns[i++] + space);
 				while(o < (message + x))
 					*(o++) = ' ';
 			}
@@ -355,7 +351,7 @@ void table_send(const char *from, const int space)
 
 		Free((char**)&sp);
 	}
-	e_table = NULL;
+	output_table = NULL;
 }
 
 char *getuh(char *nuh)
@@ -430,15 +426,96 @@ a:	++(*src);
 	return(token);
 }
 
+#endif /* ifndef TEST */
+
 /*
  *  time to string routines
+
+00000020 g     O .rodata        00000030 monlist
+00000000 g     O .rodata        0000001c daylist
+
+0000000000001279 g     F .text  0000000000000166              maketimestr
+
+000000000000175c g     F .text  0000000000000073              logtime
+00000000000018f7 g     F .text  0000000000000052              time2medium
+0000000000001949 g     F .text  000000000000005d              time2small
+000000000000184a g     F .text  00000000000000ad              time2away
+00000000000017cf g     F .text  000000000000007b              time2str
+
+				00000121 maketimestr	289
+000004af g     F .text.a        00000064 logtime	100
+00000513 g     F .text.a        0000006f time2str	111
+00000582 g     F .text.a        0000009c time2away	156	} 523
+0000061e g     F .text.a        0000004a time2medium	 74
+00000668 g     F .text.a        00000052 time2small	 82
+000006ba g     F .text.a        00000160 idle2str
  */
+
+char *maketimestr(time_t when, char *buffer, int format)
+{
+	struct	tm *btime;
+	char	*dest,ampm;
+	int	option;
+
+	btime = localtime(&when);
+	dest = buffer;
+
+	do
+	{
+		option = format & 0xf;
+		format = format >> 4;
+
+		if (dest > buffer)
+			*(dest++) = ' ';
+
+		switch(option)
+		{
+		case 1:/* HH:mm:ss */
+			dest += sprintf(dest,"%02i:%02i:%02i",btime->tm_hour,btime->tm_min,btime->tm_sec);
+			break;
+		case 2:/* skip back 3 (remove :ss) */
+			dest -= 4;
+			*dest = 0;
+			break;
+		case 3:/* WeekDay */
+			dest += sprintf(dest,"%s",daylist[btime->tm_wday]);
+			break;
+		case 4:/* Month */
+			dest += sprintf(dest,"%s",monlist[btime->tm_mon]);
+			break;
+		case 5:/* Day */
+			dest += sprintf(dest,"%i",btime->tm_mday);
+			break;
+		case 6:/* Year */
+			dest += sprintf(dest,"%i",btime->tm_year+1900);
+			break;
+		case 7:/* am/pm */
+			if (btime->tm_hour < 12)
+			{
+				if (btime->tm_hour == 0)
+					btime->tm_hour = 12;
+				ampm = 'a';
+			}
+			else
+			{
+				if (btime->tm_hour != 12)
+					btime->tm_hour -= 12;
+				ampm = 'p';
+			}
+			dest += sprintf(dest,"%i:%02i%cm",btime->tm_hour,btime->tm_min,ampm);
+			break;
+		}
+	}
+	while(format);
+	return(buffer);
+}
 
 char *logtime(time_t when)
 {
 	struct	tm *btime;
 
 	btime = localtime(&when);
+	/* Month Day Year HH:mm:ss */
 	sprintf(timebuf,"%s %i %i %02i:%02i:%02i",	/* max format length: 20+1 */
 		monlist[btime->tm_mon],btime->tm_mday,btime->tm_year+1900,
 		btime->tm_hour,btime->tm_min,btime->tm_sec);
@@ -453,6 +530,7 @@ char *time2str(time_t when)
 		return(NULL);
 
 	btime = localtime(&when);
+	/* HH:mm:ss Month Day Year */
 	sprintf(timebuf,"%02i:%02i:%02i %s %02i %i",	/* max format length: 20+1 */
 		btime->tm_hour,btime->tm_min,btime->tm_sec,monlist[btime->tm_mon],
 		btime->tm_mday,btime->tm_year+1900);
@@ -481,6 +559,7 @@ char *time2away(time_t when)
 		ampm = 'p';
 	}
 
+	/* HH:mm am/pm WeekDay Month Day */
 	sprintf(timebuf,"%i:%02i%cm %s %s %i",		/* max format length: 18+1 */
 		btime->tm_hour,btime->tm_min,ampm,daylist[btime->tm_wday],
 		monlist[btime->tm_mon],btime->tm_mday);
@@ -492,6 +571,7 @@ char *time2medium(time_t when)
 	struct	tm *btime;
 
 	btime = localtime(&when);
+	/* HH:mm */
 	sprintf(timebuf,"%02i:%02i",			/* max format length: 5+1 */
 		btime->tm_hour,btime->tm_min);
 	return(timebuf);
@@ -502,6 +582,7 @@ char *time2small(time_t when)
 	struct	tm *btime;
 
 	btime = localtime(&when);
+	/* Month Day */
 	sprintf(timebuf,"%s %02i",			/* max format length: 6+1 */
 		monlist[btime->tm_mon],btime->tm_mday);
 	return(timebuf);
@@ -518,6 +599,17 @@ char *idle2str(time_t when, int small)
 	z[1] = (when -= z[0] * 86400) / 3600;
 	z[2] = (when -= z[1] * 3600) / 60;
 	z[3] = when % 60;
+
+#ifdef DEBUG
+	{
+	struct	tm *btime;
+	btime = localtime(&when);
+	debug("(idle2str) days %i, hours %i, minutes %i, seconds %i\n"
+	      "(idle2str) d %i, h %i, m %i, s %i\n",
+		z[0],z[1],z[2],z[3],
+		btime->tm_yday,btime->tm_hour,btime->tm_min,btime->tm_sec);
+	}
+#endif /* DEBUG*/
 
 	/* 32 : "9999 days, 24 hours, 59 minutes" */
 	/* xx : "24 hours, 59 minutes" */
@@ -542,6 +634,8 @@ char *idle2str(time_t when, int small)
 		sprintf(idlestr,"%i day%s %02i:%02i:%02i",z[0],EXTRA_CHAR(z[0]),z[1],z[2],z[3]);
 	return(idlestr);
 }
+
+#ifndef TEST
 
 const char *get_channel(const char *to, char **rest)
 {
@@ -776,6 +870,8 @@ int is_nick(const char *nick)
 	return(TRUE);
 }
 
+#endif /* ifndef TEST */
+
 /* asc2int requires the whole string *anum to be a valid numeric */
 int asc2int(const char *anum)
 {
@@ -834,8 +930,6 @@ void fix_config_line(char *text)
 	if (space)
 		*space = 0;
 }
-
-#endif /* ifndef TEST */
 
 /*
  *  mask matching
@@ -1043,7 +1137,9 @@ void teststring(void)
 
 int main(int argc, char **argv, char **envp)
 {
+	char	mybuffer[64];
 	struct stat st;
+	time_t	when;
 	int	r;
 
 	dodebug = 1;
@@ -1067,11 +1163,35 @@ int main(int argc, char **argv, char **envp)
 		testcase("../../nosuchfile",-5,FILE_MUST_NOTEXIST);
 		testcase(P2,-6,FILE_MAY_EXIST);
 		teststring();
-		exit(0);
 	}
 
-	r = is_safepath(argv[1],FILE_MAY_EXIST);
-	debug("testpath %s -> result %s\n",argv[1],(r) ? "TRUE" : "FALSE");
+	if (argv[1])
+	{
+		r = is_safepath(argv[1],FILE_MAY_EXIST);
+		debug("testpath %s -> result %s\n",argv[1],(r) ? "TRUE" : "FALSE");
+	}
+
+	time(&now);
+	when = now - 100000;
+
+#define LOGTIME_FMT		0x1654
+#define TIME2STR_FMT		0x6541
+#define TIME2AWAY_FMT		0x5437
+#define TIME2MEDIUM_FMT		0x21
+#define TIME2SMALL_FMT		0x54
+
+	debug("logtime     %s\n",logtime(when));
+	debug("maketimestr %s\n",maketimestr(when,mybuffer,LOGTIME_FMT));
+	debug("time2str    %s\n",time2str(when));
+	debug("maketimestr %s\n",maketimestr(when,mybuffer,TIME2STR_FMT));
+	debug("time2away   %s\n",time2away(when));
+	debug("maketimestr %s\n",maketimestr(when,mybuffer,TIME2AWAY_FMT));
+	debug("time2medium %s\n",time2medium(when));
+	debug("maketimestr %s\n",maketimestr(when,mybuffer,TIME2MEDIUM_FMT));
+	debug("time2small  %s\n",time2small(when));
+	debug("maketimestr %s\n",maketimestr(when,mybuffer,TIME2SMALL_FMT));
+	debug("%s\n",idle2str(when,1));
+	debug("%s\n",idle2str(when,0));
 }
 
 #endif /* TEST */
