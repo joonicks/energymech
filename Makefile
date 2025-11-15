@@ -89,14 +89,18 @@ clean:
 
 install:
 		$(MAKE) -C src install
-		test -x postfix.sh && ./postfix.sh
+		@if [ -x test ]; then \
+			./postfix.sh; \
+		fi
 
 mega:
 		$(MAKE) -C src mega
 
 mega-install mi:
 		$(MAKE) -C src mega-install
-		test -x postfix.sh && ./postfix.sh
+		@if [ -x test ]; then \
+			./postfix.sh; \
+		fi
 
 #
 #  code validation tests
