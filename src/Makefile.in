@@ -108,8 +108,8 @@ mega-install mi:mega $(SRCFILES) $(INCS) usage.h
 		$(CHMOD) $(INSTALLMODE) $(INSTALLNAME)
 		$(MV) $(INSTALLNAME) $(INSTALLDIR)
 
-mega:		$(SRCFILES) $(INCS) usage.h
-		$(CROSS_COMPILE)$(CC) $(CFLAGS) -o $(INSTALLNAME) main.c -DMEGA_C -DGENDATE="`./gencmd date`" -I. $(LPROF) $(LIBS) $(LDSCRIPT) $(PYINCLUDE) $(TCLINCLUDE) $(I_PERL) $(L_PERL)
+mega:		$(SRCFILES) $(INCS) usage.h @SHA_O@
+		$(CROSS_COMPILE)$(CC) $(CFLAGS) -o $(INSTALLNAME) main.c -DMEGA_C -DGENDATE="`./gencmd date`" -I. @SHA_O@ $(LPROF) $(LIBS) $(LDSCRIPT) $(PYINCLUDE) $(TCLINCLUDE) $(I_PERL) $(L_PERL)
 #@oc@		$(CROSS_COMPILE)objcopy -R .note -R .comment $(INSTALLNAME)
 @sz@		size $(INSTALLNAME)
 

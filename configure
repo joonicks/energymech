@@ -882,9 +882,9 @@ if [ ! "$ft_sha" = no ]; then
   if [ "$ft_sha" = internal512 ]; then
     sha_internal=config/sha512.c
     sha_object=config/sha512.o
-    crypt_func='-DCRYPT_FUNC=__crypt_sha512'
-    CRYPT_FUNCTION='#define CRYPT_FUNC __crypt_sha512'
-    $CC -c $sha_internal -o $sha_object
+    crypt_func='-DCRYPT_FUNC=crypt_sha512'
+    CRYPT_FUNCTION='#define CRYPT_FUNC crypt_sha512'
+    $CC -o $TESTP $sha_internal -DTEST 1> /dev/null 2> /dev/null
   fi
   if [ "$ft_sha" = internal ]; then
     sha_internal=config/sha1.c
@@ -893,7 +893,9 @@ if [ ! "$ft_sha" = no ]; then
     CRYPT_FUNCTION='#define CRYPT_FUNC sha_crypt'
   fi
   #
-  $CC -o $TESTP $TESTC $sha_object $crypt_func 1> /dev/null 2> /dev/null
+  if [ ! -x $TESTP ]; then
+    $CC -o $TESTP $TESTC $sha_object $crypt_func 1> /dev/null 2> /dev/null
+  fi
   #
   if [ ! -x $TESTP ]; then
     crypt_func='-DCRYPT_FUNC=crypt'
@@ -916,6 +918,7 @@ if [ ! "$ft_sha" = no ]; then
   if [ -x $TESTP ]; then
     pwhash=`$TESTP`
     case "$pwhash" in
+      SHA512 ) has_sha=internal512 ;;
       MD5 ) has_md5=yes ;;
       SHA ) has_sha=yes ;;
       SHAMD5 )
