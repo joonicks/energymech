@@ -205,6 +205,8 @@ LS struct
 #ifdef PYTHON
 {	python_hook,			"python_hook"			},
 {	python_unhook,			"python_unhook"			},
+{	python_timer_jump,		"python_timer_jump"		},
+{	python_parse_jump,		"python_parse_jump"		},
 #endif /* PYTHON */
 #ifdef RAWDNS
 {	rawdns,				"rawdns"			},
@@ -222,6 +224,8 @@ LS struct
 #endif /* STATS */
 #ifdef TCL
 {	tcl_hook,			"tcl_hook"			},
+{	tcl_timer_jump,			"tcl_timer_jump"		},
+{	tcl_parse_jump,			"tcl_parse_jump"		},
 #endif /* TCL */
 #ifdef TELNET
 {	check_telnet,			"check_telnet"			},
@@ -245,7 +249,8 @@ LS struct
 { NULL, }};
 
 #ifdef SCRIPTING
-LS const DEFstruct SCRIPTdefs[] =
+
+const DEFstruct SCRIPTdefs[] =
 {
 { MEV_PARSE,		"MEV_PARSE"		},
 { MEV_TIMER,		"MEV_TIMER"		},
@@ -253,18 +258,11 @@ LS const DEFstruct SCRIPTdefs[] =
 { MEV_BOTNET,		"MEV_BOTNET"		},
 { MEV_DCC_COMPLETE,	"MEV_DCC_COMPLETE"	},
 { MEV_DNSRESULT,	"MEV_DNSRESULT"		},
-#ifdef TCL
-{ .v.func=tcl_timer_jump,	"tcl_timer_jump"	},
-{ .v.func=tcl_parse_jump,	"tcl_parse_jump"	},
-#endif /* TCL */
-#ifdef PYTHON
-{ .v.func=python_timer_jump, "python_timer_jump"	},
-{ .v.func=python_parse_jump, "python_parse_jump"	},
-#endif /* PYTHON */
 { 0, }};
+
 #endif /* SCRIPTING */
 
-LS const DEFstruct CNdefs[] =
+const DEFstruct CNdefs[] =
 {
 { CN_NOSOCK,		"CN_NOSOCK"		},
 { CN_DNSLOOKUP,		"CN_DNSLOOKUP"		},
@@ -278,7 +276,7 @@ LS const DEFstruct CNdefs[] =
 { CN_SPINNING,		"CN_SPINNING"		},
 { 0, }};
 
-LS const DEFstruct SPdefs[] =
+const DEFstruct SPdefs[] =
 {
 { SP_NULL,		"SP_NULL"		},
 { SP_NOAUTH,		"SP_NOAUTH"		},
@@ -290,17 +288,20 @@ LS const DEFstruct SPdefs[] =
 { 0, }};
 
 #ifdef NOTIFY
-LS const DEFstruct NFdefs[] =
+
+const DEFstruct NFdefs[] =
 {
 { NF_OFFLINE,		"NF_OFFLINE"		},
 { NF_WHOIS,		"NF_WHOIS"		},
 { NF_MASKONLINE,	"NF_MASKONLINE"		},
 { NF_NOMATCH,		"NF_NOMATCH"		},
 { 0, }};
+
 #endif /* NOTIFY */
 
 #ifdef SEEN
-LS const DEFstruct SEdefs[] =
+
+const DEFstruct SEdefs[] =
 {
 { SEEN_PARTED,		"SEEN_PARTED"		},
 { SEEN_QUIT,		"SEEN_QUIT"		},
@@ -310,7 +311,8 @@ LS const DEFstruct SEdefs[] =
 #endif /* SEEN */
 
 #ifdef BOTNET
-LS const DEFstruct BNdefs[] =
+
+const DEFstruct BNdefs[] =
 {
 { BN_UNKNOWN,		"BN_UNKNOWN"		},
 { BN_DEAD,		"BN_DEAD"		},
@@ -321,9 +323,10 @@ LS const DEFstruct BNdefs[] =
 { BN_WAITLINK,		"BN_WAITLINK"		},
 { BN_LINKED,		"BN_LINKED"		},
 { 0, }};
+
 #endif /* BOTNET */
 
-LS const DEFstruct dcc_flags[] =
+const DEFstruct dcc_flags[] =
 {
 { DCC_SEND,		"DCC_SEND"		},
 { DCC_RECV,		"DCC_RECV"		},
@@ -335,7 +338,7 @@ LS const DEFstruct dcc_flags[] =
 { DCC_DELETE,		"DCC_DELETE"		},
 { 0, }};
 
-LS const DEFstruct ircx_flags[] =
+const DEFstruct ircx_flags[] =
 {
 { IRCX_WALLCHOPS,	"IRCX_WALLCHOPS"	},
 { IRCX_WALLVOICES,	"IRCX_WALLVOICES"	},
@@ -343,7 +346,7 @@ LS const DEFstruct ircx_flags[] =
 { IRCX_EMODE,		"IRCX_EMODE"		},
 { 0, }};
 
-LS const DEFstruct chanuser_flags[] =
+const DEFstruct chanuser_flags[] =
 {
 { CU_VOICE,		"CU_VOICE"		},
 { CU_CHANOP,		"CU_CHANOP"		},
@@ -361,9 +364,9 @@ void strflags(char *dst, const DEFstruct *flagsstruct, int flags)
 	int	i;
 
 	*dst = 0;
-	for(i=0;(flagsstruct[i].v.id);i++)
+	for(i=0;(flagsstruct[i].id);i++)
 	{
-		if (flagsstruct[i].v.id & flags)
+		if (flagsstruct[i].id & flags)
 		{
 			if (*dst)
 				stringcat(dst,"|");
@@ -378,19 +381,7 @@ const char *strdef(const DEFstruct *dtab, int num)
 
 	for(i=0;(dtab[i].idstr);i++)
 	{
-		if (dtab[i].v.id == num)
-			return(dtab[i].idstr);
-	}
-	return("UNKNOWN");
-}
-
-const char *funcdef(const DEFstruct *dtab, void *func)
-{
-	int	i;
-
-	for(i=0;(dtab[i].idstr);i++)
-	{
-		if (dtab[i].v.func == func)
+		if (dtab[i].id == num)
 			return(dtab[i].idstr);
 	}
 	return("UNKNOWN");
@@ -408,8 +399,8 @@ void memreset(void)
 	}
 }
 
-LS const void *mem_lowptr;
-LS const void *mem_hiptr;
+const void *mem_lowptr;
+const void *mem_hiptr;
 
 void memtouch(const void *addr)
 {
@@ -434,6 +425,18 @@ void memtouch(const void *addr)
 			}
 		}
 	}
+}
+
+const char *proc_getname(void *addr)
+{
+	int	i;
+
+	for(i=0;ProcList[i].name;i++)
+	{
+		if (ProcList[i].func == addr)
+			return(ProcList[i].name);
+	}
+	return("(unknown)");
 }
 
 const char *proc_lookup(void *addr, int size)
@@ -730,7 +733,7 @@ void debug_botnet(void)
 	struct	sockaddr_in sai;
 	BotNet	*bn;
 	NetCfg	*cfg;
-	int	sz;
+	unsigned int sz;
 
 	debug("; linkpass\t\t\"%s\"\n",nullstr(linkpass));
 	memtouch(linkpass);
@@ -1329,7 +1332,7 @@ void debug_scripthook(void)
 	for(h=hooklist;h;h=h->next)
 	{
 		memtouch(h);
-		debug("  ; func\t\t"mx_pfmt" %s\n",(mx_ptr)h->func,funcdef(SCRIPTdefs,h->func));
+		debug("  ; func\t\t"mx_pfmt" %s\n",(mx_ptr)h->func,proc_getname(h->func));
 		debug("  ; guid\t\t%i\n",h->guid);
 		debug("  ; flags\t\t%s (%i)\n",strdef(SCRIPTdefs,h->flags),h->flags);
 		if (h->flags == MEV_TIMER)
