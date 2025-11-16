@@ -16,13 +16,15 @@
 /* public domain sha512 implementation based on fips180-3 */
 /* >=2^64 bits messages are not supported (about 2000 peta bytes) */
 
-struct sha512 {
-	uint64_t len;     /* processed message length */
-	uint64_t h[8];    /* hash state */
-	uint8_t buf[128]; /* message block buffer */
+struct sha512
+{
+	uint64_t	len;     /* processed message length */
+	uint64_t	h[8];    /* hash state */
+	uint8_t		buf[128]; /* message block buffer */
 };
 
 static uint64_t ror(uint64_t n, int k) { return (n >> k) | (n << (64-k)); }
+
 #define Ch(x,y,z)  (z ^ (x & (y ^ z)))
 #define Maj(x,y,z) ((x & y) | (z & (x | y)))
 #define S0(x)      (ror(x,28) ^ ror(x,34) ^ ror(x,39))
@@ -30,7 +32,8 @@ static uint64_t ror(uint64_t n, int k) { return (n >> k) | (n << (64-k)); }
 #define R0(x)      (ror(x,1) ^ ror(x,8) ^ (x>>7))
 #define R1(x)      (ror(x,19) ^ ror(x,61) ^ (x>>6))
 
-static const uint64_t K[80] = {
+static const uint64_t K[80] =
+{
 0x428a2f98d728ae22ULL, 0x7137449123ef65cdULL, 0xb5c0fbcfec4d3b2fULL, 0xe9b5dba58189dbbcULL,
 0x3956c25bf348b538ULL, 0x59f111f1b605d019ULL, 0x923f82a4af194f9bULL, 0xab1c5ed5da6d8118ULL,
 0xd807aa98a3030242ULL, 0x12835b0145706fbeULL, 0x243185be4ee4b28cULL, 0x550c7dc3d5ffb4e2ULL,
@@ -56,10 +59,11 @@ static const uint64_t K[80] = {
 static void processblock(struct sha512 *s, const uint8_t *buf)
 {
 	uint64_t W[80], t1, t2, a, b, c, d, e, f, g, h;
-	int i;
+	int	i;
 
-	for (i = 0; i < 16; i++) {
-		W[i] = (uint64_t)buf[8*i]<<56;
+	for (i = 0; i < 16; i++)
+	{
+		W[i]  = (uint64_t)buf[8*i]<<56;
 		W[i] |= (uint64_t)buf[8*i+1]<<48;
 		W[i] |= (uint64_t)buf[8*i+2]<<40;
 		W[i] |= (uint64_t)buf[8*i+3]<<32;
@@ -78,7 +82,8 @@ static void processblock(struct sha512 *s, const uint8_t *buf)
 	f = s->h[5];
 	g = s->h[6];
 	h = s->h[7];
-	for (i = 0; i < 80; i++) {
+	for (i = 0; i < 80; i++)
+	{
 		t1 = h + S1(e) + Ch(e,f,g) + K[i] + W[i];
 		t2 = S0(a) + Maj(a,b,c);
 		h = g;
@@ -105,7 +110,8 @@ static void pad(struct sha512 *s)
 	unsigned r = s->len % 128;
 
 	s->buf[r++] = 0x80;
-	if (r > 112) {
+	if (r > 112)
+	{
 		memset(s->buf + r, 0, 128 - r);
 		r = 0;
 		processblock(s, s->buf);
@@ -141,8 +147,9 @@ static void sha512_sum(struct sha512 *s, uint8_t *md)
 	int i;
 
 	pad(s);
-	for (i = 0; i < 8; i++) {
-		md[8*i] = s->h[i] >> 56;
+	for (i = 0; i < 8; i++)
+	{
+		md[8*i]   = s->h[i] >> 56;
 		md[8*i+1] = s->h[i] >> 48;
 		md[8*i+2] = s->h[i] >> 40;
 		md[8*i+3] = s->h[i] >> 32;
@@ -159,8 +166,10 @@ static void sha512_update(struct sha512 *s, const void *m, unsigned long len)
 	unsigned r = s->len % 128;
 
 	s->len += len;
-	if (r) {
-		if (len < 128 - r) {
+	if (r)
+	{
+		if (len < 128 - r)
+		{
 			memcpy(s->buf + r, p, len);
 			return;
 		}
@@ -179,7 +188,8 @@ static const unsigned char b64[] =
 
 static char *to64(char *s, unsigned int u, int n)
 {
-	while (--n >= 0) {
+	while (--n >= 0)
+	{
 		*s++ = b64[u % 64];
 		u /= 64;
 	}
@@ -210,7 +220,6 @@ static char *sha512crypt(const char *key, const char *setting, char *output)
 	struct sha512 ctx;
 	unsigned char md[64], kmd[64], smd[64];
 	unsigned int i, r, klen, slen;
-	char rounds[20] = "";
 	const char *salt;
 	char *p;
 
@@ -226,38 +235,6 @@ static char *sha512crypt(const char *key, const char *setting, char *output)
 	salt = setting + 3;
 
 	r = ROUNDS_DEFAULT;
-	if (strncmp(salt, "rounds=", sizeof "rounds=" - 1) == 0) {
-		unsigned long u;
-		char *end;
-
-		/*
-		 * this is a deviation from the reference:
-		 * bad rounds setting is rejected if it is
-		 * - empty
-		 * - unterminated (missing '$')
-		 * - begins with anything but a decimal digit
-		 * the reference implementation treats these bad
-		 * rounds as part of the salt or parse them with
-		 * strtoul semantics which may cause problems
-		 * including non-portable hashes that depend on
-		 * the host's value of ULONG_MAX.
-		 */
-		salt += sizeof "rounds=" - 1;
-		if (!isdigit(*salt))
-			return 0;
-		u = strtoul(salt, &end, 10);
-		if (*end != '$')
-			return 0;
-		salt = end+1;
-		if (u < ROUNDS_MIN)
-			r = ROUNDS_MIN;
-		else if (u > ROUNDS_MAX)
-			return 0;
-		else
-			r = u;
-		/* needed when rounds is zero prefixed or out of bounds */
-		sprintf(rounds, "rounds=%u$", r);
-	}
 
 	for (i = 0; i < SALT_MAX && salt[i] && salt[i] != '$'; i++)
 		/* reject characters that interfere with /etc/shadow parsing */
@@ -297,27 +274,31 @@ static char *sha512crypt(const char *key, const char *setting, char *output)
 	sha512_sum(&ctx, smd);
 
 	/* iterate A = f(A,DP,DS), this step takes O(rounds*klen) time */
-	for (i = 0; i < r; i++) {
+	for (i = 0; i < r; i++)
+	{
 		sha512_init(&ctx);
 		if (i % 2)
 			hashmd(&ctx, klen, kmd);
 		else
 			sha512_update(&ctx, md, sizeof md);
+
 		if (i % 3)
 			sha512_update(&ctx, smd, slen);
 		if (i % 7)
 			hashmd(&ctx, klen, kmd);
+
 		if (i % 2)
 			sha512_update(&ctx, md, sizeof md);
 		else
 			hashmd(&ctx, klen, kmd);
+
 		sha512_sum(&ctx, md);
 	}
 
-	/* output is $6$rounds=n$salt$hash */
+	/* output is $6$salt$hash */
 	p = output;
-	p += sprintf(p, "$6$%s%.*s$", rounds, slen, salt);
-#if 1
+	p += sprintf(p, "$6$%.*s$", slen, salt);
+#if 0
 	static const unsigned char perm[][3] = {
 		0,21,42,22,43,1,44,2,23,3,24,45,25,46,4,
 		47,5,26,6,27,48,28,49,7,50,8,29,9,30,51,
@@ -354,18 +335,36 @@ static char *sha512crypt(const char *key, const char *setting, char *output)
 	return output;
 }
 
-char *__crypt_sha512(const char *key, const char *setting, char *output)
-{
-	static const char testkey[] = "Xy01@#\x01\x02\x80\x7f\xff\r\n\x81\t !";
-	static const char testsetting[] = "$6$rounds=1234$abc0123456789$";
-	static const char testhash[] = "$6$rounds=1234$abc0123456789$BCpt8zLrc/RcyuXmCDOE1ALqMXB2MH6n1g891HhFj8.w7LxGv.FTkqq6Vxc/km3Y0jE0j24jY5PIv/oOu6reg1";
-	char testbuf[128];
-	char *p, *q;
+char sha512_buffer[128];
 
-	p = sha512crypt(key, setting, output);
-	/* self test and stack cleanup */
-	q = sha512crypt(testkey, testsetting, testbuf);
-	if (!p || q != testbuf || memcmp(testbuf, testhash, sizeof testhash))
-		return "*";
-	return p;
+char *crypt_sha512(const char *key, const char *salt)
+{
+	return(sha512crypt(key,salt,sha512_buffer));
 }
+
+#ifdef TEST
+
+const char thash1[] = "$6$5c05$WlQbKv/GYeXzSPNsn9bzpfqlDjOCbt8JlhSa2uALujoq6tWn3utZ3jE428lxBAfcJYHfecF59s6Dxg0fLIX7a/";
+
+int main(int argc, char **argv, char **envp)
+{
+	const char mytest[] = "mytestpassword";
+	const char mysalt[] = "$6$5c05$";
+	char *s;
+	int r;
+
+	s = crypt_sha512(mytest,mysalt);
+	r = strcmp(thash1,s);
+
+	if (r == 0)
+	{
+		printf("SHA512\n");
+	}
+	else
+	{
+		printf("FAIL\n");
+		printf("%i\n%s\%s\n",r,thash1,s);
+	}
+}
+
+#endif /* TEST */
