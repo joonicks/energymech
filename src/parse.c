@@ -1,7 +1,7 @@
 /*
 
     EnergyMech, IRC bot software
-    Parts Copyright (c) 1997-2021 proton
+    Parts Copyright (c) 1997-2025 proton
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -377,7 +377,7 @@ void parse_privmsg(char *from, char *rest)
 	ChanUser *cu;
 	char	*to,*channel;
 #ifdef URLCAPTURE
-	const char *src;
+	unsigned char *src;
 #endif /* URLCAPTURE */
 
 	to = chop(&rest);
@@ -430,7 +430,7 @@ void parse_privmsg(char *from, char *rest)
 		CurrentChan->stats->privmsg++;
 #endif /* STATS */
 #ifdef URLCAPTURE
-	src = rest;
+	src = (unsigned char *)rest;
 	while(*src)
 	{
 		if (tolowertab[*src] == 'h')
@@ -440,7 +440,7 @@ void parse_privmsg(char *from, char *rest)
 				if ((src[4] == ':') || /* "http:" */
 				    (tolowertab[src[4]] == 's' && src[5] == ':')) /* "https:" */
 				{
-					urlcapture(src);
+					urlcapture((const char *)src);
 				}
 			}
 		}
@@ -1373,18 +1373,18 @@ struct ParseFunctions
 {
 	const uint32_t	hash;
 	const short	flags;
-	const void	(*func)(char *, char *);
+	void		(*func)(char *, char *);
 	int		hits;
 
 } pFuncs[] =
 {
+	{ 0x50494E47,	0,			parse_ping	},	/* PING */
 	{ 0x50524956,	NEEDFROM,		parse_privmsg	},	/* PRIVMSG */
 	{ 0x4A4F494E,	NEEDFROM,		parse_join	},	/* JOIN */
 	{ 0x50415254,	NEEDFROM,		parse_part	},	/* PART */
 	{ 0x4D4F4445,	NEEDFROM,		parse_mode	},	/* MODE */
 	{ 0x4E49434B,	NEEDFROM,		on_nick		},	/* NICK */
 	{ 0x4B49434B,	NEEDFROM,		on_kick		},	/* KICK */
-	{ 0x50494E47,	0,			parse_ping	},	/* PING */
 	{ 0x504F4E47,	DROPONE,		parse_pong	},	/* PONG */
 	{ 0x544F5049,	NEEDFROM,		parse_topic	},	/* TOPIC */
 	{ 0x4E4F5449,	NEEDFROM,		parse_notice	},	/* NOTICE */
