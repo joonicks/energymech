@@ -278,7 +278,6 @@ void update_modes(Chan *chan)
  */
 int check_mass(Chan *chan, ChanUser *doer, int type)
 {
-	time_t	when;
 	int	num,limit;
 
 	/*
@@ -387,6 +386,9 @@ void prot_action(Chan *chan, char *from, ChanUser *doer, char *target, ChanUser 
 	{
 		uprot = get_protaction(chan,target);
 	}
+
+	/* dont enforce protection levels higher than channel is set to */
+	if (maxprot < uprot) uprot = maxprot;
 
 	if ((uprot >= 4) && (!(doer->flags & CU_BANNED)))
 	{
