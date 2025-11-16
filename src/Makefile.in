@@ -127,14 +127,14 @@ test:		$(TESTFILES)
 		./calctest
 		./safepathtest
 
-aliastest:	alias.c githash.h lib/string.o
-		$(CROSS_COMPILE)$(CC) $(CFLAGS) -o aliastest $< lib/string.o $(LPROF) $(LIBS) -DTEST
+aliastest:	alias.c githash.h mcmd.h string.o
+		$(CROSS_COMPILE)$(CC) $(CFLAGS) -o aliastest $< string.o $(LPROF) $(LIBS) -DTEST
 
-calctest:	calc.c githash.h mcmd.h lib/string.o
-		$(CROSS_COMPILE)$(CC) $(CFLAGS) -o calctest $< lib/string.o $(LPROF) $(LIBS) -DTEST
+calctest:	calc.c githash.h mcmd.h string.o
+		$(CROSS_COMPILE)$(CC) $(CFLAGS) -o calctest $< string.o $(LPROF) $(LIBS) -DTEST
 
-safepathtest:	function.c githash.h lib/string.o
-		$(CROSS_COMPILE)$(CC) $(CFLAGS) -o safepathtest $< lib/string.o $(LPROF) $(LIBS) -DTEST
+safepathtest:	function.c githash.h string.o
+		$(CROSS_COMPILE)$(CC) $(CFLAGS) -o safepathtest $< string.o $(LPROF) $(LIBS) -DTEST
 
 commands:
 		grep -E '(void do_.*\(COMMAND_ARGS\)|/*---Help:)' *c
