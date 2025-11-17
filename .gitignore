@@ -35,6 +35,7 @@ trivia/megatrivia.txt
 #  developer files
 dev/*
 .use_size
+.use_warn
 conf
 debug*
 src/benchmark*
