@@ -505,6 +505,9 @@ void parse_topic(char *from, char *rest)
 	reverse_topic(chan,from,rest);
 }
 
+/*
+(in)  {5} :She!haveident@libera/staff/she/her WALLOPS :Services stuff done. PSA for channel founders: Single-# channels that do NOT belong
+*/
 void parse_wallops(char *from, char *rest)
 {
 	nickcpy(CurrentNick,from);
@@ -962,6 +965,10 @@ void parse_352(char *from, char *rest)
 
 	if (chan->wholist == TRUE)
 		return;
+#ifdef STATS
+	if (chan->stats)
+		chan->stats->users++;
+#endif /* STATS */
 
 	userhost = chop(&rest);
 	rest[-1] = '@';		/* glue: "user\0host" --> "user@host" */
@@ -1380,6 +1387,8 @@ struct ParseFunctions
 {
 	{ 0x50494E47,	0,			parse_ping	},	/* PING */
 	{ 0x50524956,	NEEDFROM,		parse_privmsg	},	/* PRIVMSG */
+	{ 0x00333532,	NEEDFROM|DROPONE,	parse_352	},	/* 352 RPL_WHOREPLY		*/
+	{ 0x00333637,	NEEDFROM|DROPONE,	parse_367	},	/* 367 RPL_BANLIST		*/
 	{ 0x4A4F494E,	NEEDFROM,		parse_join	},	/* JOIN */
 	{ 0x50415254,	NEEDFROM,		parse_part	},	/* PART */
 	{ 0x4D4F4445,	NEEDFROM,		parse_mode	},	/* MODE */
@@ -1392,7 +1401,6 @@ struct ParseFunctions
 	{ 0x494E5649,	NEEDFROM|DROPONE,	parse_invite	},	/* INVITE */
 	{ 0x57414C4C,	NEEDFROM,		parse_wallops	},	/* WALLOPS */
 	{ 0x4552524F,	0,			parse_error	},	/* ERROR */
-	{ 0x00333532,	NEEDFROM|DROPONE,	parse_352	},	/* 352 RPL_WHOREPLY		*/
 	{ 0x00333135,	NEEDFROM|DROPONE,	parse_315	},	/* 315 RPL_ENDOFWHO		*/
 	{ 0x00323231,	NEEDFROM,		parse_mode	},	/* 221 RPL_UMODEIS		*/
 	{ 0x00333131,	NEEDFROM|DROPONE,	parse_311	},	/* 311 RPL_WHOISUSER		*/
@@ -1426,7 +1434,6 @@ struct ParseFunctions
 	{ 0x00333137,	NEEDFROM|DROPONE,	parse_317	},	/* 317 RPL_WHOISIDLE		*/
 	{ 0x00333139,	NEEDFROM|DROPONE,	parse_319	},	/* 319 RPL_WHOISCHANNELS	*/
 	{ 0x00333234,	NEEDFROM|DROPONE,	parse_324	},	/* 324 RPL_CHANNELMODEIS	*/
-	{ 0x00333637,	NEEDFROM|DROPONE,	parse_367	},	/* 367 RPL_BANLIST		*/
 	{ 0x00343531,	0,			parse_451	},	/* 451 ERR_NOTREGISTERED	*/
 	{ 0x00343035,	NEEDFROM|DROPONE,	parse_471	},	/* 405 ERR_TOOMANYCHANNELS	*/
 	{ 0x00343731,	NEEDFROM|DROPONE,	parse_471	},	/* 471 ERR_CHANNELISFULL	*/
