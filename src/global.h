@@ -60,7 +60,7 @@ BEG struct CoreData cx;
 #define MECHUSERLOGIN			"v3.energymech.net"
 
 BEG const char VERSION[]		MDEF("3.5.dev" GITHASH);
-BEG const char SRCDATE[]		MDEF("October 22nd, 2025");
+BEG const char SRCDATE[]		MDEF("November 20th, 2025");
 #ifdef __CYGWIN__
 BEG const char BOTCLASS[]		MDEF("WinMech");
 #else /* ! CYGWIN */
