@@ -602,6 +602,13 @@ const char __mx_opts[] =	""
 #undef	OPT_COREONLY
 #endif /* TRIVIA */
 
+#ifdef UPTIME
+			OPT_COMMA "uptime"
+#undef	OPT_COMMA
+#define OPT_COMMA	", "
+#undef	OPT_COREONLY
+#endif /* UPTIME */
+
 #ifdef WINGATES
 			OPT_COMMA "wingate"
 #undef	OPT_COMMA
