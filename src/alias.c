@@ -1,7 +1,7 @@
 /*
 
     EnergyMech, IRC bot software
-    Copyright (c) 1997-2020 proton
+    Copyright (c) 1997-2025 proton
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -32,22 +32,20 @@
 #include "mcmd.h"
 
 #ifdef TEST
-
 #include "debug.c"
 
-char result[MSGLEN];
-char *input = "alias one two three four five   six seven eight nine ten";
+char	result[MSGLEN];
+char	*alias_test_input = "alias one two three four five   -6-   seven eight nine ten";
 
-void *Calloc(int size)
-{
-	return(calloc(1,size));
-}
+void run_debug(void) {}
 
 void testcase(const char *test, const char *expect)
 {
-	afmt(result,test,input);
-	if (strcmp(result,expect) == 0) debug("testcase SUCCESS: test \"%s\" -> got \"%s\"\n",test,expect);
-	else debug("testcase FAIL: test \"%s\", expected \"%s\", got \"%s\"\n",test,expect,result);
+	afmt(result,test,alias_test_input);
+	if (strcmp(result,expect) == 0)
+		debug("testcase SUCCESS: test \"%s\" -> got \"%s\"\n",test,expect);
+	else
+		debug("testcase FAIL: test \"%s\", expected \"%s\", got \"%s\"\n",test,expect,result);
 }
 
 int main(int argc, char **argv, char **envp)
@@ -72,14 +70,16 @@ int main(int argc, char **argv, char **envp)
 		testcase("cmd $2 $1","cmd two one");
 		testcase("cmd $8-","cmd eight nine ten");
 		testcase("cmd $4-5","cmd four five");
-		testcase("cmd $5-6","cmd five   six");
+		testcase("cmd $5-6","cmd five   -6-");
+		testcase("cmd $5-7","cmd five   -6-   seven");
 		testcase("cmd $~","cmd noob");
+		testcase("cmd $~1234567890","cmd noob1234567890");
 		testcase("cmd $one $two","cmd $one $two");
 		exit(0);
 	}
-	debug("input = %s\n",input);
+	debug("input = %s\n",alias_test_input);
 	debug("format = %s\n",format);
-	afmt(result,format,input);
+	afmt(result,format,alias_test_input);
 	debug("result = %s\n",result);
 	exit(0);
 }
@@ -90,46 +90,37 @@ int main(int argc, char **argv, char **envp)
  *   copy_to = buffer to put resulting new command into
  *   src = Alias format string
  *   input = input from user
+ *  size: 0x159
+ *  size: 0x163
  */
-void afmt(char *copy_to, const char *src, const char *input)
-{
-#define BUFTAIL	(copy_to+MSGLEN-1)		/* avoid buffer overflows */
-	const char *argstart,*argend;
-	char	*dest;
-	int	startnum,endnum,spc;
+#define OUTPUTEND	(output+MSGLEN-1)		/* avoid buffer overflows */
+#define startnum	n[0]
+#define endnum		n[1]
 
-	dest = copy_to;
+void afmt(char *output, const char *src, const char *input)
+{
+	const char *argstart,*argend;
+	int	spc,n[3];
+
 	while(*src)
 	{
-		if (src[0] == '$' && src[1] == '$')
+		if (*src == '$' && src[1] == '$')
 			src++;
 		else
 		if (*src == '$' && src[1] == '~')
 		{
 			src += 2;
 			argstart = CurrentNick;
-			while(*argstart && dest <= BUFTAIL)
-				*(dest++) = *(argstart++);
+			while(*argstart && output <= OUTPUTEND)
+				*(output++) = *(argstart++);
 		}
 		else
-		if (*src == '$' && (attrtab[(uchar)src[1]] & NUM) == NUM)
+		if (*src == '$' && (src[1] >= '0' && src[1] <= '9'))
 		{
 			src++;
-			startnum = endnum = 0;
-			while(attrtab[(uchar)*src] & NUM)
-				startnum = (startnum * 10) + (*(src++) - '0');
-			if (*src == ' ' || *src == 0)
-				endnum = startnum;
-			else
-			if (*src == '-')
-			{
-				src++;
-				if ((attrtab[(uchar)*src] & NUM) != NUM)
-					endnum = 9999;
-				else
-				while(attrtab[(uchar)*src] & NUM)
-					endnum = (endnum * 10) + (*src++ - '0');
-			}
+			parse_range((char**)&src,n);
+			if (n[2] && n[1] == -1)
+				endnum = 9999;
 
 			argstart = input;
 			if (startnum)
@@ -154,25 +145,15 @@ void afmt(char *copy_to, const char *src, const char *input)
 						argend++;
 				}
 			}
-#ifdef DEBUG
-#ifndef TEST
-			debug("(afmt) args #%i-#%i, characters %i-%i\n",startnum,endnum,argstart-input,argend-input);
-#endif /* ifndef TEST */
-#endif /* DEBUG */
-			while(*argstart && argstart < argend && dest <= BUFTAIL)
-				*(dest++) = *(argstart++);
+			while(*argstart && argstart < argend && output <= OUTPUTEND)
+				*(output++) = *(argstart++);
 			continue;
 		}
-		if (dest >= BUFTAIL)
+		if (output >= OUTPUTEND)
 			break;
-		*(dest++) = *(src++);
+		*(output++) = *(src++);
 	}
-	*dest = 0;
-#ifdef DEBUG
-#ifndef TEST
-	debug("(afmt) start %i end %i spc %i\n",startnum,endnum,spc);
-#endif /* ifndef TEST */
-#endif /* DEBUG */
+	*output = 0;
 }
 
 #ifndef TEST
