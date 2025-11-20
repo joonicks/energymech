@@ -816,7 +816,7 @@ void parse_317(char *from, char *rest)
 	}
 
 	if (when != -1)
-		send_pa(PA_WHOIS,nick,"Signed On: %s",time2away(when));
+		send_pa(PA_WHOIS,nick,"Signed On: %s",maketimestr(when,TFMT_AWAY));
 
 	send_pa(PA_WHOIS,nick,
 		(sec) ? "Idle: %i minute%s, %i second%s" : "Idle: %i minute%s",

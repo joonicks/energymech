@@ -26,7 +26,7 @@ typedef struct
 
 } UsageList;
 
-LS const UsageList ulist[] =
+const UsageList ulist[] =
 {
 #ifdef TOYBOX
 { C_8BALL,	"[text]"								},

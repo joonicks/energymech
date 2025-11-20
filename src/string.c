@@ -133,17 +133,6 @@ void stringcpy_n(char *dst, const char *src, int sz)
 		n++;
 	}
 	dst[n] = 0;
-/*
-	char	*stop = dst + sz - 1;
-
-	while(*src)
-	{
-		*(dst++) = *(src++);
-		if (dst == stop)
-			break;
-	}
-	*dst = 0;
-*/
 }
 
 char *stringcpy(char *dst, const char *src)

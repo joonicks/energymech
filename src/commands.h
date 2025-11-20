@@ -169,39 +169,39 @@ struct CommandList
 	/*
 	 *  Level 60
 	 */
-	{ 0, "SHOWIDLE",	"do_showidle",		60	| CCPW	| CAXS | DCC | ACCHAN		},
-	{ 0, "USERLIST",	"do_userlist",		60	| CCPW	| DCC				},
+	{ 0, "SHOWIDLE",	"do_showidle",		60	| CAXS | DCC | ACCHAN		},
+	{ 0, "USERLIST",	"do_userlist",		60	| DCC				},
 #ifdef CTCP
-	{ 0, "CTCP",		"do_ping_ctcp",		60	| CCPW	| CARGS				},
-	{ 0, "PING",		"do_ping_ctcp",		60	| CCPW	| CARGS				},
+	{ 0, "CTCP",		"do_ping_ctcp",		60	| CARGS				},
+	{ 0, "PING",		"do_ping_ctcp",		60	| CARGS				},
 #endif /* CTCP */
 
 	/*
 	 *  Level 70 == JOINLEVEL
 	 */
-	{ 0, "CYCLE",		"do_cycle",		70	| CCPW	| CAXS | ACCHAN			},
-	{ 0, "FORGET",		"do_forget",		70	| CCPW	| CAXS				},
-	{ 0, "JOIN",		"do_join",		70	| CCPW	| CARGS				},
-	{ 0, "KS",		"do_kicksay",		70	| CCPW	| REDIR | LBUF			},
-	{ 0, "PART",		"do_part",		70	| CCPW	| CAXS | ACCHAN			},
-	{ 0, "RKS",		"do_rkicksay",		70	| CCPW	| CARGS				},
-	{ 0, "SETPASS",		"do_setpass",		70	| CCPW	| NOPUB	| CARGS			},
+	{ 0, "CYCLE",		"do_cycle",		70	| CAXS | ACCHAN			},
+	{ 0, "FORGET",		"do_forget",		70	| CAXS				},
+	{ 0, "JOIN",		"do_join",		70	| CARGS				},
+	{ 0, "KS",		"do_kicksay",		70	| REDIR | LBUF			},
+	{ 0, "PART",		"do_part",		70	| CAXS | ACCHAN			},
+	{ 0, "RKS",		"do_rkicksay",		70	| CARGS				},
+	{ 0, "SETPASS",		"do_setpass",		70	| NOPUB	| CARGS			},
 #ifdef NOTIFY
-	{ 0, "NOTIFY",		"do_notify",		70	| CCPW	| DCC | GAXS | REDIR | LBUF	},
+	{ 0, "NOTIFY",		"do_notify",		70	| DCC | GAXS | REDIR | LBUF	},
 #endif /* NOTIFY */
 
 	/*
 	 *  Level 80 == ASSTLEVEL
 	 */
-	{ 0, "AWAY",		"do_away",		80	| CCPW	| GAXS				},
-	{ 0, "BOOT",		"do_boot",		80	| CCPW	| GAXS | CARGS			},
+	{ 0, "AWAY",		"do_away",		80	| GAXS				},
+	{ 0, "BOOT",		"do_boot",		80	| GAXS | CARGS			},
 #if defined(BOTNET) && defined(REDIRECT)
-	{ 0, "CMD",		"do_cmd",		80	| CCPW	| CARGS				},
+	{ 0, "CMD",		"do_cmd",		80	| CARGS				},
 #endif /* BOTNET && REDIRECT */
-	{ 0, "CQ",		"do_clearqueue",	80	| CCPW	| GAXS				},
-	{ 0, "LAST",		"do_last",		80	| CCPW	| DCC				},
-	{ 0, "LOAD",		"do_load",		80	| CCPW	| GAXS				},
-	{ 0, "MSG",		"do_msg",		80	| CCPW	| CARGS				},
+	{ 0, "CQ",		"do_clearqueue",	80	| GAXS				},
+	{ 0, "LAST",		"do_last",		80	| DCC				},
+	{ 0, "LOAD",		"do_load",		80	| GAXS				},
+	{ 0, "MSG",		"do_msg",		80	| CARGS				},
 	{ 0, "NEXTSERVER",	"do_server",		80	| CCPW	| GAXS				},
 	{ 0, "SAVE",		"do_save",		80	| CCPW	| GAXS				},
 	{ 0, "SERVER",		"do_server",		80	| CCPW	| GAXS | REDIR | NOPUB | NOARGF },
@@ -252,6 +252,7 @@ struct CommandList
 #ifdef DEBUG
 	{ 0, "DEBUG",		"do_debug",		100	| CCPW	| GAXS				},
 	{ 0, "CRASH",		"do_crash",		100	| CCPW	| GAXS				},
+	{ 0, "INJECT",		"do_inject",		100	| CCPW	| CARGS | GAXS				},
 #endif /* DEBUG */
 #ifdef PERL
 #ifdef PLEASE_HACK_MY_SHELL

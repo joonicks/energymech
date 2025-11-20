@@ -35,9 +35,9 @@
 
 #define WEBROOT		"web/"
 
-LS WebSock *weblist;
+WebSock *weblist;
 
-LS WebDoc docraw = { NULL, NULL, &web_raw };
+WebDoc docraw = { NULL, NULL, &web_raw };
 
 #if 0
 {
@@ -45,7 +45,7 @@ LS WebDoc docraw = { NULL, NULL, &web_raw };
 };
 #endif
 
-LS WebDoc doclist[] =
+WebDoc doclist[] =
 {
 { 	NULL,	"/internalstatus.html",	&web_botstatus		},
 #ifdef DEBUG
@@ -125,7 +125,7 @@ char *webread(int s, char *rest, char *line)
 	return(NULL);
 }
 
-#define NOBO	if (dest == &mem[MSGLEN-2]) { int n; n = write(s,mem,dest-mem); dest = mem; }
+#define NOBO	if (dest == &mem[MSGLEN-2]) { int _n_ __notused__; _n_ = write(s,mem,dest-mem); dest = mem; }
 
 void eml_fmt(WebSock *client, char *format)
 {
@@ -133,7 +133,7 @@ void eml_fmt(WebSock *client, char *format)
 	char	*src,*dest,*org;
 	int	out;
 	int	s = client->sock;
-	int	n;
+	int	n __notused__;
 
 	org = NULL;
 	out = TRUE;
@@ -241,7 +241,7 @@ void web_raw(WebSock *client, char *url)
 	char	path[MSGLEN];
 	char	*src,*dest;
 	ino_t	ino;
-	int	fd,eml,n;
+	int	fd,eml,n __notused__;
 	size_t	sz;
 
 	eml = (matches("*.html",url)) ? TRUE : FALSE;

@@ -34,7 +34,6 @@ int catch_note(char *from, char *to, char *rest)
 {
 	User	*u;
 	Note	*n,**pp;
-	Strp	*sp,**np;
 
 #ifdef DEBUG
 	debug("(catch_note) from = %s, to = %s, rest = %s\n",from,to,rest);
@@ -85,7 +84,6 @@ void do_note(COMMAND_ARGS)
 {
 	User	*u;
 	Note	*n;
-	Strp	*sp,**np;
 	char	header[MSGLEN];
 
 	/*
@@ -112,7 +110,7 @@ void do_note(COMMAND_ARGS)
 	/*
 	 *  add a note header
 	 */
-	sprintf(header,"\001%s %s",from,time2str(now));
+	sprintf(header,"\001%s %s",from,maketimestr(now,TFMT_FULL));
 	append_strp(&u->note,header);
 }
 

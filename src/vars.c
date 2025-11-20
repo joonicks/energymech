@@ -187,7 +187,7 @@ static void ec_loadavg(char *from, const char *to)
 
 void ec_time(char *from, const char *to)
 {
-	nobo_strcpy(time2away(now));
+	nobo_strcpy(maketimestr(now,TFMT_AWAY));
 }
 
 void ec_set(char *from, const char *to)

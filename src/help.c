@@ -145,7 +145,7 @@ help_loop:
 		return;
 	}
 
-	if (STRCHR(rest,'*'))
+	if (stringchr(rest,'*'))
 	{
 		line[0] = 0;
 		ci = 0;

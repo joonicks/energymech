@@ -44,7 +44,7 @@
 
 #define NF_OPTIONS	7
 
-LS const char notify_opt[NF_OPTIONS][10] =
+const char notify_opt[NF_OPTIONS][10] =
 {
 "-ALL",
 "-NOMATCH",
@@ -53,9 +53,9 @@ LS const char notify_opt[NF_OPTIONS][10] =
 "-SEEN",
 };
 
-LS Notify **endoflist;
-LS int lock_ison = FALSE;
-LS int nf_header;
+Notify **endoflist;
+int lock_ison = FALSE;
+int nf_header;
 
 void purge_notify(void)
 {
@@ -466,7 +466,7 @@ int notify_callback(char *rest)
 	{
 		nf->mask = dst + 1;
 		dst = stringcat(nf->mask,rest);
-		if (STRCHR(nf->mask,' '))
+		if (stringchr(nf->mask,' '))
 			nf->endofmask = dst;
 	}
 	if (src)
@@ -565,7 +565,7 @@ void nfshow_full(Notify *nf)
 		for(nlog=nf->log;nlog;nlog=nlog->next)
 		{
 			opt = mem;
-			s = time2away(nlog->signon);
+			s = maketimestr(nlog->signon,TFMT_AWAY);
 			if (s[1] == ':')
 				*(opt++) = ' ';
 			*opt = 0;
@@ -576,7 +576,7 @@ void nfshow_full(Notify *nf)
 			opt = stringcat(opt," -- ");
 			if (nlog->signoff)
 			{
-				s = time2away(nlog->signoff);
+				s = maketimestr(nlog->signoff,TFMT_AWAY);
 				if (s[1] == ':')
 					*(opt++) = ' ';
 				*opt = 0;
@@ -826,12 +826,10 @@ void do_seen(COMMAND_ARGS)
 {
 	Seen	*seen;
 	char	ago[35];		/* enought for "36500 days, 23 hours and 59 minutes" (100 years) */
-	const char *chan;
 	char	*fmt,*n,*u,*c1,*c2,*c3;
 	time_t	when;
 	int	d,h,m,mul;
 
-	chan = get_channel(to,&rest);
 	mul = get_maxaccess(from);
 
 	if (!*rest)
@@ -985,7 +983,7 @@ void do_notify(COMMAND_ARGS)
 #ifdef DEBUG
 		debug("(do_notify) dumping errnames\n");
 #endif /* DEBUG */
-		to_user(from,"User%s not found: %s",(STRCHR(message,',')) ? "s" : "",message);
+		to_user(from,"User%s not found: %s",(stringchr(message,',')) ? "s" : "",message);
 	}
 
 	if (nf_header)

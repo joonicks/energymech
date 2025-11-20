@@ -106,12 +106,7 @@ typedef struct
 
 typedef struct DEFstruct
 {
-	union
-	{
-		int	id;
-		void	*func;
-
-	} v;
+	int		id;
 	char		*idstr;
 
 } DEFstruct;
@@ -604,6 +599,10 @@ typedef struct Mech
 #ifdef IRCD_EXTENSIONS
 	int		ircx_flags;
 #endif /* IRCD_EXTENSIONS */
+
+#ifdef DEBUG
+	char		*inject;
+#endif /* DEBUG */
 
 	/*
 	 *  Buffers for do_die() command.

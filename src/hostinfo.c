@@ -53,7 +53,7 @@ struct /* statusvalues */
 	const int klen;
 	char	*valbuf;
 
-} sv[] =
+} statusvalues[] =
 {
 { "VmPeak:",	7,	vmpeak },
 { "VmSize:",	7,	vmsize },
@@ -65,55 +65,9 @@ struct /* statusvalues */
 { NULL, 0, NULL }
 };
 
-#ifdef DEBUG
-
-struct
-{
-	int	value;
-	char	*str;
-
-} in2str[] =
-{
-{ IN_ACCESS,		"IN_ACCESS" },		/* File was accessed (read) */
-{ IN_ATTRIB,		"IN_ATTRIB" },		/* Metadata changed, e.g., permissions, timestamps, extended attributes, link count, UID, GID, etc. */
-{ IN_CLOSE_WRITE,	"IN_CLOSE_WRITE" },	/* File opened for writing was closed */
-{ IN_CLOSE_NOWRITE,	"IN_CLOSE_NOWRITE" },	/* File not opened for writing was closed */
-{ IN_CREATE,		"IN_CREATE" },		/* File/directory created in watched directory */
-{ IN_DELETE,		"IN_DELETE" },		/* File/directory deleted from watched directory */
-{ IN_DELETE_SELF,	"IN_DELETE_SELF" },	/* Watched file/directory was itself deleted */
-{ IN_MODIFY,		"IN_MODIFY" },		/* File was modified */
-{ IN_MOVE_SELF,		"IN_MOVE_SELF" },	/* Watched file/directory was itself moved */
-{ IN_MOVED_FROM,	"IN_MOVED_FROM" },	/* Generated for the directory containing the old filename when a file is renamed */
-{ IN_MOVED_TO,		"IN_MOVED_TO" },	/* Generated for the directory containing the new filename when a file is renamed */
-{ IN_OPEN,		"IN_OPEN" },		/* File was opened */
-{ 0,			NULL		}
-};
-
-char *inomask2str(uint32_t mask, char *dst)
-{
-	const char *src;
-	int	i,n = 0;
-
-	for(i=0;in2str[i].str;i++)
-	{
-		if ((mask & in2str[i].value) == in2str[i].value)
-		{
-			if (n)
-				dst[n++] = '|';
-			src = in2str[i].str;
-			for(;src[n];n++)
-				dst[n] = src[n];
-		}
-	}
-	dst[n] = 0;
-	return(dst);
-}
-
-#endif /* DEBUG */
-
 int monitor_fs(const char *file)
 {
-	FileMon	*fmon,*fnew;
+	FileMon	*fnew;
 	int	ino;
 
 	if ((ino = inotify_init()) < 0)
@@ -145,15 +99,15 @@ int parse_proc_status(char *line)
 #endif
 	if (key == NULL)
 		return(FALSE);
-	for(i=0;sv[i].key;i++)
+	for(i=0;statusvalues[i].key;i++)
 	{
-		if (strncmp(key,sv[i].key,sv[i].klen) == 0)
+		if (strncmp(key,statusvalues[i].key,statusvalues[i].klen) == 0)
 		{
 #ifdef DEBUG
 			debug("(parse_proc_status) key %s -> %s\n",key,line);
 #endif /* DEBUG */
-			dest = sv[i].valbuf;
-			limit = sv[i].valbuf + 31;
+			dest = statusvalues[i].valbuf;
+			limit = statusvalues[i].valbuf + 31;
 			while(*line == ' ')
 				line++;
 			while(*line && dest <= limit)
@@ -250,52 +204,60 @@ int parse_proc_cpuinfo(char *line)
 	return(FALSE); /* return false to continue reading lines */
 }
 
-void select_monitor()
+void select_monitor(void)
 {
 	FileMon	*fmon;
 
 	for(fmon=filemonlist;fmon;fmon=fmon->next)
+	{
 		if (fmon->fd >= 0)
 		{
 			FD_SET(fmon->fd,&read_fds);
 			chkhigh(fmon->fd);
 		}
+	}
 }
 
-void process_monitor()
+#ifdef DEBUG
+extern const DEFstruct inomasks[];
+#endif /* DEBUG */
+
+void process_monitor(void)
 {
 	FileMon	*fmon;
 	struct inotify_event *ivent;
+#ifdef DEBUG
 	char	tmp[256];
-	int	n,m;
+	int	n;
+#else
+	int	n __notused__;
+#endif /* DEBUG */
+	int	m __notused__;
 
 	for(fmon=filemonlist;fmon;fmon=fmon->next)
 	{
-		if (fmon->fd >= 0 && FD_ISSET(fmon->fd,&read_fds))
-		{
-			ivent = (struct inotify_event *)&globaldata;
+		if (fmon->fd < 0 || 0 == FD_ISSET(fmon->fd,&read_fds))
+			continue;
 
-			n = read(fmon->fd,globaldata,sizeof(struct inotify_event));
-			if (ivent->len > 0)
-				m = read(fmon->fd,ivent->name,ivent->len);
-			else
-				*ivent->name = 0;
+		ivent = (struct inotify_event *)&globaldata;
+
+		n = read(fmon->fd,globaldata,sizeof(struct inotify_event));
+		if (ivent->len > 0)
+			m = read(fmon->fd,ivent->name,ivent->len);
+		else
+			*ivent->name = 0;
 #ifdef DEBUG
-			debug("(process_monitor) ino %i, n %i, sz %i\n",fmon->fd,n,sizeof(in2str));
-			debug("(process_monitor) wd %i, mask %lu, cookie %lu, len %lu, name %s\n",
-				ivent->wd,ivent->mask,ivent->cookie,ivent->len,ivent->name);
-			debug("(process_monitor) %s\n",inomask2str(ivent->mask,tmp));
-			debug("(process_monitor) ino %i bytes read, int wd = %i, uint32_t mask = %s (%lu), "
-				"uint32_t cookie = %lu, uint32_t len = %lu, char name = %s\n",
-				n,ivent->wd,inomask2str(ivent->mask,tmp),ivent->mask,ivent->cookie,ivent->len,ivent->name);
-#endif
-			if ((ivent->mask & IN_CLOSE_WRITE) == IN_CLOSE_WRITE)
-				return;
-			if (fmon->nospam > now-30)
-				return;
-			fmon->nospam = now;
-			send_global(SPYSTR_SYSMON,"Alert: file ``%s'' was touched",fmon->filename);
-		}
+		strflags(tmp,inomasks,ivent->mask);
+
+		debug("(process_monitor) ino {%i} %i bytes, wd = %i, mask = %s (%lu), cookie = %lu, len = %lu, name = %s\n",
+			fmon->fd,n,ivent->wd,tmp,ivent->mask,ivent->cookie,ivent->len,ivent->name);
+#endif /* DEBUG */
+		if ((ivent->mask & IN_CLOSE_WRITE) == IN_CLOSE_WRITE)
+			return;
+		if (fmon->nospam > now-30)
+			return;
+		fmon->nospam = now;
+		send_global(SPYSTR_SYSMON,"Alert: file ``%s'' was touched",fmon->filename);
 	}
 }
 
@@ -346,8 +308,8 @@ void do_meminfo(COMMAND_ARGS)
 	p = getpid();
 	snprintf(fn,sizeof(fn),"/proc/%i/status",p);
 
-	for(i=0;sv[i].key;i++)
-		*(sv[i].valbuf) = 0;
+	for(i=0;statusvalues[i].key;i++)
+		*(statusvalues[i].valbuf) = 0;
 	if ((fd = open(fn,O_RDONLY)) < 0)
 		return;
 	readline(fd,&parse_proc_status);	/* readline closes fd */
@@ -364,18 +326,9 @@ See also: hostinfo, meminfo
 void do_cpuinfo(COMMAND_ARGS)
 {
 	char	bogostr[256],cpustr[64];
-	char	*a1,*a2,*a3,*dst;
-	int	fd,n;
+	int	fd;
 	double	loads[3];
 
-#ifdef DEVELOPING
-	a1 = chop(&rest);
-	if (a1)
-		sprintf(bogostr,"/home/git/cpuinfo/%s",a1);
-	else
-		stringcpy(bogostr,"/proc/cpuinfo");
-	if ((fd = open(bogostr,O_RDONLY)) < 0)
-#endif
 	if ((fd = open("/proc/cpuinfo",O_RDONLY)) < 0)
 #ifdef DEBUG
 	{

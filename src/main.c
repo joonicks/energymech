@@ -144,8 +144,8 @@ void mech_exec(void)
 	exit(1);
 }
 
-LS int r_ct;
-LS char r_str[MSGLEN];
+int r_ct;
+char r_str[MSGLEN];
 
 int randstring_count(char *line)
 {
@@ -199,7 +199,7 @@ char *randstring(const char *file)
  *  SIGUSR2	Call run_debug() (dump `everything' to a debug file)
  */
 
-LS struct
+struct
 {
 	uint32_t sighup:1,
 		sigint:1,
@@ -667,7 +667,7 @@ doit_jumptonext:
 			if (current->ip.s_addr == 0)
 			{
 				struct	sockaddr_in sai;
-				int	sz;
+				unsigned int sz;
 
 				sz = sizeof(sai);
 				if (getsockname(current->sock,(struct sockaddr *)&sai,&sz) == 0)
@@ -776,6 +776,18 @@ restart_dcc:
 
 		if (current->sock != -1)
 			process_server_input();
+
+#ifdef DEBUG
+		if (current->inject)
+		{
+			char	injection[MSGLEN];
+
+			stringcpy(injection,current->inject);
+			Free((char**)&current->inject);
+			debug("(*inject) %s\n");
+			parse_server_input(injection);
+		}
+#endif /* DEBUG */
 
 		if (current->connect == CN_ONLINE)
 		{
@@ -897,7 +909,7 @@ restart_die:
 
 const char *bad_exe = "init: Error: Improper executable name\n";
 
-int parse_commandline(int argc, char **argv, char **envp)
+void parse_commandline(int argc, char **argv, char **envp)
 {
 	struct stat st;
 	char	*opt;
@@ -918,6 +930,11 @@ int parse_commandline(int argc, char **argv, char **envp)
 
 	stat("..",&st);
 	parent_inode = st.st_ino; /* used for is_safepath() */
+
+	if (stat("/proc",&st) >= 0)
+	{
+		cx.system_uptime = st.st_ctime;
+	}
 
 	srand(now+getpid());
 
@@ -956,6 +973,7 @@ int parse_commandline(int argc, char **argv, char **envp)
 	}
 
 #ifdef DEBUG
+	/* memory tracking */
 	mrrec = calloc(sizeof(aMEA),1);
 #endif /* DEBUG */
 
@@ -964,7 +982,7 @@ int parse_commandline(int argc, char **argv, char **envp)
 		to_file(1,bad_exe);
 		_exit(1);
 	}
-	if ((opt = STRCHR(*argv,' ')) != NULL)
+	if ((opt = stringchr(*argv,' ')) != NULL)
 	{
 		*(opt++) = 0;
 		respawn = asc2int(opt);
@@ -984,66 +1002,26 @@ int parse_commandline(int argc, char **argv, char **envp)
 		opt = *argv;
 		switch(opt[1])
 		{
-		case 'v':
-			versiononly = TRUE;
-			break;
-		case 'h':
-			to_file(1,TEXT_USAGE,executable);
-			to_file(1,
-				TEXT_CSWITCH
-#ifdef DEBUG
-				TEXT_DSWITCH
-#endif /* DEBUG */
-				TEXT_ESWITCH
-				TEXT_FSWITCH
-				TEXT_HSWITCH
-#ifdef DEBUG
-				TEXT_OSWITCH
-				TEXT_PSWITCH1
-				TEXT_PSWITCH2
-#endif /* DEBUG */
-				TEXT_TSWITCH
-				TEXT_VSWITCH
-#ifdef DEBUG
-				TEXT_XSWITCH
-#endif /* DEBUG */
-				  );
-			_exit(0);
 		case 'c':
 			makecore = TRUE;
 			break;
 #ifdef DEBUG
 		case 'd':
 			dodebug = TRUE;
-			do_fork = FALSE;
-			break;
-		case 'o':
-			if (opt[2] != 0)
+			do_fork = TRUE;
+			if (opt[2] != 0) /* -d[file] */
 			{
 				debugfile = &opt[2];
 			}
 			else
+			if (argv[1] && argv[1][0] != '-') /* -d [file] */
 			{
 				++argv;
-				if (!*argv)
-				{
-					to_file(1,"init: No debugfile specified\n");
-					_exit(0);
-				}
 				debugfile = *argv;
 				argc--;
 			}
-			do_fork = TRUE;
-			break;
-		case 'p':
-			++argv;
-			if (*argv)
-				to_file(1,"%s\n",makepass(*argv));
 			else
-				to_file(1,"error: Missing argument for -p <string>\n");
-			_exit(0);
-		case 'X':
-			debug_on_exit = TRUE;
+				do_fork = FALSE;
 			break;
 #endif /* DEBUG */
 		case 'e': /* run a single command before exiting */
@@ -1057,9 +1035,6 @@ int parse_commandline(int argc, char **argv, char **envp)
 			else
 				to_file(1,"error: Missing argument for -e <command string>\n");
 			_exit(0);
-		case 't':
-			startup = STARTUP_TESTRUN;
-			break;
 		case 'f':
 			if (opt[2] != 0)
 			{
@@ -1078,6 +1053,43 @@ int parse_commandline(int argc, char **argv, char **envp)
 			}
 			to_file(1,INFO_USINGCONF,configfile);
 			break;
+		case 'h':
+			to_file(1,TEXT_USAGE,executable);
+			to_file(1,
+				TEXT_CSWITCH
+#ifdef DEBUG
+				TEXT_DSWITCH
+#endif /* DEBUG */
+				TEXT_ESWITCH
+				TEXT_FSWITCH
+				TEXT_HSWITCH
+				TEXT_PSWITCH1
+				TEXT_PSWITCH2
+				TEXT_TSWITCH
+				TEXT_VSWITCH
+#ifdef DEBUG
+				TEXT_XSWITCH
+#endif /* DEBUG */
+				  );
+			_exit(0);
+		case 'p':
+			++argv;
+			if (*argv)
+				to_file(1,"%s\n",makepass(*argv));
+			else
+				to_file(1,"error: Missing argument for -p <string>\n");
+			_exit(0);
+		case 't':
+			startup = STARTUP_TESTRUN;
+			break;
+		case 'v':
+			versiononly = TRUE;
+			break;
+#ifdef DEBUG
+		case 'x':
+			debug_on_exit = TRUE;
+			break;
+#endif /* DEBUG */
 		default:
 			to_file(1,ERR_UNKNOWNOPT,opt);
 			_exit(1);
@@ -1098,7 +1110,7 @@ int parse_commandline(int argc, char **argv, char **envp)
 		to_file(1,"warning: current configuration file overrides session file\n");
 	}
 #endif /* SESSION */
-	if (stat(configfile,&st));
+	if (stat(configfile,&st))
 	{
 		if ((st.st_mode & (S_IWGRP|S_IWOTH)) != 0)
 		{
@@ -1108,7 +1120,7 @@ int parse_commandline(int argc, char **argv, char **envp)
 		if ((st.st_mode & (S_IRGRP|S_IROTH)) != 0)
 			to_file(1,"warning: configfile is readable by others\n");
 	}
-	if (stat(".",&st));
+	if (stat(".",&st))
 	{
 		if ((st.st_mode & (S_IWGRP|S_IWOTH)) != 0)
 		{
@@ -1174,7 +1186,7 @@ int parse_commandline(int argc, char **argv, char **envp)
 	}
 #else
 		{
-			if (stat(opt,&st));
+			if (stat(opt,&st))
 			{
 				if ((st.st_mode & (S_IWGRP|S_IWOTH)) != 0)
 				{

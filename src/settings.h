@@ -24,7 +24,7 @@
 
 #define DEFAULTCMDCHAR	'-'
 
-#define ZERO		0
+#define ZERO		.v.num=0
 #define INTCAST(x)	.v.num=x
 #define CMDCHAR		.v.chr=DEFAULTCMDCHAR
 #define VNULL		.v.str=NULL

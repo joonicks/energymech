@@ -34,7 +34,7 @@
 
 #ifdef DEBUG
 
-LS const char SPY_DEFS[][12] =
+const char SPY_DEFS[][12] =
 {
 	"SPY_FILE",
 	"SPY_CHANNEL",
@@ -51,7 +51,9 @@ LS const char SPY_DEFS[][12] =
 #endif /* DEBUG */
 
 #if defined(SHACRYPT) || defined(MD5CRYPT)
+
 char *CRYPT_FUNC(const char *, const char *);
+
 #endif
 
 void send_spy(const char *src, const char *format, ...)
@@ -62,15 +64,10 @@ void send_spy(const char *src, const char *format, ...)
 	va_list	msg;
 	const char *spysrc;
 	const char *printmsg;
-	char	tempdata[MAXLEN],*rnd,*dst,*end;
+	char	tempdata[MAXLEN];
 	int	fd;
-	int	printed = FALSE;
 
-	if (src == SPYSTR_RAWIRC)
-	{
-		printmsg = format;
-		printed = TRUE;
-	}
+	printmsg = (src == SPYSTR_RAWIRC) ? format : NULL;
 
 #ifdef DEBUG
 	if (src != SPYSTR_RAWIRC) /* too much debug spam */
@@ -80,8 +77,16 @@ void send_spy(const char *src, const char *format, ...)
 
 	for(spy=current->spylist;spy;spy=spy->next)
 	{
+		/*
+		 *  Dont support RANDSRC unless there is a good hashing function to
+		 *  create high quality randomness.
+		 */
+#if defined(SHACRYPT) || defined(MD5CRYPT)
 		if (spy->t_src == SPY_RANDSRC)
 		{
+			char	mysalt[16],mydata[128];
+			char	*rnd,*dst,*end;
+
 			if (src != SPYSTR_RAWIRC)
 				continue;
 			if (spy->data.delay > now)
@@ -90,31 +95,24 @@ void send_spy(const char *src, const char *format, ...)
 			if (format[5] == ':')
 				continue;
 			/* create delay until next */
-			spy->data.delay = now + 10 + RANDOM(0,9); /* make it unpredictable which messages will be sourced */
+			spy->data.delay = now + 20 + RANDOM(0,29); /* make it unpredictable which messages will be sourced */
 
-/*
- *    MD5     | 22 characters, $1$
- *    SHA-512 | 86 characters, $6$
- */
-
-#if defined(SHACRYPT) || defined(MD5CRYPT)
-			sprintf(tempdata,
+			sprintf(mysalt,
 #ifdef SHACRYPT
 				"$6$%04x",
 #else
 				"$1$%04x",
 #endif /* SHACRYPT */
-#endif /* defined(SHACRYPT) || defined(MD5CRYPT) */
-
 				(uint32_t)(now & 0xFFFF));
-			rnd = CRYPT_FUNC(format,tempdata);
+
+			/* SHA512 internal returns NULL if strlen(format) > 256 */
+			stringcpy_n(mydata,format,120);
+
+			rnd = CRYPT_FUNC(mydata,mysalt);
 
 			dst = tempdata;
 			end = STREND(rnd);
-
-#if defined(SHACRYPT) || defined(MD5CRYPT)
 			rnd += 8; /* skip salt */
-#endif /* defined(SHACRYPT) || defined(MD5CRYPT) */
 
 			while(rnd < (end - 4))
 			{
@@ -143,6 +141,13 @@ void send_spy(const char *src, const char *format, ...)
 				c = m32.b[2];
 				d = m32.b[3];
 
+				/*
+					|..aaaaaa|..bbbbbb|..cccccc|..dddddd|
+					|        |aaaaaa..|bbbbbb..|cccccc..|
+							  |	   |  ddddDD|
+							  |    ddDD|dd
+							DD|dddd    |
+				*/
 				/* base64 to bin, 4 chars to 3 */
 				dst[0] = (a << 2) | (b >> 4);		/* aaaaaabb */
 				dst[1] = (b << 4) | (c >> 2);		/* bbbbcccc */
@@ -157,19 +162,14 @@ void send_spy(const char *src, const char *format, ...)
 #endif /* DEBUG */
 				if ((fd = open(spy->dest,O_WRONLY|O_CREAT|O_APPEND,NEWFILEMODE)) >= 0)
 				{
-					int	n;
-
+					int n __notused__;
 					n = write(fd,tempdata,dst - tempdata);
 					close(fd);
 				}
 			}
 			continue;
 		}
-
-		if (spy->t_src == SPY_STATUS)
-			spysrc = time2medium(now);
-		else
-			spysrc = spy->src;
+#endif /* defined(SHACRYPT) || defined(MD5CRYPT) */
 
 		if ((*src == '#' || *src == '*') && spy->t_src == SPY_CHANNEL)
 		{
@@ -187,9 +187,15 @@ void send_spy(const char *src, const char *format, ...)
 		if (spy->src != src)
 			continue;
 
-		if (!printed)
+		if (spy->t_src == SPY_STATUS)
 		{
-			printed = TRUE;
+			spysrc = maketimestr(now,TFMT_CLOCK);
+		}
+		else
+			spysrc = spy->src;
+
+		if (printmsg == NULL)
+		{
 			va_start(msg,format);
 			vsprintf(tempdata,format,msg);
 			va_end(msg);
@@ -223,7 +229,7 @@ void send_spy(const char *src, const char *format, ...)
 		case SPY_FILE:
 			if ((fd = open(spy->dest,O_WRONLY|O_CREAT|O_APPEND,NEWFILEMODE)) >= 0)
 			{
-				to_file(fd,"[%s] %s\n",logtime(now),printmsg);
+				to_file(fd,"[%s] %s\n",maketimestr(now,TFMT_LOG),printmsg);
 				close(fd);
 			}
 		}
@@ -320,7 +326,7 @@ int begin_redirect(char *from, char *args)
 
 	if (!args)
 		return(0);
-	pt = STRCHR(args,'>');
+	pt = stringchr(args,'>');
 	if (pt)
 	{
 		*pt = 0;
@@ -457,10 +463,10 @@ void end_redirect(void)
 
 #ifdef URLCAPTURE
 
-char *urlhost(const char *url)
+void urlhost(const char *url)
 {
 	char	copy[strlen(url)];
-	const char *end,*beg,*dst;
+	const char *end,*beg;
 	int	n = 0;
 
 	beg = end = url;
@@ -488,7 +494,7 @@ char *urlhost(const char *url)
 
 void urlcapture(const char *rest)
 {
-	Strp	*sp,*nx;
+	Strp	*sp;
 	char	*dest,url[MSGLEN];
 	int	n;
 
@@ -1023,8 +1029,6 @@ void do_info(COMMAND_ARGS)
 {
 	ChanStats *stats;
 	Chan	*chan;
-	char	*p;
-	char	text[MSGLEN];
 	char	modes[128];
 	uint32_t avg;
 

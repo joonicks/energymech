@@ -728,7 +728,7 @@ int sub_compile_timer(int limit, uint32_t *flags1, uint32_t *flags2, char *args)
 		s = chop(&args);
 		if (s && *s)
 		{
-			if ((dash = STRCHR(s,'-')))
+			if ((dash = stringchr(s,'-')))
 			{
 				*(dash++) = 0;
 				if (!*dash)
@@ -968,7 +968,7 @@ void update(SequenceTime *this)
 				if ((now - current->activity) > (x * 60))
 				{
 					temp = randstring(AWAYFILE);
-					to_server(AWAYFORM,(temp && *temp) ? temp : "auto-away",time2away(now));
+					to_server(AWAYFORM,(temp && *temp) ? temp : "auto-away",maketimestr(now,TFMT_AWAY));
 					current->away = TRUE;
 				}
 			}
@@ -1162,7 +1162,9 @@ breaksock:
 #ifdef DEBUG
 	debug("[PSI] {%i} errno = %i; closing server socket\n",current->sock,errno);
 #endif /* DEBUG */
+#ifdef WINGATE
 breaksock2:
+#endif /* WINGATE */
 	*current->sockdata = 0;
 	close(current->sock);
 	current->sock = -1;
@@ -1183,12 +1185,12 @@ void do_version(COMMAND_ARGS)
 
 void do_core(COMMAND_ARGS)
 {
+	char	tmp[MSGLEN];
 #ifdef HOSTINFO
         char    *h,hostname[256];
         struct utsname un;
 #endif /* HOSTINFO */
 	const char *extra;
-	char	tmp[MSGLEN];	/* big buffers at the top */
 	Server	*sp;
 	Chan	*chan;
 	User	*user;
@@ -1205,11 +1207,16 @@ void do_core(COMMAND_ARGS)
 			bu++;
 	}
 
+	*tmp = 0;
+	if (*current->modes)
+	{
+		sprintf(tmp," (+%s)",current->modes);
+	}
 	i = stringcmp(getbotnick(current),getbotwantnick(current));
 	if (i)
-		table_buffer(TEXT_CURRNICKWANT,getbotnick(current),getbotwantnick(current),current->guid);
+		table_buffer(TEXT_CURRNICKWANT,getbotnick(current),tmp,getbotwantnick(current),current->guid);
 	else
-		table_buffer(TEXT_CURRNICKHAS,getbotnick(current),current->guid);
+		table_buffer(TEXT_CURRNICKHAS,getbotnick(current),tmp,current->guid);
 	table_buffer(TEXT_USERLISTSTATS,u,su,EXTRA_CHAR(su),bu,EXTRA_CHAR(bu));
 
 	pt = tmp;
@@ -1261,12 +1268,11 @@ void do_core(COMMAND_ARGS)
 #endif /* WINGATE */
 	sp = find_server(current->server);
 	if (sp)
-		table_buffer(TEXT_CURRSERVER,
-			(sp->realname[0]) ? sp->realname : sp->name,sp->port);
+		table_buffer((stringcmp(sp->group,DEFAULTSTR)) ? TEXT_CURRSERVGRP : TEXT_CURRSERVER,
+			(sp->realname[0]) ? sp->realname : sp->name,sp->port,sp->group);
 	else
 		table_buffer(TEXT_CURRSERVERNOT);
 	table_buffer(TEXT_SERVERONTIME,idle2str(current->ontime,FALSE));
-	table_buffer(TEXT_BOTMODES,(*current->modes) ? current->modes : TEXT_NONE);
 #ifdef HOSTINFO
 	hostname[255] = 0;
 	if (gethostname(hostname,250) < 0)
@@ -1277,19 +1283,21 @@ void do_core(COMMAND_ARGS)
 	if (uname(&un) == 0)
 		table_buffer(TEXT_HOSTINFO,h,un.sysname,un.release,un.machine);
 #endif /* HOSTINFO */
-	table_buffer(TEXT_CURRENTTIME,time2str(now));
-	table_buffer(TEXT_BOTSTARTED,time2str(uptime));
+	table_buffer(TEXT_CURRENTTIME,maketimestr(now,TFMT_FULL));
+	table_buffer(TEXT_BOTSTARTED,maketimestr(uptime,TFMT_FULL));
 	table_buffer(TEXT_BOTUPTIME,idle2str(uptime,FALSE));
 	table_buffer(TEXT_BOTVERSION,VERSION,SRCDATE);
 	table_buffer(TEXT_BOTFEATURES,__mx_opts);
 #ifdef DEBUG
+	extra = EMPTYSTR;
+	if (debugfile && dodebug)
+		extra = debugfile;
 #ifdef __profiling__
-	table_buffer("Debug\t%s%s%s, Compiled with Profiling",
+	table_buffer("Debug\t%s%s, Compiled with Profiling",
 #else
-	table_buffer("Debug\t%s%s%s",
+	table_buffer("Debug\t%s%s",
 #endif
-		(const char *[]){"Off","On, Output = "}[dodebug],
-		(debugfile==NULL) ? ((dodebug==TRUE) ? "Stdout" : EMPTYSTR) : debugfile);
+		(dodebug) ? "On, Output = " : "Off",extra);
 #endif /* DEBUG */
 	table_send(from,2);
 }
@@ -1559,7 +1567,7 @@ void do_away(COMMAND_ARGS)
 		current->activity = now;
 		return;
 	}
-	to_server(AWAYFORM,rest,time2away(now));
+	to_server(AWAYFORM,rest,maketimestr(now,TFMT_AWAY));
 	to_user(from,TEXT_NOWSETAWAY);
 	current->away = TRUE;
 }
@@ -1632,7 +1640,7 @@ void do_nick(COMMAND_ARGS)
 
 void do_time(COMMAND_ARGS)
 {
-	to_user_q(from,"Current time: %s",time2away(now));
+	to_user_q(from,"Current time: %s",maketimestr(now,TFMT_AWAY));
 }
 
 void do_upontime(COMMAND_ARGS)

@@ -1,8 +1,11 @@
 3.5(.dev) --
 
- * Changed: Apparently Eggheads changed the uptime protocol without telling anyone.
+ * Fixed: Channel stats would be desynched after bot being kicked and rejoining.
+ * Added: New debug command: INJECT <rest>. Inject data as if it came from the server itself.
+ * Fixed: prot_action enforced protection levels above SET PROT.
+ * Fixed: Apparently Eggheads changed the uptime protocol without telling anyone.
  * Changed: Branchless more compact base64 conversion for RANDSRC in send_spy().
- * Changed: New botnet connection announced on spy sstatus instead of spy botnet.
+ * Changed: New botnet connection announced on spy status instead of spy botnet.
  * Changed: Adjusted output of INFO command.
  * Changed: Rewrote how SERVERGROUP works. Config files might need changes.
  * Removed: SERVERGROUP command.
@@ -10,11 +13,12 @@
  * Removed: IDWRAP code. It was my personal thing.
  * Changed: on_msg now matches commands using a hash function instead
             of iterating through the list of commands using strcasecmp.
- * Changed: Bumped version because of undocumented changes.
  * Added: More help files; BOOT, DEBUG, NOTE, READ
  * Changed: Updated several helpfiles.
  * Changed: Table of builtin commands taken out of gencmd.c and put into
             commands.h for easier editing.
+ * Added: ESAY $load to show system CPU loadavg (HOSTINFO feature).
+ * Changed: Bumped version because of undocumented changes.
 
 3.2 -- October 21, 2025.
 

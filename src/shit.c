@@ -58,7 +58,7 @@ void shit_action(Chan *chan, ChanUser *cu)
 		send_mode(chan,90,QM_RAWMODE,'+','b',shit->mask);
 
 		fromnick = nickcpy(NULL,shit->from);
-		send_kick(chan,nick,"%s %s: %s",time2small(shit->time),fromnick,
+		send_kick(chan,nick,"%s %s: %s",maketimestr(shit->time,TFMT_DATE),fromnick,
 			(shit->reason) ? shit->reason : "GET THE HELL OUT!!!");
 		return;
 	}
@@ -335,7 +335,7 @@ void do_shit(COMMAND_ARGS)
 	add_shit(from,channel,nuh,rest,shitlevel,now + days);
 
 	to_user(from,TEXT_HASSHITTED,nuh,channel);
-	to_user(from,TEXT_SHITEXPIRES,time2str(now + days));
+	to_user(from,TEXT_SHITEXPIRES,maketimestr(now + days,TFMT_FULL));
 
 	check_shit();
 }
@@ -390,7 +390,7 @@ void do_shitlist(COMMAND_ARGS)
 	for(shit=current->shitlist;shit;shit=shit->next)
 	{
 		table_buffer(FMT_6XSTRTAB,shit->chan,shit->mask,shit_actions[shit->action],
-			nickcpy(NULL,shit->from),shit->reason,time2away(shit->expire));
+			nickcpy(NULL,shit->from),shit->reason,maketimestr(shit->expire,TFMT_AWAY));
 	}
 	table_send(from,2);
 }

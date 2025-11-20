@@ -231,7 +231,7 @@ void on_join(Chan *chan, char *from)
 		 */
 		if (chan->setting[TOG_CTL].int_var)
 		{
-			if (STRCHR(from,'\031') || STRCHR(from,'\002') || STRCHR(from,'\022') || STRCHR(from,'\026'))
+			if (stringchr(from,'\031') || stringchr(from,'\002') || stringchr(from,'\022') || stringchr(from,'\026'))
 			{
 				deop_siteban(chan,cu);
 				send_kick(chan,CurrentNick,KICK_BAD_IDENT);
@@ -639,20 +639,20 @@ recheck_alias:
 		Free(&current->lastcmds[LASTCMDSIZE-1]);
 		for(j=LASTCMDSIZE-2;j>=0;j--)
 			current->lastcmds[j+1] = current->lastcmds[j];
-		if ((pt = STRCHR(from,'@')) == NULL)
+		if ((pt = stringchr(from,'@')) == NULL)
 			pt = from;
 		set_mallocdoer(on_msg);
 		current->lastcmds[0] = (char*)Calloc(strlen(pt) + 45);
 		if (CurrentUser)
 		{
 			sprintf(current->lastcmds[0],"[%s] %s\r%s[%-3i]\t(*%s)",
-				time2medium(now),command,CurrentUser->name,
+				maketimestr(now,TFMT_CLOCK),command,CurrentUser->name,
 				(CurrentUser->x.x.access),pt);
 		}
 		else
 		{
 			sprintf(current->lastcmds[0],"[%s] %s\r%s[---]\t(*%s)",
-				time2medium(now),command,CurrentNick,pt);
+				maketimestr(now,TFMT_CLOCK),command,CurrentNick,pt);
 		}
 	}
 
@@ -745,8 +745,11 @@ void on_mode(char *from, char *channel, char *rest)
 	char	templimit[20];
 	char	*nick;
 	char	*parm,*nickuh,*mode;
-	int	i,sign,enfm,maxprot;
+	int	i,sign,rev,enfm,flag,maxprot,isself;
 
+#ifdef DEBUG
+	debug("(on_mode) %s --> %s: %s\n",from,channel,rest);
+#endif /* DEBUG */
 	if ((chan = find_channel_ac(channel)) == NULL)
 		return;
 	channel = chan->name;
@@ -765,16 +768,6 @@ void on_mode(char *from, char *channel, char *rest)
 	doer = find_chanuser(chan,from);
 
 modeloop:
-	if (*mode == 'o' || *mode == 'v')
-	{
-		nick = chop(&rest);
-		if ((victim = find_chanuser(chan,nick)) == NULL)
-		{
-			mode++;
-			goto modeloop;
-		}
-	}
-
 	switch(*mode)
 	{
 	case '+':
@@ -783,25 +776,50 @@ modeloop:
 		break;
 	/*
 	 *
+	 *  MODE <channel> +/-v <nick>
 	 *  MODE <channel> +/-o <nick>
 	 *
 	 */
+	case 'v':
 	case 'o':
+		nick = chop(&rest);
+		victim = find_chanuser(chan,nick);
+		if (victim == NULL) /* Cant take action against an unknown entity */
+		{
+			mode++;
+			goto modeloop;
+		}
+
+		rev = 0;
 		i = (victim->user) ? victim->user->x.x.access : 0;
+
+		/*
+		 *  Can only be 'o' or 'v'
+		 *  Sign can only be '+' or '-'
+		 *  #define CU_VOICE                0x0001
+		 *  #define CU_CHANOP               0x0002
+		*/
+		flag = CU_VOICE + (*mode == 'o');
+		victim->flags &= ~flag;
+		victim->flags |= (flag & (-(sign == '+')));
+
+		if (*mode == 'v')
+			break;
+
+		victim->flags &= ~CU_DEOPPED;
+
+		isself = (0 == nickcmp(getbotnick(current),nick)) ? TRUE : FALSE;
+
 /* +o */	if (sign == '+')
 		{
-			victim->flags |= CU_CHANOP;
-			victim->flags &= ~CU_DEOPPED;
-			if (!i)
+			if (0 == i)
 			{
-				if (victim->shit || (chan->setting[TOG_SD].int_var && !doer) ||
-					chan->setting[TOG_SO].int_var)
+				if (victim->shit || (chan->setting[TOG_SO].int_var) || (chan->setting[TOG_SD].int_var && !doer))
 				{
-					send_mode(chan,60,QM_CHANUSER,'-','o',victim);
+					rev = '-';
 				}
 			}
-			else
-			if (!nickcmp(getbotnick(current),nick))
+			if (isself)
 			{
 				/*
 				 *  wooohoooo! they gave me ops!!!
@@ -815,35 +833,30 @@ modeloop:
 				}
 				check_shit();
 				update_modes(chan);
+				if (current->spy & SPYF_STATUS)
+				send_spy(SPYSTR_STATUS,"Given op on %s, set by %s",chan->name,nick);
 			}
-#ifdef DEBUG
-			debug("(on_mode) %s!%s --> %i\n",victim->nick,victim->userhost,i);
-#endif /* DEBUG */
 		}
 /* -o */	else
 		{
-			victim->flags &= ~(CU_CHANOP|CU_DEOPPED);
-			if (i == BOTLEVEL)
+			if (isself)
 			{
-				if (!nickcmp(getbotnick(current),nick))
-				{
-					/*
-					 *  they dont love me!!! :~(
-					 */
-					chan->bot_is_op = FALSE;
-				}
+				/*
+				 *  they dont love me!!! :~(
+				 */
+				chan->bot_is_op = FALSE;
+				if (current->spy & SPYF_STATUS)
+				send_spy(SPYSTR_STATUS,"Lost op on %s, removed by %s",chan->name,nick);
 			}
 			/*
 			 *  idiots deopping themselves
 			 */
-			if (!nickcmp(from,nick))
+#ifdef DEBUG
+			debug("(on_mode) doer == victim: %s\n",(doer == victim) ? "TRUE" : "FALSE");
+#endif /* DEBUG */
+			if (doer == victim)
 				break;
-			/*
-			 *  1. Use enfm var to temporarily store users access
-			 *  2. get_userlevel also checks is_localbot()...
-			 */
-			enfm = (doer && doer->user) ? doer->user->x.x.access : 0;
-			if (enfm == BOTLEVEL)
+			if (doer && doer->user && doer->user->x.x.access >= OWNERLEVEL)
 				break;
 			if (check_mass(chan,doer,INT_MDL))
 				mass_action(chan,doer);
@@ -855,29 +868,14 @@ modeloop:
 				nickuh = get_nuh(victim);
 				if (get_authaccess(nickuh,channel))
 				{
-					send_mode(chan,60,QM_CHANUSER,'+','o',victim);
+					rev = '+';
 					prot_action(chan,from,doer,NULL,victim);
 				}
 			}
 		}
+		if (rev)
+			send_mode(chan,60,QM_CHANUSER,rev,'o',victim);
 		break;
-	/*
-	 *
-	 *  MODE <channel> +/-v <nick>
-	 *
-	 */
-	case 'v':
-		if (sign == '+')
-			victim->flags |= CU_VOICE;
-		else
-			victim->flags &= ~CU_VOICE;
-		break;
-#ifdef IRCD_EXTENSIONS
-/*
-:joonicks!*@* MODE #emech +I *king*!*@*
-:joonicks!*@* MODE #emech +e *kong*!*@*
-*/
-#endif /* IRCD_EXTENSIONS */
 	/*
 	 *
 	 *  MODE <channel> +/-b <parm>
@@ -886,6 +884,8 @@ modeloop:
 #ifdef IRCD_EXTENSIONS
 	/*
 	 *  ircnet braindamage modes
+	 *  :joonicks!*@* MODE #emech +I *king*!*@*
+	 *  :joonicks!*@* MODE #emech +e *kong*!*@*
 	 */
 	case 'I':
 	case 'e':

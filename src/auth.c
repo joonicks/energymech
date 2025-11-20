@@ -63,7 +63,7 @@ char *cipher(char *arg)
 	static	char res[40];
 	uint32_t B1a,B2a,B3a,B4a;
 	uint32_t B1b,B2b,B3b,B4b;
-	uchar	*ptr;
+	unsigned char *ptr;
 	uint32_t R1;
 	int	i;
 
@@ -72,7 +72,7 @@ char *cipher(char *arg)
 
 	B1a = B2a = B3a = B4a = 0;
 	B1b = B2b = B3b = B4b = 0;
-	ptr = arg;
+	ptr = (unsigned char *)arg;
 
 	while(*ptr)
 	{
@@ -271,10 +271,10 @@ void change_authnick(char *nuh, char *newnuh)
 	}
 }
 
-LS User *au_user;
-LS const char *au_userhost;
-LS const char *au_channel;
-LS int au_access;
+User *au_user;
+const char *au_userhost;
+const char *au_channel;
+int au_access;
 
 void aucheck(User *user)
 {
@@ -454,7 +454,6 @@ See also: passwd, setpass
 */
 void do_auth(COMMAND_ARGS)
 {
-	Auth	*au;
 #ifdef BOTNET
 	char	*checksum;
 #endif /* BOTNET */

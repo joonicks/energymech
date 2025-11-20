@@ -72,8 +72,8 @@
 #define TEXT_SERVERDELETED	"Server has been deleted: %s:%i"
 #define TEXT_MANYSERVMATCH	"Several entries for %s exists, please specify port also"
 /* do_core() */
-#define TEXT_CURRNICKWANT	"Current nick\t%s (Wanted: %s) [guid #%i]"
-#define TEXT_CURRNICKHAS	"Current nick\t%s [guid #%i]"
+#define TEXT_CURRNICKWANT	"Current nick\t%s%s (Wanted: %s) [guid #%i]"
+#define TEXT_CURRNICKHAS	"Current nick\t%s%s [guid #%i]"
 #define TEXT_USERLISTSTATS	"Users in userlist\t%i (%i Superuser%s, %i Bot%s)"
 #define TEXT_ACTIVECHANS	"Active channels\t%s"
 #define TEXT_MOREACTIVECHANS	"\t%s"
@@ -83,11 +83,11 @@
 #define TEXT_VHINACTIVE		" - Inactive"
 
 #define TEXT_CURRSERVER		"Current Server\t%s:%i"
+#define TEXT_CURRSERVGRP	"Current Server\t%s:%i @%s"
 #define TEXT_CURRSERVERNOT	"Current Server\t" TEXT_NOTINSERVLIST
 #define TEXT_TRYNEWSERVER	"Trying new server, brb..."
 #define TEXT_SWITCHSERVER	"Switching servers..."
 #define TEXT_SERVERONTIME	"Server Ontime\t%s"
-#define TEXT_BOTMODES		"Mode\t+%s"
 
 #define TEXT_CURRENTTIME	"Current Time\t%s"
 #define TEXT_BOTSTARTED		"Started\t%s"
@@ -137,7 +137,7 @@
 #define TEXT_TSWITCH		" -t            run normal startup, but exit right before going into main loop\n"
 
 #ifdef SHACRYPT
-#define TEXT_PSWITCH1		" -p <string>   encrypt <string> using the password hashing algorithm (SHA-512),\n"
+#define TEXT_PSWITCH1		" -p <string>   encrypt <string> using the password hashing algorithm (SHA),\n"
 #elif MD5CRYPT
 #define TEXT_PSWITCH1		" -p <string>   encrypt <string> using the password hashing algorithm (MD5),\n"
 #else
@@ -145,9 +145,8 @@
 #endif
 #define TEXT_PSWITCH2		"               output the result and then quit.\n"
 
-#define TEXT_DSWITCH		" -d            start mech in debug mode\n"
-#define TEXT_OSWITCH		" -o <file>     write debug output to <file>\n"
-#define TEXT_XSWITCH		" -X            write a debug file before exit\n"
+#define TEXT_DSWITCH		" -d [file]     start mech in debug mode, with an optional output file\n"
+#define TEXT_XSWITCH		" -x            write a debug file before any exit\n"
 
 #define TEXT_HDR_VERS		"EnergyMech %s, %s\n"
 #define TEXT_HDR_FEAT		"Features: %s\n"

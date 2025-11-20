@@ -99,7 +99,8 @@ int dcc_sendfile(char *target, char *filename)
 {
 	struct	sockaddr_in sai;
 	Client	*client;
-	int	s,f,sz;
+	int	s,f;
+	unsigned int sz;
 	char	tempfile[strlen(filename)+strlen(DCC_PUBLICFILES)+2]; // strlen(DCC_PUBLICFILES) evaluates at compile time to a constant.
 
 	stringcpy(tempfile,DCC_PUBLICFILES);
@@ -671,7 +672,7 @@ void ctcp_version(char *from, char *to, char *rest)
 
 #endif /* CTCP */
 
-LS const struct
+const struct
 {
 	char    *name;
 	void    (*func)(char *, char *, char *);

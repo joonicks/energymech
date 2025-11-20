@@ -124,7 +124,7 @@ void partyline_banner(Client *client)
 	sprintf(tmp,"[%s] %s[%i] has connected",
 		getbotnick(current),client->user->name,(int)client->user->x.x.access);
 
-	if ((to_file(client->sock,"[%s] %s\n",time2medium(now),tmp)) < 0)
+	if ((to_file(client->sock,"[%s] %s\n",maketimestr(now,TFMT_CLOCK),tmp)) < 0)
 	{
 		client->flags = DCC_DELETE;
 		return;
@@ -142,9 +142,10 @@ void partyline_banner(Client *client)
 void dcc_chat(char *from)
 {
 	struct	sockaddr_in sai;
+	unsigned int sz;
 	Client	*client;
 	User	*user;
-	int	sock,sz;
+	int	sock;
 
 	if ((user = get_authuser(from,NULL)) == NULL)
 		return;

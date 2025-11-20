@@ -209,9 +209,9 @@ int reverse_mode(char *from, Chan *chan, int m, int s)
 	mode = (char)m;
 	sign = (char)s;
 
-	if (STRCHR(ptr,mode) && (sign == '+'))
+	if (stringchr(ptr,mode) && (sign == '+'))
 		return(FALSE);
-	if (!STRCHR(ptr,mode) && (sign == '-'))
+	if (!stringchr(ptr,mode) && (sign == '-'))
 		return(FALSE);
 	if (get_useraccess(from,chan->name) >= ASSTLEVEL)
 	{
@@ -270,6 +270,12 @@ void chan_modestr(Chan *chan, char *dest)
 	}
 }
 
+char *get_nuh(const ChanUser *user)
+{
+	sprintf(nuh_buf,"%s!%s",user->nick,user->userhost);
+	return(nuh_buf);
+}
+
 char *find_nuh(char *nick)
 {
 	Chan	*chan;
@@ -281,6 +287,36 @@ char *find_nuh(char *nick)
 			return(get_nuh(cu));
 	}
 	return(NULL);
+}
+
+/*
+ *  NOTE! beware of conflicts in the use of nuh_buf, its also used by find_nuh()
+ */
+char *nick2uh(char *from, char *userhost)
+{
+	if (stringchr(userhost,'!') && stringchr(userhost,'@'))
+	{
+		stringcpy(nuh_buf,userhost);
+	}
+	else
+	if (!stringchr(userhost,'!') && !stringchr(userhost,'@'))
+	{
+		/* find_nuh() stores nickuserhost in nuh_buf */
+		if (find_nuh(userhost) == NULL)
+		{
+			if (from)
+				to_user(from,"No information found for %s",userhost);
+			return(NULL);
+		}
+	}
+	else
+	{
+		stringcpy(nuh_buf,"*!");
+		if (!stringchr(userhost,'@'))
+			stringcat(nuh_buf,"*@");
+		stringcat(nuh_buf,userhost);
+	}
+	return(nuh_buf);
 }
 
 Ban *make_ban(Ban **banlist, char *from, char *banmask, time_t when)
@@ -361,7 +397,7 @@ void channel_massmode(const Chan *chan, char *pattern, int filtmode, char mode, 
 	if ((pat = chop(&pattern)) == NULL)
 		return;
 
-	ispat   = (STRCHR(pat,'*')) ? TRUE : FALSE;
+	ispat   = (stringchr(pat,'*')) ? TRUE : FALSE;
 	maxmode = current->setting[INT_MODES].int_var;
 	mal     = chan->setting[INT_MAL].int_var;
 	*burst  = 0;
@@ -378,7 +414,7 @@ void channel_massmode(const Chan *chan, char *pattern, int filtmode, char mode, 
 			s = deopstring;
 			while(*s) s++;
 			debug("(...) deopstring "mx_pfmt" uh "mx_pfmt" ("mx_pfmt")\n",(mx_ptr)deopstring,(mx_ptr)uh,(mx_ptr)s);
-			s = STRCHR(deopstring,0);
+			s = stringchr(deopstring,0);
 			debug("(...) deopstring "mx_pfmt" uh "mx_pfmt" ("mx_pfmt")\n",(mx_ptr)deopstring,(mx_ptr)uh,(mx_ptr)s);
 		}
 #endif /* DEBUG */
@@ -455,7 +491,7 @@ void channel_massmode(const Chan *chan, char *pattern, int filtmode, char mode, 
 			cu = cu->next;
 			if (!cu && (pat = chop(&pattern)))
 			{
-				ispat = (STRCHR(pat,'*')) ? TRUE : FALSE;
+				ispat = (stringchr(pat,'*')) ? TRUE : FALSE;
 				cu = chan->users;
 			}
 		}
@@ -661,12 +697,6 @@ void purge_chanusers(Chan *chan)
 {
 	while(chan->users)
 		remove_chanuser(chan,chan->users->nick);
-}
-
-char *get_nuh(const ChanUser *user)
-{
-	sprintf(nuh_buf,"%s!%s",user->nick,user->userhost);
-	return(nuh_buf);
 }
 
 /*
@@ -975,7 +1005,7 @@ void do_cchan(COMMAND_ARGS)
 			to_user(from,ERR_CHAN,channel);
 		return;
 	}
-	to_user(from,"Current channel: %s",
+	to_user_q(from,"Current channel: %s",
 		(current->activechan) ? current->activechan->name : TEXT_NONE);
 }
 

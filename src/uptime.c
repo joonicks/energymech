@@ -94,9 +94,8 @@ void init_uptime(void)
 
 void send_uptime(int type)
 {
-	PackUp	upPack;
+	PackUp	*upPack;
 	struct	sockaddr_in sai;
-	struct	stat st;
 	Server	*sp;
 	const char *server,*nick;
 	int	sz;
@@ -128,6 +127,8 @@ void send_uptime(int type)
 	}
 #endif /* RAWDNS */
 
+	upPack = (PackUp*)&globaldata;
+
 	/*
 	 *  update the time when we last sent packet
 	 */
@@ -135,30 +136,19 @@ void send_uptime(int type)
 	uptimelast = (now & ~7) + 21600 + sz;		/* 21600 seconds = 6 hours */
 
 	uptimepackets  = uptimepackets + 1;
-	upPack.packets_sent = htonl(uptimepackets);
+	upPack->packets_sent = htonl(uptimepackets);
 
-	upPack.mytime = htonl(now);
-	upPack.regnr  = uptimeregnr;
-	upPack.type   = htonl(type);
-	upPack.uptime = htonl(uptime);
-	upPack.ontime = 0;			/* set a few lines down */
+	upPack->mytime = htonl(now);
+	upPack->regnr  = uptimeregnr;
+	upPack->type   = htonl(type);
+	upPack->uptime = htonl(uptime);
+	upPack->ontime = 0;			/* set a few lines down */
 
 	/*
 	 *  callouts to other functions should be done last (think compiler optimizations)
 	 */
-	upPack.pid = htonl(getpid());
-
-	/*
-	 *  this trick for most systems gets the system uptime
-	 */
-	if (stat("/proc",&st) < 0)
-	{
-		upPack.sysup = 0;
-	}
-	else
-	{
-		upPack.sysup = htonl(st.st_ctime);
-	}
+	upPack->pid = htonl(getpid());
+	upPack->sysup = htonl(cx.system_uptime);
 
 	server = UNKNOWN;
 	nick   = BOTLOGIN;
@@ -169,7 +159,7 @@ void send_uptime(int type)
 	if (botlist)
 	{
 		nick = getbotnick(botlist);
-		upPack.ontime = htonl(botlist->ontime);
+		upPack->ontime = htonl(botlist->ontime);
 		if ((sp = find_server(botlist->server)))
 		{
 			server = (*sp->realname) ? sp->realname : sp->name;
@@ -190,14 +180,10 @@ void send_uptime(int type)
 	}
 #endif /* ! RAWDNS */
 
-	sz = sizeof(PackStub) + 3 + StrlenX(nick,server,VERSION,NULL);
-	if (sz > sizeof(PackUp))
-		return;
-
-	sprintf(upPack.string,"%s %s %s",nick,server,VERSION);
+	sz = sizeof(PackStub) + snprintf(upPack->string,256,"%s %s %s",nick,server,VERSION);
 
 #ifdef DEBUG
-	debug("(send_uptime) packets sent %i, my pid %i, my ident = \"%s\"\n",uptimepackets,ntohl(upPack.pid),upPack.string);
+	debug("(send_uptime) packets sent %i, my pid %i, my ident = \"%s\"\n",uptimepackets,ntohl(upPack->pid),upPack->string);
 #endif /* DEBUG */
 	/*
 	 *  udp sending...
@@ -207,7 +193,7 @@ void send_uptime(int type)
 	sai.sin_addr.s_addr = uptimeip;
 	sai.sin_port = htons(uptimeport);
 
-	sendto(uptimesock,(void*)&upPack,sz,0,(struct sockaddr*)&sai,sizeof(sai));
+	sendto(uptimesock,(void*)upPack,sz,0,(struct sockaddr*)&sai,sizeof(sai));
 }
 
 void uptime_death(int type)
@@ -224,7 +210,8 @@ void uptime_death(int type)
 void process_uptime(void)
 {
 	struct	sockaddr_in sai;
-	int	res,sz;
+	unsigned int sz;
+	int	res;
 	struct
 	{
 		int	regnr;

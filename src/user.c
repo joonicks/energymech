@@ -77,7 +77,7 @@ void cfg_chan(char *rest)
 	addtouser(&cfgUser->chan,rest,TRUE);
 }
 
-LS struct
+struct
 {
 	char	modechar;
 	int	modeflag;
@@ -228,7 +228,7 @@ typedef struct CommandStruct
 
 } ConfCommand;
 
-LS const ConfCommand userlist_cmds[] =
+const ConfCommand userlist_cmds[] =
 {
 /*
  *  users
@@ -560,7 +560,9 @@ void mirror_user(User *user)
 {
 	Mech	*backup,*anybot;
 	User	*newuser,*olduser;
+#ifdef NOTE
 	Strp	*notes;
+#endif /* NOTE */
 
 #ifdef BOTNET
 	/* dont mirror noshare users */
@@ -1073,7 +1075,7 @@ void do_userlist(COMMAND_ARGS)
 			channel = rest;
 		}
 		else
-		if (STRCHR(rest,'*') != NULL)
+		if (stringchr(rest,'*') != NULL)
 		{
 			mask = rest;
 		}
@@ -1180,7 +1182,6 @@ void do_user(COMMAND_ARGS)
 	/*
 	 *  on_msg checks: CARGS
 	 */
-	Mech	*anybot;
 	User	*user;
 	Strp	*ump;
 	char	*handle,*pt,*mask,*nick,*chan,*anum,*pass,*encpass;

@@ -204,7 +204,8 @@ int SockConnect(char *host, int port, int use_vhost)
 int SockAccept(int sock)
 {
 	struct	sockaddr_in sai;
-	int	s,sz;
+	unsigned int sz;
+	int	s;
 
 	sz = sizeof(sai);
 	s = accept(sock,(struct sockaddr*)&sai,&sz);
@@ -309,7 +310,7 @@ void to_user_q(const char *target, const char *format, ...)
 
 	if (STARTUP_ECHOTOCONSOLE)
 	{
-		int	n;
+		int	n __notused__;
 		n = write(1,message,strlen(message));
 		return;
 	}
@@ -447,6 +448,91 @@ void to_user(const char *target, const char *format, ...)
 #ifdef DEBUG
 	debug("(to_user) {%i} [%s] %s",current->sock,target,message);
 #endif /* DEBUG */
+}
+
+Strp *output_table = NULL;
+
+void table_buffer(const char *format, ...)
+{
+	va_list	msg;
+
+	va_start(msg,format);
+	vsprintf(globaldata,format,msg);
+	va_end(msg);
+
+	set_mallocdoer(table_buffer);
+	append_strp(&output_table,globaldata);
+}
+
+void table_send(const char *from, const int space)
+{
+	char	message[MAXLEN];
+	Strp	*sp,*next;
+	char	*src,*o,*end;
+	int	i,u,g,x,columns[16];
+
+	memset(columns,0,sizeof(columns));
+
+	for(sp=output_table;sp;sp=sp->next)
+	{
+		u = i = 0;
+		src = o = sp->p;
+		while(*src)
+		{
+			/* Dont count control codes */
+			if (*src == '\037' || *src == '\002')
+				u++;
+			if (*src == '\t' || *src == '\r')
+			{
+				x = (src - o) - u;
+				if (x > columns[i])
+					columns[i] = x;
+				i++;
+				o = src+1;
+				u = 0;
+			}
+			src++;
+		}
+	}
+
+	for(sp=output_table;sp;sp=next)
+	{
+		next = sp->next;
+
+		o = message;
+		src = sp->p;
+		g = x = i = 0;
+		while(*src)
+		{
+			if (g)
+			{
+				end = src;
+				while(*end && *end != '\t' && *end != '\r')
+					end++;
+				g -= (end - src);
+				while(g-- > 0)
+					*(o++) = ' ';
+			}
+			if (*src == '\037' || *src == '\002')
+				x++;
+			if (*src == '\t' || *src == '\r')
+			{
+				if (*src == '\r')
+					g = columns[i+1];
+				src++;
+				x += (columns[i++] + space);
+				while(o < (message + x))
+					*(o++) = ' ';
+			}
+			else
+				*(o++) = *(src++);
+		}
+		*o = 0;
+		to_user(from,FMT_PLAIN,message);
+
+		Free((char**)&sp);
+	}
+	output_table = NULL;
 }
 
 #endif /* ifndef GENCMD_C */

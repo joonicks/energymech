@@ -46,10 +46,11 @@ const char banneropt[] = "BB%i %i PTA"
 #ifdef TELNET
 char *telnetprompt = TEXT_ENTERNICKNAME;
 #endif /* TELNET */
+
 /*
  *  this is a partial copy of the BotNet struct
  */
-LS struct
+struct
 {
 	struct	BotNet *next;
 
@@ -73,7 +74,7 @@ typedef struct LinkCmd
 #define RELAY_YES	1
 #define RELAY_NO	0
 
-LS const LinkCmd basicProto[] =
+const LinkCmd basicProto[] =
 {
 { "BA", basicAuth,		RELAY_NO	},
 { "BB", basicBanner,		RELAY_NO	},
@@ -95,7 +96,7 @@ LS const LinkCmd basicProto[] =
 { "\0\0", NULL,			RELAY_NO	},
 };
 
-LS int deadlinks = FALSE;
+int deadlinks = FALSE;
 
 /*
  *
@@ -160,7 +161,6 @@ NetCfg *find_netcfg(int guid)
 BotInfo *make_botinfo(int guid, int hops, char *nuh, char *server, char *version)
 {
 	BotInfo	*newbinfo;
-	int	sn,vn;
 
 	set_mallocdoer(make_botinfo);
 	newbinfo = (BotInfo*)Calloc(sizeof(BotInfo) + StrlenX(nuh,server,version,NULL));
@@ -168,11 +168,6 @@ BotInfo *make_botinfo(int guid, int hops, char *nuh, char *server, char *version
 	newbinfo->guid = guid;
 	newbinfo->hops = hops;
 
-/*
-	sprintf(newbinfo->nuh,"%s%c%n%s%c%n%s",nuh,0,&sn,server,0,&vn,version);
-	newbinfo->server = newbinfo->nuh + sn;
-	newbinfo->version = newbinfo->nuh + vn;
-*/
 	newbinfo->server = stringcat(newbinfo->nuh,nuh) + 1;
 	newbinfo->version = stringcat(newbinfo->server,server) + 1;
 	stringcpy(newbinfo->version,version);
@@ -922,10 +917,10 @@ void partyAuth(BotNet *bn, char *rest)
 {
 	User	*user;
 	Strp	*ump;
-	char	*name,*userhost,*checksum;
+	char	*userhost,*checksum;
 	int	m;
 
-	name = chop(&rest);
+	chop(&rest);
 	userhost = chop(&rest);
 	if ((checksum = chop(&rest)) == NULL)
 		checksum = "";
@@ -1337,10 +1332,8 @@ void ushareTick(BotNet *bn, char *rest)
 void ushareDelete(BotNet *bn, char *rest)
 {
 	User	*user;
-	char	*orig;
 	int	modcount;
 
-	orig = rest;
 	modcount = asc2int(chop(&rest));
 	if (errno)
 		return;
@@ -1779,10 +1772,9 @@ void do_cmd(COMMAND_ARGS)
 	Mech	*backup;
 	char	tempdata[MAXLEN];
 	char	*target,*orig = rest;
-	int	guid;
 
 	target = chop(&rest);
-	guid = asc2int(target);
+	asc2int(target);
 	if (errno)
 	{
 		unchop(orig,rest);
@@ -1796,7 +1788,7 @@ void do_cmd(COMMAND_ARGS)
 		return;
 	}
 
-	if (STRCHR(from,'!'))
+	if (stringchr(from,'!'))
 		sprintf(tempdata,"%s %i %s %s",target,current->guid,from,rest);
 	else
 		sprintf(tempdata,"%s %i %s!%s %s",target,current->guid,from,CurrentUser->mask->p,rest);

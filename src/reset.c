@@ -1,7 +1,7 @@
 /*
 
     EnergyMech, IRC bot software
-    Copyright (c) 1997-2018 proton
+    Copyright (c) 1997-2025 proton
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -27,11 +27,13 @@
 #include "h.h"
 
 #ifdef TELNET
-LS int client_type = DCC_ACTIVE;
+
+int client_type = DCC_ACTIVE;
+
 #endif /* TELNET */
 
-#define mkaxx(x)	(0x40404040 + (0x0f0f & x) + ((0xf0f0 & x) << 12))
-#define getaxx(x)	(((x & 0x0f0f0000) >> 12) | (x & 0x00000f0f))
+#define simpleencode(x)	(0x41414141 + (0x0f0f & x) + ((0xf0f0 & x) << 12))
+#define simpledecode(x)	((((x - 0x41410000) & 0x0f0f0000) >> 12) | ((x - 0x4141) & 0x0f0f))
 
 char *recover_client(char *env)
 {
@@ -40,17 +42,18 @@ char *recover_client(char *env)
 	char	asc[8];
 	} axx;
 	struct	sockaddr_in sai;
+	unsigned int sz;
 	Client	*client;
 	User	*user;
 	char	*p,*handle;
-	int	guid = 0,fd = 0,sz;
+	int	guid = 0,fd = 0;
 
 	if (env[8] != ':')
 		return(env);
 
 	memcpy(axx.asc,env,8); /* compiler is not stupid and will optimize the shit out of this */
-	guid = getaxx(axx.num[0]);
-	fd = getaxx(axx.num[1]);
+	guid = simpledecode(axx.num[0]);
+	fd   = simpledecode(axx.num[1]);
 
 	handle = p = (env = env + 9);
 	while(*p)
@@ -97,7 +100,7 @@ char *recover_client(char *env)
 
 found_user:
 	if (to_file(fd,"[%s] [%s] %s[%i] has connected (reset recover)\n",
-		time2medium(now),getbotwantnick(current),handle,user->x.x.access) < 0)
+		maketimestr(now,TFMT_CLOCK),getbotwantnick(current),handle,user->x.x.access) < 0)
 	{
 		close(fd);
 		return(p);
@@ -142,16 +145,16 @@ char *recover_debug(char *env)
 	char	asc[4];
 	} axx;
 	struct	stat s;
+	char *d;
 
 	debug_fd = 0;
+	d = stringchr(env,'&');
 
-	if (env[4] != ' ' && env[4] != 0)
-		return(env);
 	/*
 	 *  get the fd number
 	 */
 	memcpy(axx.asc,env,4); /* compiler is not stupid and will optimize the shit out of this */
-	debug_fd = getaxx(axx.num);
+	debug_fd = simpledecode(axx.num);
 
 	if (fstat(debug_fd,&s) < 0)
 	{
@@ -164,17 +167,19 @@ char *recover_debug(char *env)
 		dodebug = TRUE;
 		debug("(recover_debug) {%i} debug fd recovered\n",debug_fd);
 		CoreClient.sock = debug_fd;
+		if (d && is_safepath(d+1,FILE_MAY_EXIST) == TRUE)
+		{
+			debugfile = d+1;
+			debug("(recover_debug) output file = %s\n",debugfile);
+		}
 	}
-	return(env+4);
+	d = chop(&env);
+	return(env);
 }
 
 #endif /* DEBUG */
 
 /*
-(do_reset) mkaxx(3) = C@@@
-(do_reset) ircx mkaxx(12) = L@@@
-(do_reset) sock mkaxx(2) = B@@@
-(do_reset) guid mkaxx(1881) = IGE@
 [StS] {2} PING :OT1523818405
 (do_reset) MECHRESET=dC@@@ fXIGE@B@@@L@@@ tIGE@F@@@:joo [44]
 execve( ./energymech, argv = { ./energymech <NULL> <NULL> <NULL> <NULL> }, envp = { MECHRESET=dC@@@ fXIGE@B@@@L@@@ tIGE@F@@@:joo } )
@@ -187,8 +192,8 @@ char *recover_server(char *env)
 	char	asc[16];
 	} axx;
 	struct	sockaddr_in sai;
-	char	*p;
-	int	guid = 0,fd = 0,sz;
+	unsigned int sz;
+	int	guid = 0,fd = 0;
 #ifdef IRCD_EXTENSIONS
 	int	ircx = 0;
 #endif /* IRCD_EXTENSIONS */
@@ -209,10 +214,10 @@ char *recover_server(char *env)
 
 	memcpy(axx.asc,env,sz); /* compiler is not stupid and will optimize the shit out of this */
 	env += sz;
-	guid = getaxx(axx.num[0]);
-	fd = getaxx(axx.num[1]);
+	guid = simpledecode(axx.num[0]);
+	fd   = simpledecode(axx.num[1]);
 #ifdef IRCD_EXTENSIONS
-	ircx = getaxx(axx.num[2]);
+	ircx = simpledecode(axx.num[2]);
 #ifdef DEBUG
 	debug("(recover_server) guid = %i; fd = %i, ircx = %i\n",guid,fd,ircx);
 #endif /* DEBUG */
@@ -251,7 +256,7 @@ char *recover_server(char *env)
 	/* if the guid changed, we cant guess which old<-->new is the matching one so */
 	if (fd != -1)
 	{
-		to_file(fd,"QUIT :I'm no longer wanted *cry*\n");
+		to_file(fd,"QUIT :Am I a figment of my own imagination?\n");
 		killsock(fd);
 	}
 	return(env);
@@ -314,9 +319,8 @@ void do_reset(COMMAND_ARGS)
 	} axx;
 	Client	*client;
 	Mech	*backup;
-	char	env[MSGLEN];
-	char	*p;
-	int	n,sz;
+	char	*p,env[MSGLEN];
+	int	sz;
 
 	if (current->userlist && current->ul_save)
 	{
@@ -350,10 +354,12 @@ void do_reset(COMMAND_ARGS)
 	 */
 	if (dodebug && (debug_fd >= 0))
 	{
-		axx.num[0] = mkaxx(debug_fd);
+		axx.num[0] = simpleencode(debug_fd);
 		axx.num[1] = 0;
-		sprintf(p,"d%s",axx.asc);
-		p = STREND(p);
+		if (debugfile)
+			p += sprintf(p,"d%s&%s",axx.asc,debugfile);
+		else
+			p += sprintf(p,"d%s",axx.asc);
 	}
 #endif /* DEBUG */
 	/*
@@ -365,17 +371,14 @@ void do_reset(COMMAND_ARGS)
 		if ((current->connect == CN_ONLINE) && ((MSGLEN - (p - env)) > 25))
 		{
 			unset_closeonexec(current->sock);
-			axx.num[0] = mkaxx(current->guid);
-			axx.num[1] = mkaxx(current->sock);
-#ifdef IRCD_EXTENSIONS
-			axx.num[2] = mkaxx(current->ircx_flags);
-			axx.num[3] = 0;
-			sprintf(p," fX%s",axx.asc);
-#else /* IRCD_EXTENSIONS */
+			axx.num[0] = simpleencode(current->guid);
+			axx.num[1] = simpleencode(current->sock);
 			axx.num[2] = 0;
-			sprintf(p," fx%s",axx.asc);
+			axx.num[3] = 0;
+#ifdef IRCD_EXTENSIONS
+			axx.num[2] = simpleencode(current->ircx_flags);
 #endif /* IRCD_EXTENSIONS */
-			p = STREND(p);
+			p += sprintf(p," fX%s",axx.asc);
 			to_server("PING :OT%lu\n",current->ontime);
 		}
 		for(client=current->clientlist;client;client=client->next)
@@ -391,16 +394,15 @@ void do_reset(COMMAND_ARGS)
 			if ((MSGLEN - (p - env)) > sz)
 			{
 				unset_closeonexec(client->sock);
-				axx.num[0] = mkaxx(current->guid);
-				axx.num[1] = mkaxx(client->sock);
+				axx.num[0] = simpleencode(current->guid);
+				axx.num[1] = simpleencode(client->sock);
 				axx.num[2] = 0;
 #ifdef TELNET
-				sprintf(p,(client->flags & DCC_TELNET) ? " t%s:%s" : " c%s:%s",
+				p += sprintf(p,(client->flags & DCC_TELNET) ? " t%s:%s" : " c%s:%s",
 					axx.asc,client->user->name);
 #else
-				sprintf(p," c%s:%s",axx.asc,client->user->name);
+				p += sprintf(p," c%s:%s",axx.asc,client->user->name);
 #endif /* TELNET */
-				p = STREND(p);
 			}
 		}
 	}

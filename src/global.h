@@ -21,7 +21,7 @@
 #ifndef GLOBAL_H
 #define GLOBAL_H 1
 
-#ifdef MAIN_C
+#if defined(MAIN_C) || defined(TEST)
 
 #define MDEF(x)		= x
 #define BEG
@@ -42,6 +42,7 @@
 struct CoreData		/* Collect core data all in one place */
 {
 	time_t	now;
+	time_t	system_uptime;
 	Mech	*current;
 	char	*rest_end;
 	char	*chop_end;
@@ -249,12 +250,12 @@ BEG Seen	*seenlist		MDEF(NULL);
 
 #endif /* SEEN */
 
-BEG char *fontname			MDEF(NULL);
-BEG BigC *fontlist			MDEF(NULL);
-BEG int charlines;
-BEG int charheight;
-BEG int spacewidth;
-BEG int kerning;
+BEG char	*fontname		MDEF(NULL);
+BEG BigC	*fontlist		MDEF(NULL);
+BEG int		charlines;
+BEG int		charheight;
+BEG int		spacewidth;
+BEG int		kerning;
 
 #ifdef TRIVIA
 
@@ -309,7 +310,7 @@ BEG int		spawning_lamer		MDEF(0);
 #define CRLF	0x08
 
 #define FNICK	(NICK|FIRST)
-#define NNICK	(NICK|NUM)
+#define NUMNI	(NICK|NUM)
 
 #if defined(MAIN_C) || defined(MAKETABLES)
 
@@ -391,6 +392,15 @@ const uchar nickcmptab[256] =
 	0xf8, 0xf9, 0xfa, 0xfb, 0xfc, 0xfd, 0xfe, 0xff
 };
 
+/*
+#define NUM	0x01
+#define NICK	0x02
+#define FIRST	0x04
+#define CRLF	0x08
+#define FNICK	(NICK|FIRST)
+#define NUMNI	(NICK|NUM)
+*/
+
 const uchar attrtab[256] =
 {
 	0,	0,	0,	0,	0,	0,	0,	0,	/* 0x00 - 0x07 */
@@ -399,8 +409,10 @@ const uchar attrtab[256] =
 	0,	0,	0,	0,	0,	0,	0,	0,	/* 0x18 - 0x1F */
 	0,	0,	0,	0,	0,	0,	0,	0,	/* 0x20 - 0x27 */
 	0,	0,	0,	0,	0,	NICK,	0,	0,	/* 0x28 - 0x2F */
-	NNICK,	NNICK,	NNICK,	NNICK,	NNICK,	NNICK,	NNICK,	NNICK,	/* 0x30 - 0x37 */
-	NNICK,	NNICK,	0,	0,	0,	0,	0,	0,	/* 0x38 - 0x3F */
+
+	NUMNI,	NUMNI,	NUMNI,	NUMNI,	NUMNI,	NUMNI,	NUMNI,	NUMNI,	/* 0x30 - 0x37 */
+	NUMNI,	NUMNI,	0,	0,	0,	0,	0,	0,	/* 0x38 - 0x3F */
+
 	0,	FNICK,	FNICK,	FNICK,	FNICK,	FNICK,	FNICK,	FNICK,	/* 0x40 - 0x47 */
 	FNICK,	FNICK,	FNICK,	FNICK,	FNICK,	FNICK,	FNICK,	FNICK,	/* 0x48 - 0x4F */
 	FNICK,	FNICK,	FNICK,	FNICK,	FNICK,	FNICK,	FNICK,	FNICK,	/* 0x50 - 0x57 */

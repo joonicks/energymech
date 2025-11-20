@@ -29,6 +29,60 @@
 #include "mcmd.h"
 
 /*
+ *  deal with undesired lusers
+ */
+void screwban_format(char *userhost)
+{
+	int	sz,n,pos;
+
+#ifdef DEBUG
+	debug("(screwban_format) %s\n",userhost);
+#endif /* DEBUG */
+
+	if ((sz = strlen(userhost)) < 8)
+		return;
+
+	n = RANDOM(4,sz);
+	while(--n)
+	{
+		pos = RANDOM(0,(sz - 1));
+		if (!stringchr("?!@*",userhost[pos]))
+		{
+			userhost[pos] = (RANDOM(0,3) == 0) ? '*' : '?';
+		}
+	}
+}
+
+void deop_ban(Chan *chan, ChanUser *victim, char *mask)
+{
+	if (!mask)
+		mask = format_uh(get_nuh(victim),FUH_USERHOST);
+	send_mode(chan,85,QM_CHANUSER,'-','o',victim);
+	send_mode(chan,90,QM_RAWMODE,'+','b',mask);
+}
+
+void deop_siteban(Chan *chan, ChanUser *victim)
+{
+	char	*mask;
+
+	mask = format_uh(get_nuh(victim),FUH_HOST);
+	deop_ban(chan,victim,mask);
+}
+
+void deop_screwban(Chan *chan, ChanUser *victim)
+{
+	char	*mask;
+	int	i;
+
+	for(i=2;--i;)
+	{
+		mask = format_uh(get_nuh(victim),FUH_USERHOST);
+		screwban_format(mask);
+		deop_ban(chan,victim,mask);
+	}
+}
+
+/*
  *
  *  kicking and screaming
  *
@@ -821,7 +875,7 @@ void do_unban(COMMAND_ARGS)
 	if (((chan = find_channel_ac(to)) == NULL) || !chan->bot_is_op)
 		return;
 
-	if (nick && STRCHR(nick,'*'))
+	if (nick && stringchr(nick,'*'))
 	{
 		channel_massunban(chan,nick,0);
 		return;
