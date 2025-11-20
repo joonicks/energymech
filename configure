@@ -24,6 +24,7 @@ compile=no
 install=no
 silentopt=no
 try_libmusl=no
+no_flto=no
 
 # default optimization goal, speed = -O2, size = -Os
 optitype=size
@@ -271,9 +272,9 @@ do
         greet )        ft_greet=no ;;
         hostinfo )     ft_hostinfo=no ;;
         ircd_ext )     ft_ircd_ext=no ;;
-	libmusl )	try_libmusl=no ;;
+	libmusl )      try_libmusl=no ;;
         md5 )          ft_md5=no ;;
-	netcfg )	ft_netcfg=no ;;
+	netcfg )       ft_netcfg=no ;;
         newbie )       ft_newbie=no ;;
         note )         ft_note=no ;;
         notify )       ft_notify=no ;;
@@ -317,6 +318,8 @@ do
     --no-pipeflag)	cc_pipe_opt=no ;;
     --use-ofp)		cc_ofp_opt=yes ;;
     --no-ofp)		cc_ofp_opt=no ;;
+    --use-flto)		no_flto=no ;;
+    --no-flto)		no_flto=yes ;;
     --default-yes)	ft_default=yes set_feature_defaults ;;
     --default-no)	ft_default=no set_feature_defaults ;;
     --help | -h)
@@ -335,6 +338,8 @@ Features and packages:
   --sha=internal		Use internal routines for SHA password hashes instead of system libraries
   --use-ofp			Try to use compiler flag -fomit-frame-pointer
   --no-ofp			Do not use compiler flag -fomit-frame-pointer
+  --use-flto			Try to compile with Link-Time Optimizatons
+  --no-flto			Dont use Link-Time Optimizations
   --with-alias			ALIAS support
   --with-botnet			Botnet support
   --with-bounce
@@ -624,11 +629,28 @@ if [ -z "$cf_cflags" -a -n "$cf_GNUCC" ]; then
   fi
 fi
 
+#
+#  test for -pipe flag
+#
 if [ -z "$cf_cflags" -a -z "$cc_pipe_opt" ]; then
   if $CC -pipe -c -o $TESTO $TESTC 1> /dev/null 2> /dev/null && test -r $TESTO; then
     cc_pipe_flag="-pipe"
     echo $ac_n "-pipe "$ac_c
   fi
+fi
+
+#
+#  test -flto (link-time optimizations)
+#
+if [ -z "$no_flto" -o "$no_flto" = no ]; then
+  if [ -z "$cf_cflags" ]; then
+    if $CC -flto -c -o $TESTO $TESTC 1> /dev/null 2> /dev/null && test -r $TESTO; then
+      cc_flto_flag="-flto"
+      echo $ac_n "-flto "$ac_c
+    fi
+  fi
+else
+  cc_flto_flag=
 fi
 
 oflag="-O2"
@@ -1455,7 +1477,7 @@ cprof="$cc_pg_flag $cc_pg_define"
 lprof="$cc_pg_flag $cc_pg_define $libpgdl"
 
 if [ -z "$cf_cflags" ]; then
-  cf_cflags='$(PIPEFLAG) $(GDBFLAG) $(WARNFLAG) $(OPTIMIZE)'
+  cf_cflags='$(PIPEFLAG) $(GDBFLAG) $(FLTO_FLAG) $(WARNFLAG) $(OPTIMIZE)'
 fi
 
 echo '# This file is generated from Makefile.in' > src/Makefile
@@ -1464,6 +1486,7 @@ s%@CC@%$CCshort%;
 s%@ldscript@%$ldscript%;
 s%@pipeflag@%$cc_pipe_flag%;
 s%@gdbflag@%$cc_g_flag%;
+s%@flto_flag@%$cc_flto_flag%;
 /@cprof@/      { s,@cprof@,$cprof,;         };
 /@lprof@/      { s,@lprof@,$lprof,;         };
 /@lflags@/     { s,@lflags@,$lflags,;       };
