@@ -187,7 +187,7 @@ static void ec_loadavg(char *from, const char *to)
 
 void ec_time(char *from, const char *to)
 {
-	nobo_strcpy(maketimestr(now,TFMT_AWAY));
+	nobo_strcpy(maketimestr(cx.now,TFMT_AWAY));
 }
 
 void ec_set(char *from, const char *to)
@@ -490,7 +490,7 @@ second_pass:
 	{
 set_usage:
 #ifdef DEBUG
-		if (from == CoreUser.name)
+		if (from == cx.CoreUser.name)
 			debug("init: set error: %s\n",nullstr(name));
 #endif
 		usage(from);	/* usage for CurrentCmd->name */

@@ -128,7 +128,7 @@ int dcc_sendfile(char *target, char *filename)
 	client->sock = s;
 	client->user = NULL;
 	client->flags = DCC_WAIT|DCC_ASYNC|DCC_SEND;
-	client->lasttime = now;
+	client->lasttime = cx.now;
 	client->whom = stringcpy(client->filename,filename) + 1;
 	stringcpy(client->whom,target);
 
@@ -216,7 +216,7 @@ void parse_dcc(Client *client)
 		else
 		{
 			client->flags = DCC_SEND;
-			client->start = now;
+			client->start = cx.now;
 			dcc_pushfile(client,0);
 		}
 #endif /* DCC_FILE */
@@ -250,7 +250,7 @@ void parse_dcc(Client *client)
 		if (write(client->sock,&where,4) == -1)
 			return;
 
-		client->lasttime = now;
+		client->lasttime = cx.now;
 
 		if (oc == client->fileend)
 		{
@@ -266,7 +266,7 @@ void parse_dcc(Client *client)
 	{
 		uint32_t where;
 
-		client->lasttime = now;
+		client->lasttime = cx.now;
 		s = client->inputcount;
 		oc = read(client->sock,(client->sockdata+s),(4-s));
 		if ((oc < 1) && (errno != EINTR) && (errno != EAGAIN))
@@ -319,7 +319,7 @@ void parse_dcc(Client *client)
 		/*
 		 *  DCC input flood protection
 		 */
-		s = now - client->lasttime;
+		s = cx.now - client->lasttime;
 		if (s > 10)
 		{
 			client->inputcount = strlen(ptr);
@@ -338,7 +338,7 @@ void parse_dcc(Client *client)
 		 */
 		CurrentShit = NULL;
 		CurrentChan = NULL;
-		client->lasttime = now;
+		client->lasttime = cx.now;
 		CurrentDCC  = client;
 		CurrentUser = client->user;
 		stringcpy(CurrentNick,CurrentUser->name);
@@ -390,7 +390,7 @@ void process_dcc(void)
 			partyline_banner(client);
 		}
 		else
-		if ((client->flags & DCC_WAIT) && ((now - client->lasttime) >= WAITTIMEOUT))
+		if ((client->flags & DCC_WAIT) && ((cx.now - client->lasttime) >= WAIT_TIMEOUT))
 		{
 #ifdef DEBUG
 			debug("(process_dcc) connection timed out (%s)\n",
@@ -400,7 +400,7 @@ void process_dcc(void)
 		}
 #ifdef DCC_FILE
 		else
-		if ((client->flags & DCC_SEND) && ((now - client->lasttime) >= DCC_FILETIMEOUT))
+		if ((client->flags & DCC_SEND) && ((cx.now - client->lasttime) >= DCCFILE_TIMEOUT))
 		{
 #ifdef DEBUG
 			debug("(process_dcc) {%i} DCC %s stalled (%s), closing connection\n",
@@ -412,7 +412,7 @@ void process_dcc(void)
 #endif /* DCC_FILE */
 #ifdef TELNET
 		else
-		if ((client->flags & DCC_TELNETPASS) && ((now - client->lasttime) >= TELNET_TIMEOUT))
+		if ((client->flags & DCC_TELNETPASS) && ((cx.now - client->lasttime) >= TELNET_TIMEOUT))
 		{
 			client->flags = DCC_DELETE;
 		}
@@ -529,7 +529,7 @@ void ctcp_dcc(char *from, char *to, char *rest)
 			client->fileend = filesz;
 			client->sock = s;
 			client->flags = DCC_WAIT|DCC_SEND|DCC_RECV;
-			client->lasttime = client->start = now;
+			client->lasttime = client->start = cx.now;
 			client->whom = stringcpy(client->filename,filename) + 1;
 			stringcpy(client->whom,from);
 
@@ -588,7 +588,7 @@ void ctcp_dcc(char *from, char *to, char *rest)
 		client->sock = x;
 		client->user = user;
 		client->flags = DCC_WAIT|DCC_ASYNC;
-		client->lasttime = now;
+		client->lasttime = cx.now;
 		client->next = current->clientlist;
 		current->clientlist = client;
 	}
@@ -732,9 +732,9 @@ void on_ctcp(char *from, char *to, char *rest)
 			{
 				for(mul=0;mul<CTCP_SLOTS;mul++)
 				{
-					if (ctcp_slot[mul] < now)
+					if (ctcp_slot[mul] < cx.now)
 					{
-						ctcp_slot[mul] = now + CTCP_TIMEOUT;
+						ctcp_slot[mul] = cx.now + CTCP_TIMEOUT;
 						break;
 					}
 				}
@@ -778,7 +778,7 @@ void do_ping_ctcp(COMMAND_ARGS)
 	{
 		if (CurrentCmd->name == C_PING || !stringcasecmp(rest,"PING"))
 		{
-			to_server("PRIVMSG %s :\001PING %lu\001\n",target,now);
+			to_server("PRIVMSG %s :\001PING %lu\001\n",target,cx.now);
 			return;
 		}
 		if (*rest)

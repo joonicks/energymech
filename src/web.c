@@ -474,7 +474,7 @@ void process_web(void)
 			new         = (WebSock*)Calloc(sizeof(WebSock));
 			new->sock   = s;
 			new->status = WEB_WAITURL;
-			new->when   = now;
+			new->when   = cx.now;
 			new->next   = weblist;
 			weblist     = new;
 		}

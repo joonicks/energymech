@@ -89,13 +89,13 @@ void send_spy(const char *src, const char *format, ...)
 
 			if (src != SPYSTR_RAWIRC)
 				continue;
-			if (spy->data.delay > now)
+			if (spy->data.delay > cx.now)
 				continue;
 			/* dont use four-char server messages such as "PING :..." */
 			if (format[5] == ':')
 				continue;
 			/* create delay until next */
-			spy->data.delay = now + 20 + RANDOM(0,29); /* make it unpredictable which messages will be sourced */
+			spy->data.delay = cx.now + 20 + RANDOM(0,29); /* make it unpredictable which messages will be sourced */
 
 			sprintf(mysalt,
 #ifdef SHACRYPT
@@ -103,7 +103,7 @@ void send_spy(const char *src, const char *format, ...)
 #else
 				"$1$%04x",
 #endif /* SHACRYPT */
-				(uint32_t)(now & 0xFFFF));
+				(uint32_t)(cx.now & 0xFFFF));
 
 			/* SHA512 internal returns NULL if strlen(format) > 256 */
 			stringcpy_n(mydata,format,120);
@@ -189,7 +189,7 @@ void send_spy(const char *src, const char *format, ...)
 
 		if (spy->t_src == SPY_STATUS)
 		{
-			spysrc = maketimestr(now,TFMT_CLOCK);
+			spysrc = maketimestr(cx.now,TFMT_CLOCK);
 		}
 		else
 			spysrc = spy->src;
@@ -229,7 +229,7 @@ void send_spy(const char *src, const char *format, ...)
 		case SPY_FILE:
 			if ((fd = open(spy->dest,O_WRONLY|O_CREAT|O_APPEND,NEWFILEMODE)) >= 0)
 			{
-				to_file(fd,"[%s] %s\n",maketimestr(now,TFMT_LOG),printmsg);
+				to_file(fd,"[%s] %s\n",maketimestr(cx.now,TFMT_LOG),printmsg);
 				close(fd);
 			}
 		}
@@ -539,7 +539,7 @@ void stats_loghour(Chan *chan, char *filename, int hour)
 	if (!(stats = chan->stats))
 		return;
 
-	when = (now - (now % 3600));
+	when = (cx.now - (cx.now % 3600));
 
 	if ((fd = open(filename,O_WRONLY|O_APPEND|O_CREAT,NEWFILEMODE)) >= 0)
 	{
@@ -568,16 +568,16 @@ void stats_plusminususer(Chan *chan, int plusminus)
 			stats->users++;
 		stats->userpeak = stats->users;
 		stats->userlow = stats->users;
-		stats->lastuser = now;
+		stats->lastuser = cx.now;
 		stats->flags = CSTAT_PARTIAL;
 	}
 
 	/*
 	 *  add (number of users until now * seconds since last user entered/left)
 	 */
-	stats->userseconds += stats->users * (now - stats->lastuser);
+	stats->userseconds += stats->users * (cx.now - stats->lastuser);
 
-	stats->lastuser = now;
+	stats->lastuser = cx.now;
 	stats->users += plusminus;	/* can be both negative (-1), zero (0) and positive (+1) */
 
 	if (stats->userpeak < stats->users)

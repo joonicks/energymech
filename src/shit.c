@@ -140,7 +140,7 @@ Shit *add_shit(char *from, char *chan, char *mask, char *reason, int axs, int ex
 	shit = (Shit*)Calloc(sizeof(Shit) + StrlenX(from,chan,mask,reason,NULL));
 
 	shit->action = axs;
-	shit->time   = now;
+	shit->time   = cx.now;
 	shit->expire = expire;
 
 	shit->next = current->shitlist;
@@ -177,7 +177,7 @@ Shit *find_shit(const char *userhost, const char *channel)
 			}
 		}
 	}
-	if (save && save->expire < now)
+	if (save && save->expire < cx.now)
 	{
 		remove_shit(save);
 		save = NULL;
@@ -332,10 +332,10 @@ void do_shit(COMMAND_ARGS)
 #ifdef DEBUG
 	debug("(do_shit) adding %s to %s (Level %i)\n",nuh,channel,shitlevel);
 #endif /* DEBUG */
-	add_shit(from,channel,nuh,rest,shitlevel,now + days);
+	add_shit(from,channel,nuh,rest,shitlevel,cx.now + days);
 
 	to_user(from,TEXT_HASSHITTED,nuh,channel);
-	to_user(from,TEXT_SHITEXPIRES,maketimestr(now + days,TFMT_FULL));
+	to_user(from,TEXT_SHITEXPIRES,maketimestr(cx.now + days,TFMT_FULL));
 
 	check_shit();
 }

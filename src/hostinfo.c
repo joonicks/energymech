@@ -79,7 +79,7 @@ int monitor_fs(const char *file)
         set_mallocdoer(monitor_fs);
 	fnew = Calloc(sizeof(FileMon) + strlen(file));
 	fnew->fd = ino;
-	fnew->nospam = now;
+	fnew->nospam = cx.now;
 	stringcpy(fnew->filename,file);
 
 	fnew->next = filemonlist;
@@ -254,9 +254,9 @@ void process_monitor(void)
 #endif /* DEBUG */
 		if ((ivent->mask & IN_CLOSE_WRITE) == IN_CLOSE_WRITE)
 			return;
-		if (fmon->nospam > now-30)
+		if (fmon->nospam > (cx.now - 30))
 			return;
-		fmon->nospam = now;
+		fmon->nospam = cx.now;
 		send_global(SPYSTR_SYSMON,"Alert: file ``%s'' was touched",fmon->filename);
 	}
 }

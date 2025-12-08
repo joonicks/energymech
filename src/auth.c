@@ -259,7 +259,7 @@ void change_authnick(char *nuh, char *newnuh)
 				set_mallocdoer(change_authnick);
 				auth = (Auth*)Calloc(sizeof(Auth) + strlen(newnuh));
 				auth->user = oldauth->user;
-				auth->active = now;
+				auth->active = cx.now;
 				auth->next = current->authlist;
 				current->authlist = auth;
 				stringcpy(auth->nuh,newnuh);
@@ -349,7 +349,7 @@ int get_authaccess(const char *userhost, const char *channel)
 	User	*user;
 	Strp	*ump;
 
-	if (userhost == CoreUser.name)
+	if (userhost == cx.CoreUser.name)
 		return(100);
 	if (CurrentDCC && CurrentDCC->user->name == userhost)
 	{
@@ -391,7 +391,7 @@ int make_auth(const char *userhost, const User *user)
 	set_mallocdoer(make_auth);
 	auth = (Auth*)Calloc(sizeof(Auth) + strlen(userhost));
 	auth->user = (User*)user;
-	auth->active = now;
+	auth->active = cx.now;
 	stringcpy(auth->nuh,userhost);
 
 	auth->next = current->authlist;

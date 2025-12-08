@@ -679,7 +679,7 @@ int killsock(int sock)
 	{
 		set_mallocdoer(killsock);
 		ks = (KillSock*)Calloc(sizeof(KillSock));
-		ks->time = now;
+		ks->time = cx.now;
 		ks->sock = sock;
 		ks->next = killsocks;
 		killsocks = ks;
@@ -731,7 +731,7 @@ int killsock(int sock)
 			if ((n == 0) || ((n == -1) && (errno != EAGAIN)))
 				remove_ks(ks);
 		}
-		if ((now - ks->time) > KILLSOCKTIMEOUT)
+		if ((cx.now - ks->time) > KILLSOCK_TIMEOUT)
 			remove_ks(ks);
 		ks = ksnext;
 	}

@@ -294,7 +294,7 @@ int connect_to_bot(NetCfg *cfg)
 
 	bn->sock = s;
 	bn->status = BN_CONNECT;
-	bn->when = now;
+	bn->when = cx.now;
 	bn->guid = cfg->guid;
 
 	bn->next = botnetlist;
@@ -487,7 +487,7 @@ void basicAuth(BotNet *bn, char *rest)
 	debug("(basicAuth) bn->tick = 0\n");
 #endif /* DEBUG */
 	bn->tick = 0;
-	bn->tick_last = now - 580; /* 10 minutes (10*60) - 20 seconds */
+	bn->tick_last = cx.now - 580; /* 10 minutes (10*60) - 20 seconds */
 }
 
 void basicAuthOK(BotNet *bn, char *rest)
@@ -501,7 +501,7 @@ void basicAuthOK(BotNet *bn, char *rest)
 	debug("(basicAuthOK) bn->tick = 0\n");
 #endif /* DEBUG */
 	bn->tick = 0;
-	bn->tick_last = now - 580; /* 10 minutes (10*60) - 20 seconds */
+	bn->tick_last = cx.now - 580; /* 10 minutes (10*60) - 20 seconds */
 }
 
 void basicBanner(BotNet *bn, char *rest)
@@ -619,7 +619,7 @@ void basicBanner(BotNet *bn, char *rest)
 	/*
 	 *  update timestamp
 	 */
-	bn->when = now;
+	bn->when = cx.now;
 
 	/*
 	 *  if the remote bot initiated the connection we need a valid pass from them
@@ -1211,7 +1211,7 @@ void ushareUser(BotNet *bn, char *rest)
 		bn->addsession = 0;
 		bn->tick++;
 		to_file(bn->sock,"UT%i\n",bn->tick);
-		bn->tick_last = now;
+		bn->tick_last = cx.now;
 		break;
 	case '*':
 	case '#':
@@ -1428,7 +1428,7 @@ void botnet_newsock(void)
 	bn->sock = s;
 	bn->status = BN_UNKNOWN;
 	bn->lsid = rand();
-	bn->when = now;
+	bn->when = cx.now;
 
 	bn->next = botnetlist;
 	botnetlist = bn;
@@ -1436,7 +1436,7 @@ void botnet_newsock(void)
 	/*
 	 *  crude... but, should work
 	 */
-	last_autolink = now + AUTOLINK_DELAY;
+	last_autolink = cx.now + AUTOLINK_DELAY;
 }
 
 /*
@@ -1466,9 +1466,9 @@ void select_botnet(void)
 	/*
 	 *  autolink
 	 */
-	if (autolink && (now > last_autolink))
+	if (autolink && (cx.now > last_autolink))
 	{
-		last_autolink = now + AUTOLINK_DELAY;
+		last_autolink = cx.now + AUTOLINK_DELAY;
 
 		if (autolink_cfg)
 			autolink_cfg = autolink_cfg->next;
@@ -1513,12 +1513,12 @@ void process_botnet(void)
 		/*
 		 *  usersharing tick, 10 minute period
 		 */
-		if (bn->status == BN_LINKED && (bn->tick_last + 600) < now)
+		if (bn->status == BN_LINKED && (bn->tick_last + 600) < cx.now)
 		{
 #ifdef DEBUG
 			debug("(process_botnet) {%i} periodic ushare tick\n",bn->sock);
 #endif /* DEBUG */
-			bn->tick_last = now;
+			bn->tick_last = cx.now;
 			to_file(bn->sock,"UT%i\n",bn->tick);
 		}
 
@@ -1542,7 +1542,7 @@ void process_botnet(void)
 			else
 			{
 				bn->status = BN_BANNERSENT;
-				bn->when = now;
+				bn->when = cx.now;
 			}
 			/* write_fds is only set for sockets where reading is not needed */
 			continue;
@@ -1588,7 +1588,7 @@ void process_botnet(void)
 			}
 		}
 
-		if ((bn->status == BN_CONNECT) && ((now - bn->when) > LINKTIME))
+		if ((bn->status == BN_CONNECT) && ((cx.now - bn->when) > LINKTIME))
 		{
 #ifdef DEBUG
 			debug("(process_botnet) {%i} Life is good; but not for this guy (guid == %i). Timeout!\n",
@@ -1698,7 +1698,7 @@ usage:
 		pp = &cfg->next;
 	}
 
-	if (CurrentUser == &CoreUser || mode == '+')
+	if (CurrentUser == &cx.CoreUser || mode == '+')
 	{
 		if (cfg)
 		{

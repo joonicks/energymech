@@ -289,7 +289,7 @@ void parse_query(int psz, dnsQuery *query)
 #endif /* DEBUG */
 			if (dns->cname)
 				Free((char**)&dns->cname);
-			dns->when = now + 30;
+			dns->when = cx.now + 30;
 			set_mallocdoer(parse_query);
 			dns->cname = stringdup(token2);
 		}
@@ -302,7 +302,7 @@ void parse_query(int psz, dnsQuery *query)
 			if (dns->auth && !stringcasecmp(dns->auth->hostname,token))
 			{
 				dns->auth->ip.s_addr = ip->s_addr;
-				dns->when = now + 60;
+				dns->when = cx.now + 60;
 #ifdef DEBUG
 				debug("(parse_query) a auth: %s = %s\n",token,inet_ntoa(*ip));
 #endif /* DEBUG */
@@ -311,7 +311,7 @@ void parse_query(int psz, dnsQuery *query)
 			if (!stringcasecmp(dns->host,token) || (dns->cname && !stringcasecmp(dns->cname,token)))
 			{
 				dns->ip.s_addr = ip->s_addr;
-				dns->when = now + 3600;
+				dns->when = cx.now + 3600;
 #ifdef DEBUG
 				debug("(parse_query) a: %s = %s\n",token,inet_ntoa(*ip));
 #endif /* DEBUG */
@@ -515,7 +515,7 @@ void parse_query(int psz, dnsQuery *query)
 		debug("(parse_query) %i: asking %s who is `%s'\n",dns->id,inet_ntoa(sai.sin_addr),src);
 #endif /* DEBUG */
 		sz = make_query(packet,src);
-		dns->when = now + 60;
+		dns->when = cx.now + 60;
 		sai.sin_family = AF_INET;
 		sai.sin_port = htons(53);
 		((dnsQuery*)packet)->qid = htons(dns->id);
@@ -539,7 +539,7 @@ void parse_query(int psz, dnsQuery *query)
 		debug("(parse_query) %i: asking %s who is `%s' (CNAME question)\n",dns->id,inet_ntoa(sai.sin_addr),dns->cname);
 #endif /* DEBUG */
 		sz = make_query(packet,dns->cname);
-		dns->when = now + 60;
+		dns->when = cx.now + 60;
 		sai.sin_family = AF_INET;
 		sai.sin_port = htons(53);
 		((dnsQuery*)packet)->qid = htons(dns->id);
@@ -572,7 +572,7 @@ void rawdns(const char *hostname)
 	item = (dnsList*)Calloc(sizeof(dnsList) + strlen(hostname));
 	stringcpy(item->host,hostname);
 	item->id = ntohs(query->qid);
-	item->when = now + 30;
+	item->when = cx.now + 30;
 	item->next = dnslist;
 	dnslist = item;
 
@@ -611,7 +611,7 @@ restart:
 	pdns = &dnslist;
 	while(*pdns)
 	{
-		if ((*pdns)->when < now)
+		if ((*pdns)->when < cx.now)
 		{
 			dns = *pdns;
 			if (dns->cname)

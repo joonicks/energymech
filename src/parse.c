@@ -67,7 +67,7 @@ void parse_invite(char *from, char *rest)
 	if ((i >= JOINLEVEL) && (i < BOTLEVEL))
 	{
 		join_channel(chan,NULL);
-		current->lastrejoin = now;
+		current->lastrejoin = cx.now;
 	}
 }
 
@@ -122,7 +122,7 @@ void parse_join(char *from, char *rest)
 			stats = chan->stats;
 			stats->userseconds = 0;
 			stats->users = 0;
-			stats->lastuser = now;
+			stats->lastuser = cx.now;
 			stats->flags |= CSTAT_PARTIAL;
 		}
 #endif /* STATS */
@@ -151,7 +151,7 @@ void parse_join(char *from, char *rest)
 		 */
 		if (is_bot(from))
 		{
-			CurrentUser = (User*)&LocalBot;
+			CurrentUser = (User*)&cx.LocalBot;
 			CurrentShit = NULL;
 		}
 		else
@@ -259,7 +259,7 @@ void parse_notice(char *from, char *rest)
 		if (!stringcasecmp(ctcp,"PING") && ((pingtime = get_number(rest)) != -1))
 		{
 			send_spy(SPYSTR_STATUS,"[CTCP PING Reply From %s] %i second(s)",
-				CurrentNick,(int)(now - pingtime));
+				CurrentNick,(int)(cx.now - pingtime));
 		}
 		else
 		{
@@ -333,7 +333,7 @@ void parse_part(char *from, char *rest)
 #endif /* STATS */
 
 #ifdef SEEN
-	make_seen(nick,from,channel,NULL,now,SEEN_PARTED);
+	make_seen(nick,from,channel,NULL,cx.now,SEEN_PARTED);
 #endif /* SEEN */
 
 	remove_chanuser(chan,nick);
@@ -391,7 +391,7 @@ void parse_privmsg(char *from, char *rest)
 	{
 		if ((cu = find_chanuser(CurrentChan,from)))
 		{
-			cu->idletime = now;
+			cu->idletime = cx.now;
 			if (cu->shit)
 				return;
 			CurrentUser = cu->user;
@@ -457,7 +457,7 @@ void parse_quit(char *from, char *rest)
 	nickcpy(CurrentNick,from);
 
 #ifdef SEEN
-	make_seen(CurrentNick,from,rest,NULL,now,SEEN_QUIT);
+	make_seen(CurrentNick,from,rest,NULL,cx.now,SEEN_QUIT);
 #endif /* SEEN */
 
 #ifdef FASTNICK
@@ -557,8 +557,8 @@ void parse_251(char *from, char *rest)
 		{
 			if (!stringcasecmp(sp->name,from) || !stringcasecmp(sp->realname,from))
 			{
-				sp->lastconnect = now;
-				current->ontime = now;
+				sp->lastconnect = cx.now;
+				current->ontime = cx.now;
 				current->server = sp->ident;
 			}
 		}
@@ -985,7 +985,7 @@ void parse_352(char *from, char *rest)
 #ifdef DEBUG
 		debug("(parse_352) setting as local bot: %s (%s)\n",nuh,channel);
 #endif /* DEBUG */
-		chan->users->user = (User*)&LocalBot;
+		chan->users->user = (User*)&cx.LocalBot;
 		chan->users->shit = NULL;
 	}
 	else
@@ -1048,7 +1048,7 @@ void parse_367(char *from, char *rest)
 		banfrom = "?";
 
 	if ((bantime = get_number(rest)) == -1)
-		bantime = now;
+		bantime = cx.now;
 
 	make_ban(&chan->banlist,banfrom,banmask,bantime);
 }
@@ -1068,12 +1068,12 @@ void parse_376(char *from, char *rest)
 	{
 		if (*sp->realname == 0)
 			stringcpy_n(sp->realname,from,NAMELEN);
-		sp->lastconnect = now;
+		sp->lastconnect = cx.now;
 	}
 	if (current->connect != CN_ONLINE)
 	{
 		current->connect = CN_ONLINE;
-		current->ontime = now;
+		current->ontime = cx.now;
 		to_server("WHOIS %s\n",getbotnick(current));
 		if ((mode = current->setting[STR_UMODES].str_var))
 			to_server("MODE %s %s\n",getbotnick(current),mode);
@@ -1228,7 +1228,7 @@ void parse_346(char *from, char *rest)
 		banfrom = "?";
 
 	if ((bantime = get_number(rest)) == -1)
-		bantime = now;
+		bantime = cx.now;
 
 	new = make_ban(&chan->banlist,banfrom,banmask,bantime);
 	new->imode = TRUE;
@@ -1258,7 +1258,7 @@ void parse_348(char *from, char *rest)
 		banfrom = "?";
 
 	if ((bantime = get_number(rest)) == -1)
-		bantime = now;
+		bantime = cx.now;
 
 	new = make_ban(&chan->banlist,banfrom,banmask,bantime);
 	new->emode = TRUE;

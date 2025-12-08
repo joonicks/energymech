@@ -25,6 +25,7 @@ install=no
 silentopt=no
 try_libmusl=no
 no_flto=no
+use_fnostrictalias=no
 
 # default optimization goal, speed = -O2, size = -Os
 optitype=size
@@ -310,6 +311,8 @@ do
     --no-optimize)	cc_optimize_opt=no ;;
     --optimize=speed)	optitype=speed ;;
     --optimize=size)	optitype=size ;;
+    --use-nostrictalias) use_fnostrictalias=yes ;;
+    --no-nostrictalias) use_fnostrictalias=no ;;
     --use-gnudebug)	cc_g_opt=yes ;;
     --no-gnudebug)	cc_g_opt=no ;;
     --use-warnflag)	cc_wall_opt=yes ;;
@@ -591,7 +594,7 @@ if [ -z "$cf_cflags" -a -n "$cf_GNUCC" ]; then
       fi
     fi
   fi
-  if [ "$cc_wall_flag" = -Wall -a "$cf_GNUCC" = 33 ]; then
+  if [ "$use_fnostrictalias" = yes -a "$cc_wall_opt" = -Wall ]; then
     cc_fnostrictalias="-fno-strict-aliasing"
     echo $ac_n "-fno-strict-aliasing "$ac_c
   fi
@@ -843,6 +846,17 @@ else
   fi
 fi
 echo $ac_t "$has_inet_addr"
+if [ "$has_inet_addr" = no ]; then
+  echo "error: missing inet_addr(), cant proceed without it."
+  exit
+fi
+
+echo $ac_n "checking sizeof(sa_family_t) ... "$ac_c
+safamily=unknown
+if [ -x $TESTP ]; then
+  safamily=`$TESTP`
+fi
+echo $ac_t "$safamily"
 rm -f $TESTP
 
 #

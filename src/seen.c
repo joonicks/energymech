@@ -142,11 +142,11 @@ void send_ison(void)
 	 *  dont send nicks to ISON too often
 	 */
 	period = current->setting[INT_ISONDELAY].int_var;
-	x = now - current->lastnotify;
+	x = cx.now - current->lastnotify;
 	if ((x < period) || (lock_ison && (x < 600)))
 		return;
 
-	current->lastnotify = now;
+	current->lastnotify = cx.now;
 
 	/*
 	 *  the nature of the code makes it so that the first NULL is
@@ -206,7 +206,7 @@ void catch_ison(char *rest)
 		{
 			if (!nickcmp(nf->nick,nick))
 			{
-				nf->checked = now;
+				nf->checked = cx.now;
 				/*
 				 *  /whois user to get user@host + realname
 				 */
@@ -228,14 +228,14 @@ void catch_ison(char *rest)
 	{
 		if (nf->checked == 1)
 		{
-			nf->checked = now;
+			nf->checked = cx.now;
 			if (nf->status >= NF_WHOIS)
 			{
 				/*
 				 *  close the log entry for this online period
 				 */
 				if (nf->log && nf->log->signon && !nf->log->signoff)
-					nf->log->signoff = now;
+					nf->log->signoff = cx.now;
 				/*
 				 *  announce that the user is offline if its a mask match
 				 */
@@ -264,7 +264,7 @@ void catch_whois(char *nick, char *userhost, char *realname)
 			 */
 			set_mallocdoer(catch_whois);
 			nlog = (nfLog*)Calloc(sizeof(nfLog) + Strlen2(userhost,realname)); // realname is never NULL
-			nlog->signon = now;
+			nlog->signon = cx.now;
 			nlog->next = nf->log;
 			nf->log = nlog;
 			nlog->realname = stringcat(nlog->userhost,userhost) + 1;
@@ -390,7 +390,7 @@ void write_notifylog(void)
 		for(nlog=nf->log;nlog;nlog=nlog->next)
 		{
 			to_file(fd,"%s %lu %lu %s :%s\n",nf->nick,nlog->signon,
-				(nlog->signoff) ? nlog->signoff : now,
+				(nlog->signoff) ? nlog->signoff : cx.now,
 				nlog->userhost,nlog->realname);
 		}
 	}
@@ -530,7 +530,7 @@ void nfshow_brief(Notify *nf)
 	if (nf->log && nf->log->signoff)
 	{
 		s = mem;
-		when = now - nf->log->signoff;
+		when = cx.now - nf->log->signoff;
 		d = when / 86400;
 		h = (when -= d * 86400) / 3600;
 		m = (when -= h * 3600) / 60;
@@ -654,7 +654,7 @@ int write_seenlist(void)
 
 	for(seen=seenlist;seen;seen=seen->next)
 	{
-		if ((seen->when - now) > (86400 * SEEN_TIME))
+		if ((seen->when - cx.now) > (86400 * SEEN_TIME))
 			continue;
 		else
 		{
@@ -696,7 +696,7 @@ int read_seenlist_callback(char *rest)
 	pa = chop(&rest);
 	pb = rest;
 
-	if ((now - when) < (SEEN_TIME * 86400))
+	if ((cx.now - when) < (SEEN_TIME * 86400))
 	{
 		/* if (pa && !*pa)
 			pa = NULL; chop() doesnt return empty strings */
@@ -868,7 +868,7 @@ void do_seen(COMMAND_ARGS)
 		}
 		else
 		{
-			when = now - seen->when;
+			when = cx.now - seen->when;
 			d = when / 86400;
 			h = (when -= d * 86400) / 3600;
 			m = (when -= h * 3600) / 60;

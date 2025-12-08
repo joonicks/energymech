@@ -502,6 +502,9 @@ typedef struct Spy
 
 } Spy;
 
+typedef struct sockaddr_in sai_v4;
+typedef struct sockaddr_in6 sai_v6;
+
 typedef struct Server
 {
 	struct		Server *next;
@@ -514,6 +517,11 @@ typedef struct Server
 	time_t		lastattempt;
 	time_t		maxontime;
 
+	char		ipv;
+	union {
+		sai_v4	ipv4;
+		sai_v6	ipv6;
+	} resolved;
 	char		realname[NAMEBUF];
 	char		name[NAMEBUF];
 	char		pass[PASSBUF];
@@ -537,6 +545,7 @@ typedef struct Mech
 	uint16_t	guid;			/* globally uniqe ID		*/
 	int		connect;
 	int		sock;
+	char		ipv;			/* ip version			*/
 	struct in_addr	ip;			/* for DCC			*/
 	int		server;			/* ident of my current server	*/
 	int		nextserver;

@@ -41,7 +41,7 @@ int conf_callback(char *line)
 
 	fix_config_line(line);
 
-	on_msg((char*)CoreUser.name,getbotnick(current),line);
+	on_msg((char*)cx.CoreUser.name,getbotnick(current),line);
 	return(FALSE);
 }
 
@@ -79,7 +79,7 @@ void readcfgfile(void)
 	CurrentShit = NULL;
 	CurrentChan = NULL;
 	CurrentDCC  = (Client*)&CoreClient;
-	CurrentUser = (User*)&CoreUser;
+	CurrentUser = (User*)&cx.CoreUser;
 
 	readline(in,&conf_callback);			/* readline closes in */
 
@@ -527,7 +527,7 @@ int try_server(Server *sp, char *hostname)
 		hostname = sp->name;
 	}
 
-	sp->lastattempt = now;
+	sp->lastattempt = cx.now;
 	sp->usenum++;
 
 #ifdef RAWDNS
@@ -544,7 +544,7 @@ int try_server(Server *sp, char *hostname)
 	{
 		current->server = sp->ident;
 		current->connect = CN_DNSLOOKUP;
-		current->conntry = now;
+		current->conntry = cx.now;
 		rawdns(hostname);
 		return(0);
 	}
@@ -557,7 +557,7 @@ int try_server(Server *sp, char *hostname)
 	}
 	current->away = FALSE;
 	current->connect = CN_TRYING;
-	current->activity = current->conntry = now;
+	current->activity = current->conntry = cx.now;
 	*current->modes = 0;
 	return(current->sock);
 }
@@ -572,7 +572,7 @@ void connect_to_server(void)
 	 *  This should prevent the bot from chewing up too
 	 *  much CPU when it fails to connect to ANYWHERE
 	 */
-	current->conntry = now;
+	current->conntry = cx.now;
 
 	/*
 	 *  Is this the proper action if there is no serverlist?
@@ -623,7 +623,7 @@ void connect_to_server(void)
 	sptry = NULL;
 	for(sp=serverlist;sp;sp=sp->next)
 	{
-		if (sp->lastattempt == now)
+		if (sp->lastattempt == cx.now)
 			continue;
 		if (sgroup && (stringcasecmp(sgroup,sp->group) != 0))
 			continue;
@@ -633,8 +633,8 @@ void connect_to_server(void)
 		if (sp->err == 0 || sp->err == SP_ERRCONN)
 			sptry = sp;
 		else
-		if ((sp->err == SP_THROTTLED && (sp->lastattempt + 45) < now) || /* retry throttled after 45 seconds */
-		    (sp->err == SP_KLINED && (sp->lastattempt + 86400) < now)) /* retry Klined after a day */
+		if ((sp->err == SP_THROTTLED && (sp->lastattempt + 45) < cx.now) || /* retry throttled after 45 seconds */
+		    (sp->err == SP_KLINED && (sp->lastattempt + 86400) < cx.now)) /* retry Klined after a day */
 			sptry = sp;
 	}
 	/*
@@ -689,7 +689,7 @@ void register_with_server(void)
 		(ident) ? ident : BOTLOGIN,
 		(ircname) ? ircname : VERSION);
 	current->connect = CN_CONNECTED;
-	current->conntry = now;
+	current->conntry = cx.now;
 }
 
 /*
@@ -807,7 +807,7 @@ typedef struct
 	//using that struct, calculate when the next time will be
 	//start by determining what the time is now
 
-	thistime = now;
+	thistime = cx.now;
 
 	//which second is it
 	thissecond = thistime % 60;
@@ -886,19 +886,19 @@ void update(SequenceTime *this)
 	int	tt,th;
 	int	x,n;
 
-	tt = now / 600;		/* current 10-minute period */
-	th =  tt / 6;		/* current hour */
+	tt = cx.now / 600;	/* current 10-minute period */
+	th = tt / 6;		/* current hour */
 
 #ifdef DEBUG
 	x = 0;
 	if (tt != this->tenminute)
 	{
-		debug("(update) running: ten minute updates [%i]",tt);
+		debug("(update) running: ten minute update [%i]",tt);
 		x++;
 	}
 	if (th != this->hour)
 	{
-		debug("%shour updates [%i]",(x) ? ", " : "(update) running: ",th);
+		debug("%shour update [%i]",(x) ? ", " : "(update) running: ",th);
 		x++;
 	}
 	if (x)
@@ -913,10 +913,10 @@ void update(SequenceTime *this)
 
 		if (current->rejoin)
 		{
-			if ((now - current->lastrejoin) > REJOIN_DELAY)
+			if ((cx.now - current->lastrejoin) > REJOIN_DELAY)
 			{
 				current->rejoin = FALSE;
-				current->lastrejoin = now;
+				current->lastrejoin = cx.now;
 			}
 			cx.short_tv |= TV_REJOIN;
 		}
@@ -957,18 +957,18 @@ void update(SequenceTime *this)
 				check_dynamode(chan);
 #endif /* DYNAMODE */
 		}
-		if ((now - current->lastreset) > RESETINTERVAL)
+		if ((cx.now - current->lastreset) > RESETINTERVAL)
 		{
-			current->lastreset = now;
+			current->lastreset = cx.now;
 			if (stringcmp(getbotnick(current),getbotwantnick(current)))
 				to_server("NICK %s\n",getbotwantnick(current));
 			check_idlekick();
 			if ((x = current->setting[INT_AAWAY].int_var) && current->away == FALSE)
 			{
-				if ((now - current->activity) > (x * 60))
+				if ((cx.now - current->activity) > (x * 60))
 				{
 					temp = randstring(AWAYFILE);
-					to_server(AWAYFORM,(temp && *temp) ? temp : "auto-away",maketimestr(now,TFMT_AWAY));
+					to_server(AWAYFORM,(temp && *temp) ? temp : "auto-away",maketimestr(cx.now,TFMT_AWAY));
 					current->away = TRUE;
 				}
 			}
@@ -1085,7 +1085,7 @@ void process_server_input(void)
 				current->vhost_type |= VH_WINGATE_FAIL;
 			}
 			current->connect = CN_WINGATEWAIT;
-			current->conntry = now;
+			current->conntry = cx.now;
 			current->heartbeat = 0;
 			return;
 		}
@@ -1119,7 +1119,7 @@ get_line:
 				}
 			}
 #endif /* WINGATE */
-			current->conntry = now;
+			current->conntry = cx.now;
 			current->heartbeat = 0;
 			parse_server_input(linebuf);
 			goto get_line;
@@ -1135,7 +1135,7 @@ get_line:
 	}
 
 	/* server has been quiet for too long */
-	if (current->conntry + SERVERSILENCETIMEOUT <= now && current->heartbeat == 0)
+	if (current->conntry + SERVERSILENCETIMEOUT <= cx.now && current->heartbeat == 0)
 	{
 #ifdef DEBUG
 		debug("[PSI] {%i} server has been quiet for too long (%is)...\n",current->sock,SERVERSILENCETIMEOUT);
@@ -1146,7 +1146,7 @@ get_line:
 	}
 
 	/* server has been quiet for WAY too long */
-	if (current->conntry + (SERVERSILENCETIMEOUT*2) <= now)
+	if (current->conntry + (SERVERSILENCETIMEOUT*2) <= cx.now)
 	{
 #ifdef DEBUG
 		debug("[PSI] {%i} server has been quiet for WAY too long (%is), forcing reconnect...\n",current->sock,SERVERSILENCETIMEOUT*2);
@@ -1283,7 +1283,7 @@ void do_core(COMMAND_ARGS)
 	if (uname(&un) == 0)
 		table_buffer(TEXT_HOSTINFO,h,un.sysname,un.release,un.machine);
 #endif /* HOSTINFO */
-	table_buffer(TEXT_CURRENTTIME,maketimestr(now,TFMT_FULL));
+	table_buffer(TEXT_CURRENTTIME,maketimestr(cx.now,TFMT_FULL));
 	table_buffer(TEXT_BOTSTARTED,maketimestr(uptime,TFMT_FULL));
 	table_buffer(TEXT_BOTUPTIME,idle2str(uptime,FALSE));
 	table_buffer(TEXT_BOTVERSION,VERSION,SRCDATE);
@@ -1527,7 +1527,7 @@ do_server_einval:
 		return;
 	}
 	sp = add_server(server,iport,pass,group); /* add_server has no failure mode */
-	if (add_or_sub == '+' || from == CoreUser.name)
+	if (add_or_sub == '+' || from == cx.CoreUser.name)
 		return;
 
 	current->nextserver = sp->ident;
@@ -1564,10 +1564,10 @@ void do_away(COMMAND_ARGS)
 		to_server("AWAY\n");
 		to_user(from,TEXT_NOLONGERAWAY);
 		current->away = FALSE;
-		current->activity = now;
+		current->activity = cx.now;
 		return;
 	}
-	to_server(AWAYFORM,rest,maketimestr(now,TFMT_AWAY));
+	to_server(AWAYFORM,rest,maketimestr(cx.now,TFMT_AWAY));
 	to_user(from,TEXT_NOWSETAWAY);
 	current->away = TRUE;
 }
@@ -1622,7 +1622,7 @@ void do_nick(COMMAND_ARGS)
 		current = add_bot(guid,nick);
 		if (!sigmaster)
 			sigmaster = guid;
-		if (from == CoreUser.name)
+		if (from == cx.CoreUser.name)
 			return;
 	}
 	else
@@ -1640,7 +1640,7 @@ void do_nick(COMMAND_ARGS)
 
 void do_time(COMMAND_ARGS)
 {
-	to_user_q(from,"Current time: %s",maketimestr(now,TFMT_AWAY));
+	to_user_q(from,"Current time: %s",maketimestr(cx.now,TFMT_AWAY));
 }
 
 void do_upontime(COMMAND_ARGS)

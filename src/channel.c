@@ -45,7 +45,7 @@ void check_idlekick(void)
 		limit = chan->setting[INT_IKT].int_var;
 		if (limit == 0)
 			continue;
-		timeout = (now - (60 * limit));
+		timeout = (cx.now - (60 * limit));
 		for(cu=chan->users;cu;cu=cu->next)
 		{
 			cu->flags &= ~CU_KSWARN;	/* remove KS warnings */
@@ -537,7 +537,7 @@ void channel_massunban(Chan *chan, char *pattern, time_t seconds)
 	{
 		if (!matches(pattern,ban->banstring) || !matches(ban->banstring,pattern))
 		{
-			if (!seconds || ((now - ban->time) > seconds))
+			if (!seconds || ((cx.now - ban->time) > seconds))
 			{
 				if (chan->setting[TOG_SHIT].int_var)
 				{
@@ -681,7 +681,7 @@ void make_chanuser(char *nick, char *userhost)
 	new = (ChanUser*)Calloc(sizeof(ChanUser) + strlen(userhost));
 	/* Calloc sets it all to zero */
 
-	new->idletime = now;
+	new->idletime = cx.now;
 	new->next = CurrentChan->users;
 	CurrentChan->users = new;
 	stringcpy(new->userhost,userhost);
@@ -1218,7 +1218,7 @@ void do_showidle(COMMAND_ARGS)
 	table_buffer(str_underline("Users on %s that are idle more than %i seconds"),chan->name,n);
 	for(cu=chan->users;cu;cu=cu->next)
 	{
-		if (n >= (now - cu->idletime))
+		if (n >= (cx.now - cu->idletime))
 			continue;
 		table_buffer("%s\r %s\t%s",idle2str(cu->idletime,TRUE),cu->nick,cu->userhost);
         }

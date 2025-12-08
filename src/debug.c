@@ -36,6 +36,8 @@
 
 #define boolstr(x)	(x) ? "TRUE" : "FALSE"
 
+#define UNKNOWNSTR	"(unknown)"
+
 const char tabs[20] = "\t\t\t\t\t\t\t\t\t\t";
 
 const struct
@@ -245,7 +247,7 @@ struct
 #ifdef URLCAPTURE
 {	urlcapture,			"urlcapture"			CORE_SE },
 #endif /* URLCAPTURE */
-{	0,				"(unknown)"			},
+{	0,				UNKNOWNSTR			},
 { NULL, }};
 
 #ifdef HOSTINFO
@@ -406,7 +408,7 @@ const char *strdef(const DEFstruct *dtab, int num)
 		if (dtab[i].id == num)
 			return(dtab[i].idstr);
 	}
-	return("UNKNOWN");
+	return(UNKNOWNSTR);
 }
 
 void memreset(void)
@@ -458,7 +460,7 @@ const char *proc_getname(void *addr)
 		if (ProcList[i].func == addr)
 			return(ProcList[i].name);
 	}
-	return("(unknown)");
+	return(UNKNOWNSTR);
 }
 
 const char *proc_lookup(void *addr, int size)
@@ -1422,7 +1424,7 @@ int wrap_debug(void)
 	backup_dodebug = dodebug;
 	backup_fd = debug_fd;
 
-	sprintf(fname,"debug.%lu",now);
+	sprintf(fname,"debug.%lu",cx.now);
 	if ((fd = open(fname,O_WRONLY|O_CREAT|O_TRUNC,NEWFILEMODE)) < 0)
 		return(0);
 	debug_fd = fd;

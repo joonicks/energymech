@@ -108,7 +108,7 @@ void send_uptime(int type)
 	{
 		char	*host;
 
-		uptimelast = now + 10;
+		uptimelast = cx.now + 10;
 		if ((host = poll_rawdns(uptimehost)))
 		{
 			if ((uptimeip = inet_addr(host)) != -1)
@@ -133,12 +133,12 @@ void send_uptime(int type)
 	 *  update the time when we last sent packet
 	 */
 	sz = (uptimelast + 1) & 7;
-	uptimelast = (now & ~7) + 21600 + sz;		/* 21600 seconds = 6 hours */
+	uptimelast = (cx.now & ~7) + 21600 + sz;		/* 21600 seconds = 6 hours */
 
 	uptimepackets  = uptimepackets + 1;
 	upPack->packets_sent = htonl(uptimepackets);
 
-	upPack->mytime = htonl(now);
+	upPack->mytime = htonl(cx.now);
 	upPack->regnr  = uptimeregnr;
 	upPack->type   = htonl(type);
 	upPack->uptime = htonl(uptime);
@@ -201,7 +201,7 @@ void uptime_death(int type)
 #ifdef DEBUG
 	debug("(uptime_death) sending death message\n");
 #endif /* DEBUG */
-	time(&now);
+	time(&cx.now);
 	uptimelast = 0;		/* avoid resolving the hostname */
 	send_uptime(type);
 	uptimeport = 0;		/* avoid sending more packets */
@@ -236,7 +236,7 @@ void process_uptime(void)
 		}
 	}
 
-	if (uptimelast < now)
+	if (uptimelast < cx.now)
 	{
 		send_uptime(UPTIME_BOTTYPE);
 	}

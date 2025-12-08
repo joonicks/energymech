@@ -216,7 +216,7 @@ void trivia_week_toppers(void)
 	int	i,x;
 
 	chosen[0] = NULL;
-	week = (now + (3 * DAY_IN_SECONDS)) / WEEK_IN_SECONDS;
+	week = (cx.now + (3 * DAY_IN_SECONDS)) / WEEK_IN_SECONDS;
 
 	for(su=scorelist;su;su=su->next)
 	{
@@ -364,7 +364,7 @@ void trivia_cleanup(void)
 	Strp	*ans;
 
 	triv_mode = TRIV_WAIT_QUESTION;
-	triv_next_time = now + triv_qdelay;
+	triv_next_time = cx.now + triv_qdelay;
 	while((ans = triv_answers))
 	{
 		triv_answers = ans->next;
@@ -389,7 +389,7 @@ void trivia_check(Chan *chan, char *rest)
 	return;
 
 have_answer:
-	week = (now + (3 * DAY_IN_SECONDS)) / WEEK_IN_SECONDS;
+	week = (cx.now + (3 * DAY_IN_SECONDS)) / WEEK_IN_SECONDS;
 
 	for(su=scorelist;su;su=su->next)
 	{
@@ -425,7 +425,7 @@ have_answer:
 
 	to_server("PRIVMSG %s :Yes, %s! got the answer -> %s <- in %i seconds, and gets %i points!\n",
 		triv_chan->name,CurrentNick,triv_answers->p,
-		(int)(now - triv_ask_time),triv_score);
+		(int)(cx.now - triv_ask_time),triv_score);
 
 	if (su == lastwinner)
 	{
@@ -558,12 +558,12 @@ stop_trivia:
 		goto bad_question;
 
 	triv_score = (RANDOM(2,9) + RANDOM(2,10) + RANDOM(2,10)) / 3;
-	triv_ask_time = now;
+	triv_ask_time = cx.now;
 
-	if (now > (triv_weektop10 + 1200))
+	if (cx.now > (triv_weektop10 + 1200))
 	{
 		trivia_week_toppers();
-		triv_weektop10 = now;
+		triv_weektop10 = cx.now;
 	}
 
 	to_server("PRIVMSG %s :%s\n",triv_chan->name,question);
@@ -582,7 +582,7 @@ void trivia_tick(void)
 			if (triv_chan == chan)
 			{
 				current = bot;
-				triv_next_time = now + TRIV_HINT_DELAY;
+				triv_next_time = cx.now + TRIV_HINT_DELAY;
 				switch(triv_mode)
 				{
 				case TRIV_WAIT_QUESTION:
@@ -1070,8 +1070,8 @@ void do_trivia(COMMAND_ARGS)
 		to_server("PRIVMSG %s :Trivia starting! Get ready...\n",chan->name);
 		triv_chan = chan;
 		triv_mode = TRIV_WAIT_QUESTION;
-		triv_next_time = now + triv_qdelay;
-		triv_weektop10 = now;
+		triv_next_time = cx.now + triv_qdelay;
+		triv_weektop10 = cx.now;
 		lastwinner = NULL;
 		cx.short_tv |= TV_TRIVIA;
 		if (!scorelist)
@@ -1097,7 +1097,7 @@ void do_trivia(COMMAND_ARGS)
 		if (triv_chan)
 		{
 			uaccess = get_authaccess(from,triv_chan->name);
-			if (now > (triv_weektop10 + 300))
+			if (cx.now > (triv_weektop10 + 300))
 				n =  1;
 			else
 				n = uaccess;
@@ -1105,7 +1105,7 @@ void do_trivia(COMMAND_ARGS)
 			if (n)
 			{
 				trivia_week_toppers();
-				if (!uaccess) triv_weektop10 = now;
+				if (!uaccess) triv_weektop10 = cx.now;
 			}
 		}
 	}

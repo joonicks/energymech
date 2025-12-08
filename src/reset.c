@@ -100,7 +100,7 @@ char *recover_client(char *env)
 
 found_user:
 	if (to_file(fd,"[%s] [%s] %s[%i] has connected (reset recover)\n",
-		maketimestr(now,TFMT_CLOCK),getbotwantnick(current),handle,user->x.x.access) < 0)
+		maketimestr(cx.now,TFMT_CLOCK),getbotwantnick(current),handle,user->x.x.access) < 0)
 	{
 		close(fd);
 		return(p);
@@ -115,7 +115,7 @@ found_user:
 #else
 	client->flags = DCC_ACTIVE;
 #endif /* TELNET */
-	client->lasttime = now;
+	client->lasttime = cx.now;
 
 	client->next = current->clientlist;
 	current->clientlist = client;
@@ -240,7 +240,7 @@ char *recover_server(char *env)
 			current->reset = 1;
 			current->sock = fd;
 			current->connect = CN_ONLINE;
-			current->ontime = now;
+			current->ontime = cx.now;
 #ifdef IRCD_EXTENSIONS
 			current->ircx_flags = ircx;
 #endif /* IRCD_EXTENSIONS */

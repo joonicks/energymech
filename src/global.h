@@ -44,16 +44,22 @@ struct CoreData		/* Collect core data all in one place */
 	time_t	now;
 	time_t	system_uptime;
 	Mech	*current;
+	char	*from;
+	char	*to;
+	char	*rest;
 	char	*rest_end;
 	char	*chop_end;
+	sai_v4	myip4;			/* where to reach me by ipv4 */
+	sai_v6	myip6;			/* where to reach me by ipv4 */
 	int	socksmodified;
 	int	hisock;
 	int	short_tv;
+	User	CoreUser;
+	User	LocalBot;
 };
 
 BEG struct CoreData cx;
 
-#define now	cx.now
 #define current	cx.current
 
 #define DEFAULTCMDCHAR			'-'
@@ -130,9 +136,6 @@ BEG const OnMsg	*CurrentCmd		MDEF(NULL);
 BEG User	*cfgUser		MDEF(NULL);
 BEG const char	*global_from		MDEF(NULL);
 
-BEG User	__internal_users[2];
-#define CoreUser (__internal_users[0])
-#define LocalBot (__internal_users[1])
 
 /*
  *  generic output buffer, can be used as buffer in any `leaf' function
@@ -458,7 +461,7 @@ const Strp CMA =
 ShortClient CoreClient =
 {
 	NULL,			/* next */
-	(User*)&CoreUser,	/* user */
+	(User*)&cx.CoreUser,	/* user */
 	-1,			/* socket */
 	0,			/* flags */
 	0,			/* inputcount */
@@ -489,8 +492,6 @@ struct
 extern const uchar tolowertab[];
 extern const uchar nickcmptab[];
 extern const uchar attrtab[];
-extern const User xxCoreUser;
-extern const User xxLocalBot;
 extern ShortClient CoreClient;
 extern ShortChan CoreChan;
 

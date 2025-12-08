@@ -97,7 +97,7 @@
 @DEF_DCCFILE@
 #define DCC_PUBLICFILES		"public/"
 #define DCC_PUBLICINCOMING	DCC_PUBLICFILES "incoming/"
-#define DCC_FILETIMEOUT		90
+#define DCCFILE_TIMEOUT		90
 
 /*
  *  REDIRECT: send command output from certain commands to a different target
@@ -316,8 +316,8 @@
 
 #define AWAYFORM			"AWAY :%s (since %s)\n"
 
-#define KILLSOCKTIMEOUT			30
-#define WAITTIMEOUT			30
+#define KILLSOCK_TIMEOUT		30
+#define WAIT_TIMEOUT			30
 
 #define NICKFLOODTIME			120	/* 240 second window for floods ( 240 / 2 = 120 ) */
 

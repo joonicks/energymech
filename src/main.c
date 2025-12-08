@@ -209,7 +209,7 @@ struct
 
 int sig_hup_callback(char *line)
 {
-	on_msg((char*)CoreUser.name,getbotnick(current),line);
+	on_msg((char*)cx.CoreUser.name,getbotnick(current),line);
 	return(FALSE);
 }
 
@@ -221,7 +221,7 @@ void do_sighup(void)
 
 	CurrentShit = NULL;
 	CurrentChan = NULL;
-	CurrentUser = (User*)&CoreUser;
+	CurrentUser = (User*)&cx.CoreUser;
 	CurrentDCC  = (Client*)&CoreClient;
 	*CurrentNick = 0;
 
@@ -321,7 +321,7 @@ void sig_usr1(int crap)
  */
 void sig_usr2(int crap)
 {
-	time(&now);
+	time(&cx.now);
 
 	debug("(sigusr2)\n");
 	signal(SIGUSR2,sig_usr2);
@@ -420,7 +420,7 @@ void sig_abrt(int crap)
  */
 void sig_bus(int crap)
 {
-	time(&now);
+	time(&cx.now);
 
 	respawn++;
 	if (respawn > 10)
@@ -438,27 +438,42 @@ void sig_bus(int crap)
 /*
  *  SIGSEGV shows no mercy, cant schedule it.
  */
-#if defined(__linux__) && defined(__x86_64__) && defined(DEBUG) && !defined(__STRICT_ANSI__)
+#if defined(__linux__) && defined(DEBUG) && !defined(__STRICT_ANSI__)
 #include <sys/ucontext.h>
-void sig_segv(int crap, siginfo_t *si, void *uap)
+void sig_segv(int sig, siginfo_t *si, void *context)
 {
-	mcontext_t *mctx;
-	greg_t	*rsp,*rip; /* general registers */
+	ucontext_t *crashcontext = (ucontext_t*)context;
+	char	*sp,*ip; /* general registers */
 
-	time(&now);
 	startup = STARTUP_SIGSEGV;
 
-	debug("(sigsegv) trying to access "mx_pfmt"\n",(mx_ptr)si->si_addr);
-	mctx = &((ucontext_t *)uap)->uc_mcontext;
-	rsp = &mctx->gregs[15];	/* RSP, 64-bit stack pointer */
-	rip = &mctx->gregs[16]; /* RIP, 64-bit instruction pointer */
+#if defined(__x86_64__)
+	ip = (char*)crashcontext->uc_mcontext.gregs[16];
+	sp = (char*)crashcontext->uc_mcontext.gregs[15];
+#elif defined(__i386__)
+	void *ip = (void*)crashcontext->uc_mcontext.gregs[REG_EIP];
+	void *sp = (void*)crashcontext->uc_mcontext.gregs[REG_ESP];
+#elif defined(__aarch64__)
+	void *ip = (void*)uc->uc_mcontext.pc;
+	void *sp = (void*)uc->uc_mcontext.sp;
+#elif defined(__arm__)
+	void *pc = (void*)uc->uc_mcontext.arm_pc;
+	void *sp = (void*)uc->uc_mcontext.arm_sp;
+#elif defined(__mips__)
+	void *pc = (void*)uc->uc_mcontext.pc;
+	void *sp = (void*)uc->uc_mcontext.gregs[29];
+#else
+#error "sig_segv(): Unsupported architecture"
+#endif
 
-	debug("(sigsegv) Stack pointer: "mx_pfmt", Instruction pointer: "mx_pfmt"\n",(mx_ptr)*rsp,(mx_ptr)*rip);
+	debug("(sigsegv) trying to access "mx_pfmt"\n",(mx_ptr)si->si_addr);
+	debug("(sigsegv) Stack pointer: "mx_pfmt", Instruction pointer: "mx_pfmt"\n",(mx_ptr)sp,(mx_ptr)ip);
 	debug("(sigsegv) sig_segv() = "mx_pfmt"\n",(mx_ptr)sig_segv);
 	debug("(sigsegv) do_crash() = "mx_pfmt"\n",(mx_ptr)do_crash);
 
 	if (debug_on_exit)
 	{
+		time(&cx.now);
 		run_debug();
 		debug_on_exit = FALSE;
 	}
@@ -472,11 +487,11 @@ void sig_segv(int crap, siginfo_t *si, void *uap)
 	/* NOT REACHED */
 }
 
-#else /* defined(__linux__) && defined(__x86_64__) && defined(DEBUG) && !defined(__STRICT_ANSI__) */
+#else /* defined(__linux__) && defined(DEBUG) && !defined(__STRICT_ANSI__) */
 
 void sig_segv(int signum)
 {
-	time(&now);
+	startup = STARTUP_SIGSEGV;
 
 #ifdef DEBUG
 	if (debug_on_exit)
@@ -495,7 +510,7 @@ void sig_segv(int signum)
 	/* NOT REACHED */
 }
 
-#endif /* else defined(__linux__) && defined(__x86_64__) && defined(DEBUG) && !defined(__STRICT_ANSI__) */
+#endif /* else defined(__linux__) && defined(DEBUG) && !defined(__STRICT_ANSI__) */
 
 /*
  *  SIGTERM
@@ -505,8 +520,6 @@ void sig_term(int signum)
 #ifdef __profiling__
 	exit(0);
 #endif /* __profiling__ */
-
-	time(&now);
 
 #ifdef DEBUG
 	debug("(sigterm)\n");
@@ -532,13 +545,13 @@ void mainloop(void)
 	time_t	last_update;
 
 
-	last_update = now;
+	last_update = cx.now;
 
 	/*
 	 *  init update times so that they dont all run right away
 	 */
-	this.tenminute = now / 600;
-	this.hour = now / 3600;
+	this.tenminute = cx.now / 600;
+	this.hour = cx.now / 3600;
 
 	/*
 	 *  The Main Loop
@@ -564,9 +577,9 @@ mainloop:
 	/*
 	 *  check for regular updates
 	 */
-	if (last_update != now)
+	if (last_update != cx.now)
 	{
-		last_update = now;
+		last_update = cx.now;
 		update(&this);
 	}
 
@@ -610,7 +623,7 @@ mainloop:
 
 				if ((sp = find_server(current->server)))
 				{
-					if ((now - current->conntry) > ctimeout)
+					if ((cx.now - current->conntry) > ctimeout)
 					{
 #ifdef DEBUG
 						debug("(doit) RAWDNS timed out (%s)\n",sp->name);
@@ -636,27 +649,27 @@ mainloop:
 			{
 				if (current->connect == CN_SPINNING)
 				{
-					if ((now - current->conntry) >= 60)
+					if ((cx.now - current->conntry) >= 60)
 						connect_to_server();
 				}
 				else
 				{
 doit_jumptonext:
 					cx.short_tv |= TV_SERVCONNECT;
-					if ((now - current->conntry) >= 2)
+					if ((cx.now - current->conntry) >= 2)
 						connect_to_server();
 				}
 			}
 #else /* ! RAWDNS */
 			if (current->connect == CN_SPINNING)
 			{
-				if ((now - current->conntry) >= 60)
+				if ((cx.now - current->conntry) >= 60)
 					connect_to_server();
 			}
 			else
 			{
 				cx.short_tv |= TV_SERVCONNECT;
-				if ((now - current->conntry) >= 2)
+				if ((cx.now - current->conntry) >= 2)
 					connect_to_server();
 			}
 #endif /* RAWDNS */
@@ -676,7 +689,7 @@ doit_jumptonext:
 			if ((current->connect == CN_TRYING) || (current->connect == CN_CONNECTED))
 			{
 				cx.short_tv |= TV_SERVCONNECT;
-				if ((now - current->conntry) > ctimeout)
+				if ((cx.now - current->conntry) > ctimeout)
 				{
 #ifdef DEBUG
 					debug("(doit) {%i} Connection timed out\n",current->sock);
@@ -756,7 +769,7 @@ restart_dcc:
 	/*
 	 *  Update current time
 	 */
-	time(&now);
+	time(&cx.now);
 
 	for(current=botlist;current;current=current->next)
 	{
@@ -765,8 +778,8 @@ restart_dcc:
 		 *  it is important that the check is done before anything
 		 *  else that could potentially send output to the server!
 		 */
-		if (current->sendq_time < now)
-			current->sendq_time = now;
+		if (current->sendq_time < cx.now)
+			current->sendq_time = cx.now;
 	}
 
 	for(current=botlist;current;current=current->next)
@@ -796,10 +809,10 @@ restart_dcc:
 			 */
 			if (current->setting[TOG_NOIDLE].int_var)
 			{
-				if ((now - current->lastantiidle) > PINGSENDINTERVAL)
+				if ((cx.now - current->lastantiidle) > PINGSENDINTERVAL)
 				{
 					to_server("PRIVMSG * :0\n");
-					current->lastantiidle = now;
+					current->lastantiidle = cx.now;
 				}
 			}
 			/*
@@ -829,7 +842,7 @@ restart_dcc:
 			/*
 			 *  the un-important sendq only sends when sendq_time <= now
 			 */
-			if ((current->sendq) && (current->sendq_time <= now))
+			if ((current->sendq) && (current->sendq_time <= cx.now))
 			{
 				qm = current->sendq;
 				to_server(FMT_PLAINLINE,qm->p);
@@ -890,7 +903,7 @@ restart_die:
 #endif
 
 #ifdef TRIVIA
-	if (triv_next_time && (now >= triv_next_time))
+	if (triv_next_time && (cx.now >= triv_next_time))
 		trivia_tick();
 #endif /* TRIVIA */
 
@@ -918,8 +931,9 @@ void parse_commandline(int argc, char **argv, char **envp)
 #ifdef NEWBIE
 	int	n = 0;
 #endif
+	memset(&cx,0,sizeof(cx));
 
-	uptime = time(&now);
+	uptime = time(&cx.now);
 	startup = STARTUP_NORMALSTART;
 
 	if ((getuid() == 0) || (geteuid() == 0))
@@ -936,7 +950,7 @@ void parse_commandline(int argc, char **argv, char **envp)
 		cx.system_uptime = st.st_ctime;
 	}
 
-	srand(now+getpid());
+	srand(cx.now + getpid());
 
 	/*
 	 *   Code to detect and recover after a RESET
@@ -1158,11 +1172,10 @@ void parse_commandline(int argc, char **argv, char **envp)
 	ia_default.s_addr = LOCALHOST_ULONG;
 #endif /* RAWDNS */
 
-	memset(&__internal_users,0,sizeof(User)*2);
-	CoreUser.x.x.access = 100;
-	LocalBot.x.x.access = 200;
-	LocalBot.x.x.aop = 1;
-	LocalBot.chan = CoreUser.chan = (Strp*)&CMA;
+	cx.CoreUser.x.x.access = 100;
+	cx.LocalBot.x.x.access = 200;
+	cx.LocalBot.x.x.aop = 1;
+	cx.LocalBot.chan = cx.CoreUser.chan = (Strp*)&CMA;
 
 	readcfgfile();
 
@@ -1259,7 +1272,7 @@ void parse_commandline(int argc, char **argv, char **envp)
 #endif /* CTCP */
 
 #ifdef BOTNET
-	last_autolink = now + 30 + (rand() >> 27);	/* + 0-31 seconds */
+	last_autolink = cx.now + 30 + (rand() >> 27);	/* + 0-31 seconds */
 #endif /* BOTNET */
 
 	if (mechresetenv)

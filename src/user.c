@@ -144,7 +144,7 @@ void cfg_shit(char *rest)
 	 *  convert the expiry time
 	 */
 	expire = asc2int(chop(&rest));	/* asc2int() can handle NULLs */
-	if (errno || expire < now)
+	if (errno || expire < cx.now)
 		return;
 
 	/*
@@ -157,10 +157,10 @@ void cfg_shit(char *rest)
 	/*
 	 *  finally, add the sucker
 	 */
-	backup_now = now;
-	now = when;
+	backup_now = cx.now;
+	cx.now = when;
 	add_shit(from,channel,mask,rest,shitlevel,expire);
-	now = backup_now;
+	cx.now = backup_now;
 }
 
 void cfg_kicksay(char *rest)
@@ -169,7 +169,7 @@ void cfg_kicksay(char *rest)
 
 	backup = CurrentDCC;
 	CurrentDCC = (Client*)&CoreClient;
-	do_kicksay((char*)CoreUser.name,NULL,rest,0);
+	do_kicksay((char*)cx.CoreUser.name,NULL,rest,0);
 	CurrentDCC = backup;
 }
 

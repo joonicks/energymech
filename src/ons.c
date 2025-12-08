@@ -168,7 +168,7 @@ void on_kick(char *from, char *rest)
 	if (victim)
 	{
 #ifdef SEEN
-		make_seen(nick,victim->userhost,from,rest,now,SEEN_KICKED);
+		make_seen(nick,victim->userhost,from,rest,cx.now,SEEN_KICKED);
 #endif /* SEEN */
 
 		/*
@@ -300,7 +300,7 @@ void on_nick(char *from, char *newnick)
 	sprintf(newnuh,"%s!%s",newnick,getuh(from));
 
 #ifdef SEEN
-	make_seen(CurrentNick,from,newnick,NULL,now,SEEN_NEWNICK);
+	make_seen(CurrentNick,from,newnick,NULL,cx.now,SEEN_NEWNICK);
 #endif /* SEEN */
 
 	/*
@@ -358,9 +358,9 @@ void on_nick(char *from, char *newnick)
 		if ((maxcount = chan->setting[INT_NCL].int_var) < 2)
 			continue;
 
-		if ((now - cu->action_time[INDEX_NICK]) > NICKFLOODTIME)
+		if ((cx.now - cu->action_time[INDEX_NICK]) > NICKFLOODTIME)
 		{
-			cu->action_time[INDEX_NICK] = now + (NICKFLOODTIME / (maxcount - 1));
+			cu->action_time[INDEX_NICK] = cx.now + (NICKFLOODTIME / (maxcount - 1));
 			cu->action_num[INDEX_NICK] = 1;
 		}
 		else
@@ -436,7 +436,7 @@ void on_msg(char *from, char *to, char *rest)
 	}
 
 
-	if (from == CoreUser.name)
+	if (from == cx.CoreUser.name)
 	{
 		has_cc = TRUE;
 	}
@@ -634,7 +634,7 @@ recheck_alias:
 	/*
 	 *  list of last LASTCMDSIZE commands
 	 */
-	if (from != CoreUser.name)
+	if (from != cx.CoreUser.name)
 	{
 		Free(&current->lastcmds[LASTCMDSIZE-1]);
 		for(j=LASTCMDSIZE-2;j>=0;j--)
@@ -646,13 +646,13 @@ recheck_alias:
 		if (CurrentUser)
 		{
 			sprintf(current->lastcmds[0],"[%s] %s\r%s[%-3i]\t(*%s)",
-				maketimestr(now,TFMT_CLOCK),command,CurrentUser->name,
+				maketimestr(cx.now,TFMT_CLOCK),command,CurrentUser->name,
 				(CurrentUser->x.x.access),pt);
 		}
 		else
 		{
 			sprintf(current->lastcmds[0],"[%s] %s\r%s[---]\t(*%s)",
-				maketimestr(now,TFMT_CLOCK),command,CurrentNick,pt);
+				maketimestr(cx.now,TFMT_CLOCK),command,CurrentNick,pt);
 		}
 	}
 
@@ -833,8 +833,8 @@ modeloop:
 				}
 				check_shit();
 				update_modes(chan);
-				if (current->spy & SPYF_STATUS)
-				send_spy(SPYSTR_STATUS,"Given op on %s, set by %s",chan->name,nick);
+				if (current->spy & SPYF_STATUS && doer)
+				send_spy(SPYSTR_STATUS,"Given op on %s, set by %s",chan->name,doer->nick);
 			}
 		}
 /* -o */	else
@@ -897,7 +897,7 @@ modeloop:
 #ifdef IRCD_EXTENSIONS
 			Ban	*newban;
 
-			newban = make_ban(&chan->banlist,from,parm,now);
+			newban = make_ban(&chan->banlist,from,parm,cx.now);
 			if (*mode == 'I') newban->imode = TRUE;
 			if (*mode == 'e') newban->emode = TRUE;
 			/*
@@ -905,7 +905,7 @@ modeloop:
 			 */
 			break;
 #else /* IRCD_EXTENSIONS */
-			make_ban(&chan->banlist,from,parm,now);
+			make_ban(&chan->banlist,from,parm,cx.now);
 #endif /* IRCD_EXTENSIONS */
 			/*
 			 *  skip protection checks if the doer is myself or another known bot

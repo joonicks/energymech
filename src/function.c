@@ -92,7 +92,7 @@ void *Calloc(int size)
 		exit(1);
 	}
 	mmep->size = size;
-	mmep->when = now;
+	mmep->when = cx.now;
 	mmep->doer = mallocdoer;
 	mallocdoer = NULL;
 	return((void*)mmep->area+4);
@@ -405,7 +405,7 @@ char *idle2str(time_t when, int small)
 	char	*dst;
 	int	n,z[4];
 
-	when = now - when;
+	when = cx.now - when;
 
 	z[0] = when / 86400;
 	z[1] = (when -= z[0] * 86400) / 3600;
@@ -942,11 +942,11 @@ int main(int argc, char **argv, char **envp)
 		debug("testpath %s -> result %s\n",argv[1],(r) ? "TRUE" : "FALSE");
 	}
 
-	time(&now);
+	time(&cx.now);
 
 	for(r=0;r<10;r++)
 	{
-	when = now - (int[]){100000,888,534569,999999,99,9000,84600,7777777,56565656+3600,78987654}[r];
+	when = cx.now - (int[]){100000,888,534569,999999,99,9000,84600,7777777,56565656+3600,78987654}[r];
 	debug("\nmaketimestr %s\n",maketimestr(when,TFMT_LOG));
 	debug("maketimestr %s\n",maketimestr(when,TFMT_FULL));
 	debug("maketimestr %s\n",maketimestr(when,TFMT_AWAY));
