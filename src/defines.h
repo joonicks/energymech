@@ -1,7 +1,7 @@
 /*
 
     EnergyMech, IRC bot software
-    Parts Copyright (c) 1997-2018 proton
+    Parts Copyright (c) 1997-2025 proton
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -20,15 +20,6 @@
 */
 #ifndef DEFINES_H
 #define DEFINES_H 1
-
-/*
- *  dont export too many symbols...
- */
-#ifdef LIBRARY
-#define LS	static
-#else /* not LIBRARY */
-#define LS	/* nothing */
-#endif /* LIBRARY */
 
 /*
  *  startup ==
@@ -104,16 +95,9 @@
 #define QM_PRI_LOW	100
 
 /*
- *  Bitfield for short_tv being set to 1 or 30 seconds
+ *  stats.c
  */
-
-#define TV_TELNET_NICK		0x0002
-#define TV_UCACHE		0x0004
-#define TV_SERVCONNECT		0x0008
-#define TV_LINEBUF		0x0010
-#define TV_BOTNET		0x0020
-#define TV_REJOIN		0x0040
-#define TV_TRIVIA		0x0080
+#define CSTAT_PARTIAL		1
 
 /* Misc Crap: */
 
@@ -148,6 +132,227 @@
 #define FUH_USERHOST		1
 #define FUH_HOST		2
 
+/*
+ *  why would channel structs contain global vars?
+ *  they shouldnt! and now they dont! :)
+ */
+#define CHANSET_SIZE	INT_AAWAY
+
+/*
+ *  For botlinks
+ */
+
+/* BotNet->status */
+
+#define BN_UNKNOWN		0
+#define BN_DEAD			1
+#define BN_LINKSOCK		2
+#define BN_CONNECT		3
+#define BN_BANNERSENT		4
+#define BN_WAITAUTH		5
+#define BN_WAITLINK		6
+#define BN_LINKED		7
+
+#define BNAUTH_PLAINTEXT	0
+#define BNAUTH_DES		1
+#define BNAUTH_MD5		2
+#define BNAUTH_SHA		3
+
+/* for server connect status */
+
+#define CN_NOSOCK		0
+#define CN_DNSLOOKUP		1
+#define CN_TRYING		2
+#define CN_CONNECTED		3
+#define CN_ONLINE		4
+#define CN_DISCONNECT		5
+#define CN_BOTDIE		6
+#define CN_NEXTSERV		7
+#define CN_WINGATEWAIT		8
+#define CN_SPINNING		9	/* after exhausting serverlist */
+
+#define SERVERSILENCETIMEOUT	360	/* server connection idle timeout */
+
+/* DCC Kill flags (BYE command) */
+
+#define DCC_NULL		0
+#define DCC_COMMAND		1
+#define DCC_KILL		2
+
+/*
+ *  is_safepath
+ */
+#define	FILE_IS_SAFE		1
+#define	FILE_MUST_EXIST		1
+#define FILE_MAY_EXIST		2
+#define FILE_MUST_NOTEXIST	3
+
+/* check_mass() */
+
+#define CHK_CAPS		0
+#define CHK_PUB			1
+#define CHK_PUBLIC		CHK_PUB
+#define CHK_DEOP		2
+#define CHK_BAN			3
+#define CHK_KICK		4
+
+#define INDEX_FLOOD		0
+#define INDEX_BAN		1
+#define INDEX_DEOP		2
+#define INDEX_KICK		3
+#define INDEX_NICK		4
+#define INDEX_CAPS		5
+#define INDEX_MAX		6
+
+/*
+ *
+ */
+#define IRCX_WALLCHOPS		1
+#define IRCX_WALLVOICES		2
+#define IRCX_IMODE		4
+#define IRCX_EMODE		8
+
+/*
+ *  dns.c
+ */
+#define MAX_NAMESERVERS		4
+
+/*
+ *  scripting events
+ */
+#define MEV_PARSE		0
+#define MEV_TIMER		1
+#define MEV_COMMAND		2
+#define MEV_BOTNET		3
+#define MEV_DCC_COMPLETE	4
+#define MEV_DNSRESULT		5
+
+/*
+ *  notify defines
+ */
+#define NF_OFFLINE		0
+#define NF_WHOIS		1
+#define NF_MASKONLINE		2	/* anything above NF_MASKONLINE is "online" */
+#define NF_NOMATCH		3
+
+/*
+ *  redirect.c
+ */
+#define R_NOTICE		0
+#define R_PRIVMSG		1
+#define R_FILE			2
+#define R_BOTNET		3
+
+/*
+ *  seen selector types
+ */
+#define SEEN_PARTED		0
+#define SEEN_QUIT		1
+#define SEEN_NEWNICK		2
+#define SEEN_KICKED		3
+
+/* server error types */
+
+#define SP_NULL			0
+#define SP_NOAUTH		1
+#define SP_KLINED		2
+#define SP_FULLCLASS		3
+#define SP_TIMEOUT		4
+#define SP_ERRCONN		5
+#define SP_DIFFPORT		6
+#define SP_NO_DNS		7
+#define SP_THROTTLED		8
+
+/*
+ *  spying types, source and target types are mixed
+ */
+#define SPY_FILE		1
+#define SPY_DCC			2
+#define SPY_CHANNEL		3
+#define SPY_STATUS		4
+#define SPY_MESSAGE		5
+#define SPY_RAWIRC		6
+#define SPY_BOTNET		7
+#ifdef URLCAPTURE
+#define SPY_URL			8
+#endif /* URLCAPTURE */
+#ifdef HOSTINFO
+#define SPY_SYSMON		9
+#endif /* HOSTINFO */
+#define SPY_RANDSRC		10
+
+#define SPYF_ANY		1
+#define SPYF_CHANNEL		(1 << SPY_CHANNEL)
+#define SPYF_STATUS		(1 << SPY_STATUS)
+#define SPYF_MESSAGE		(1 << SPY_MESSAGE)
+#define SPYF_RAWIRC		(1 << SPY_RAWIRC)
+#define SPYF_BOTNET		(1 << SPY_BOTNET)
+#define SPYF_URL		(1 << SPY_URL)
+#define SPYF_RANDSRC		(1 << SPY_RANDSRC)
+
+/*
+ *  function.c :: maketimestr()
+ */
+#define TFMT_LOG        0x20506
+#define TFMT_FULL       0x60402
+#define TFMT_AWAY       0x40307
+#define TFMT_CLOCK      0x1
+#define TFMT_DATE       0x4
+
+/*
+ *  Bitfield for short_tv being set to 1 or 30 seconds
+ */
+
+#define TV_TELNET_NICK		0x0002
+#define TV_UCACHE		0x0004
+#define TV_SERVCONNECT		0x0008
+#define TV_LINEBUF		0x0010
+#define TV_BOTNET		0x0020
+#define TV_REJOIN		0x0040
+#define TV_TRIVIA		0x0080
+
+/*
+ *  uptime defines
+ */
+
+#define UPTIME_ENERGYMECH       1	/* http://www.energymech.net		*/
+#define UPTIME_EGGDROP		2	/* http://www.eggheads.org		*/
+#define UPTIME_MINIMECH		3	/* http://www.energymech.net		*/
+#define UPTIME_WINMECH		4	/* http://www.energymech.net		*/
+#define UPTIME_RACBOT		5	/* http://www.racbot.org		*/
+#define UPTIME_MIRC		6	/* http://www.mirc.com			*/
+#define UPTIME_HAL9000		7	/* http://www.2010.org			*/
+#define UPTIME_ANABOT		8	/* http://www.sirklabs.hu/ana-liza/	*/
+#define UPTIME_ANGELBOT		9	/* unknown				*/
+#define UPTIME_FIRECLAW		10	/* http://www.fireclaw.org		*/
+#define UPTIME_GARNAX		11	/* http://garnax.mircx.com		*/
+#define UPTIME_WINEGGDROP	12	/* http://www.eggheads.org		*/
+#define UPTIME_SUPYBOT		14	/* http://supybot.sourceforge.net	*/
+
+#define UPTIME_GENERICDEATH     5000	/* generic death */
+#define UPTIME_SIGSEGV          5001
+#define UPTIME_SIGBUS           5002
+#define UPTIME_SIGTERM          5003
+#define UPTIME_SIGINT           5004
+
+#define UPTIMEHOST		"uptime.eggheads.org"
+
+#ifdef __CYGWIN__
+#define UPTIME_BOTTYPE		UPTIME_WINMECH
+#else
+#define UPTIME_BOTTYPE		UPTIME_ENERGYMECH
+#endif /* __CYGWIN__ */
+
+/* VHOST types */
+
+#define VH_ZERO			0
+#define VH_IPALIAS		(1 << 1)
+#define VH_IPALIAS_FAIL		(1 << 2)
+#define VH_IPALIAS_BOTH		(VH_IPALIAS|VH_IPALIAS_FAIL)
+#define VH_WINGATE		(1 << 3)
+#define VH_WINGATE_FAIL		(1 << 4)
+#define VH_WINGATE_BOTH		(VH_WINGATE|VH_WINGATE_FAIL)
+
 /* Type of Variable: */
 
 #define INT_VAR			0x01
@@ -173,14 +378,6 @@
 #define IsNum(x)		(VarName[x].type & (INT_VAR|TOG_VAR))
 #define IsChar(x)		((VarName[x].type & CHR_VAR) == CHR_VAR)
 #define IsProc(x)		(VarName[x].type & PROC_VAR)
-
-/*
- *  is_safepath
- */
-#define	FILE_IS_SAFE		1
-#define	FILE_MUST_EXIST		1
-#define FILE_MAY_EXIST		2
-#define FILE_MUST_NOTEXIST	3
 
 /*
  *  see settings.h for the actual setting struct
@@ -300,206 +497,6 @@ enum {
 	__NULL_VAR__,
 	SIZE_VARS
 };
-
-/*
- *  why would channel structs contain global vars?
- *  they shouldnt! and now they dont! :)
- */
-#define CHANSET_SIZE	INT_AAWAY
-
-/*
- *  For botlinks
- */
-
-#ifdef BOTNET
-
-/* BotNet->status */
-
-#define BN_UNKNOWN		0
-#define BN_DEAD			1
-#define BN_LINKSOCK		2
-#define BN_CONNECT		3
-#define BN_BANNERSENT		4
-#define BN_WAITAUTH		5
-#define BN_WAITLINK		6
-#define BN_LINKED		7
-
-#define BNAUTH_PLAINTEXT	0
-#define BNAUTH_DES		1
-#define BNAUTH_MD5		2
-#define BNAUTH_SHA		3
-
-#endif /* BOTNET */
-
-/* for connect status */
-
-#define CN_NOSOCK		0
-#define CN_DNSLOOKUP		1
-#define CN_TRYING		2
-#define CN_CONNECTED		3
-#define CN_ONLINE		4
-#define CN_DISCONNECT		5
-#define CN_BOTDIE		6
-#define CN_NEXTSERV		7
-#define CN_WINGATEWAIT		8
-#define CN_SPINNING		9	/* after exhausting serverlist */
-
-#define SERVERSILENCETIMEOUT	360	/* server connection idle timeout */
-
-/* DCC Kill flags (BYE command) */
-
-#define DCC_NULL		0
-#define DCC_COMMAND		1
-#define DCC_KILL		2
-
-/* VHOST types */
-
-#define VH_ZERO			0
-#define VH_IPALIAS		(1 << 1)
-#define VH_IPALIAS_FAIL		(1 << 2)
-#define VH_IPALIAS_BOTH		(VH_IPALIAS|VH_IPALIAS_FAIL)
-#define VH_WINGATE		(1 << 3)
-#define VH_WINGATE_FAIL		(1 << 4)
-#define VH_WINGATE_BOTH		(VH_WINGATE|VH_WINGATE_FAIL)
-
-/* server error types */
-
-#define SP_NULL			0
-#define SP_NOAUTH		1
-#define SP_KLINED		2
-#define SP_FULLCLASS		3
-#define SP_TIMEOUT		4
-#define SP_ERRCONN		5
-#define SP_DIFFPORT		6
-#define SP_NO_DNS		7
-#define SP_THROTTLED		8
-
-/* check_mass() */
-
-#define INDEX_FLOOD		0
-#define INDEX_BAN		1
-#define INDEX_DEOP		2
-#define INDEX_KICK		3
-#define INDEX_NICK		4
-#define INDEX_CAPS		5
-#define INDEX_MAX		6
-
-#define CHK_CAPS		0
-#define CHK_PUB			1
-#define CHK_PUBLIC		CHK_PUB
-#define CHK_DEOP		2
-#define CHK_BAN			3
-#define CHK_KICK		4
-
-/*
- *  seen selector types
- */
-#define SEEN_PARTED		0
-#define SEEN_QUIT		1
-#define SEEN_NEWNICK		2
-#define SEEN_KICKED		3
-
-/*
- *  spying types, source and target types are mixed
- */
-#define SPY_FILE		1
-#define SPY_DCC			2
-#define SPY_CHANNEL		3
-#define SPY_STATUS		4
-#define SPY_MESSAGE		5
-#define SPY_RAWIRC		6
-#define SPY_BOTNET		7
-#ifdef URLCAPTURE
-#define SPY_URL			8
-#endif /* URLCAPTURE */
-#ifdef HOSTINFO
-#define SPY_SYSMON		9
-#endif /* HOSTINFO */
-#define SPY_RANDSRC		10
-
-#define SPYF_ANY		1
-#define SPYF_CHANNEL		(1 << SPY_CHANNEL)
-#define SPYF_STATUS		(1 << SPY_STATUS)
-#define SPYF_MESSAGE		(1 << SPY_MESSAGE)
-#define SPYF_RAWIRC		(1 << SPY_RAWIRC)
-#define SPYF_BOTNET		(1 << SPY_BOTNET)
-#define SPYF_URL		(1 << SPY_URL)
-#define SPYF_RANDSRC		(1 << SPY_RANDSRC)
-/*
- *  notify defines
- */
-#define NF_OFFLINE		0
-#define NF_WHOIS		1
-#define NF_MASKONLINE		2	/* anything above NF_MASKONLINE is "online" */
-#define NF_NOMATCH		3
-
-/*
- *  uptime defines
- */
-
-#define UPTIME_ENERGYMECH       1	/* http://www.energymech.net		*/
-#define UPTIME_EGGDROP		2	/* http://www.eggheads.org		*/
-#define UPTIME_MINIMECH		3	/* http://www.energymech.net		*/
-#define UPTIME_WINMECH		4	/* http://www.energymech.net		*/
-#define UPTIME_RACBOT		5	/* http://www.racbot.org		*/
-#define UPTIME_MIRC		6	/* http://www.mirc.com			*/
-#define UPTIME_HAL9000		7	/* http://www.2010.org			*/
-#define UPTIME_ANABOT		8	/* http://www.sirklabs.hu/ana-liza/	*/
-#define UPTIME_ANGELBOT		9	/* unknown				*/
-#define UPTIME_FIRECLAW		10	/* http://www.fireclaw.org		*/
-#define UPTIME_GARNAX		11	/* http://garnax.mircx.com		*/
-#define UPTIME_WINEGGDROP	12	/* http://www.eggheads.org		*/
-#define UPTIME_SUPYBOT		14	/* http://supybot.sourceforge.net	*/
-
-#define UPTIME_GENERICDEATH     5000	/* generic death */
-#define UPTIME_SIGSEGV          5001
-#define UPTIME_SIGBUS           5002
-#define UPTIME_SIGTERM          5003
-#define UPTIME_SIGINT           5004
-
-#define UPTIMEHOST		"uptime.eggheads.org"
-
-#ifdef __CYGWIN__
-#define UPTIME_BOTTYPE		UPTIME_WINMECH
-#else
-#define UPTIME_BOTTYPE		UPTIME_ENERGYMECH
-#endif /* __CYGWIN__ */
-
-/*
- *  scripting events
- */
-#define MEV_PARSE		0
-#define MEV_TIMER		1
-#define MEV_COMMAND		2
-#define MEV_BOTNET		3
-#define MEV_DCC_COMPLETE	4
-#define MEV_DNSRESULT		5
-
-/*
- *
- */
-#define IRCX_WALLCHOPS		1
-#define IRCX_WALLVOICES		2
-#define IRCX_IMODE		4
-#define IRCX_EMODE		8
-
-/*
- *  stats.c
- */
-#define CSTAT_PARTIAL		1
-
-/*
- *  dns.c
- */
-#define MAX_NAMESERVERS		4
-
-/*
- *  redirect.c
- */
-#define R_NOTICE		0
-#define R_PRIVMSG		1
-#define R_FILE			2
-#define R_BOTNET		3
 
 #endif /* DEFINES_H */
 

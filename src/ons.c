@@ -1,7 +1,7 @@
 /*
 
     EnergyMech, IRC bot software
-    Parts Copyright (c) 1997-2024 proton
+    Parts Copyright (c) 1997-2025 proton
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -82,7 +82,7 @@ void on_kick(char *from, char *rest)
 	if (current->spy & SPYF_CHANNEL)
 		send_spy(chan->name,"*** %s was kicked by %s (%s)",nick,CurrentNick,rest);
 
-	if (!nickcmp(current->nick,nick))
+	if (!nickcmp(getbotnick(current),nick))
 	{
 #ifdef DEBUG
 		debug("(on_kick) I was kicked from %s\n",chan->name);
@@ -168,7 +168,7 @@ void on_kick(char *from, char *rest)
 	if (victim)
 	{
 #ifdef SEEN
-		make_seen(nick,victim->userhost,from,rest,now,SEEN_KICKED);
+		make_seen(nick,victim->userhost,from,rest,cx.now,SEEN_KICKED);
 #endif /* SEEN */
 
 		/*
@@ -231,7 +231,7 @@ void on_join(Chan *chan, char *from)
 		 */
 		if (chan->setting[TOG_CTL].int_var)
 		{
-			if (STRCHR(from,'\031') || STRCHR(from,'\002') || STRCHR(from,'\022') || STRCHR(from,'\026'))
+			if (stringchr(from,'\031') || stringchr(from,'\002') || stringchr(from,'\022') || stringchr(from,'\026'))
 			{
 				deop_siteban(chan,cu);
 				send_kick(chan,CurrentNick,KICK_BAD_IDENT);
@@ -290,8 +290,8 @@ void on_nick(char *from, char *newnick)
 	 *  grab the nick *RIGHT NOW*
 	 *  this is a setting because this is risky, you might get collided as a result
 	 */
-	if (!nickcmp(CurrentNick,current->wantnick))
-		to_server("NICK %s\n",current->wantnick);
+	if (!nickcmp(CurrentNick,getbotwantnick(current)))
+		to_server("NICK %s\n",getbotwantnick(current));
 #endif /* FASTNICK */
 
 	/*
@@ -300,7 +300,7 @@ void on_nick(char *from, char *newnick)
 	sprintf(newnuh,"%s!%s",newnick,getuh(from));
 
 #ifdef SEEN
-	make_seen(CurrentNick,from,newnick,NULL,now,SEEN_NEWNICK);
+	make_seen(CurrentNick,from,newnick,NULL,cx.now,SEEN_NEWNICK);
 #endif /* SEEN */
 
 	/*
@@ -311,9 +311,12 @@ void on_nick(char *from, char *newnick)
 
 	change_authnick(from,newnuh);
 
-	if ((isbot = !nickcmp(current->nick,CurrentNick)))
+	if ((isbot = !nickcmp(getbotnick(current),CurrentNick)))
 	{
 		setbotnick(current,newnick);
+#ifdef BOTNET
+		botnet_refreshbotinfo();
+#endif /* BOTNET */
 	}
 
 	for(chan=current->chanlist;chan;chan=chan->next)
@@ -355,9 +358,9 @@ void on_nick(char *from, char *newnick)
 		if ((maxcount = chan->setting[INT_NCL].int_var) < 2)
 			continue;
 
-		if ((now - cu->action_time[INDEX_NICK]) > NICKFLOODTIME)
+		if ((cx.now - cu->action_time[INDEX_NICK]) > NICKFLOODTIME)
 		{
-			cu->action_time[INDEX_NICK] = now + (NICKFLOODTIME / (maxcount - 1));
+			cu->action_time[INDEX_NICK] = cx.now + (NICKFLOODTIME / (maxcount - 1));
 			cu->action_num[INDEX_NICK] = 1;
 		}
 		else
@@ -371,6 +374,8 @@ void on_nick(char *from, char *newnick)
 		}
 	}
 }
+
+#include "onhash.h"
 
 void on_msg(char *from, char *to, char *rest)
 {
@@ -389,7 +394,7 @@ void on_msg(char *from, char *to, char *rest)
 	uchar	*p1,*p2;
 	int	has_cc,has_bang;
 	int	uaccess;
-	int	i,j;
+	int	i,j,command_hash;
 
 	/*
 	 *  No line sent to this routine should be longer than MSGLEN
@@ -397,6 +402,14 @@ void on_msg(char *from, char *to, char *rest)
 	 *  non-NULL and non-zerolength
 	 */
 
+	/*
+	 *  remember where the string started
+	 */
+	origstart = rest;
+
+	/*
+	 *  Are we recording a note?
+	 */
 #ifdef NOTE
 	if (notelist && catch_note(from,to,rest))
 		return;
@@ -407,10 +420,7 @@ void on_msg(char *from, char *to, char *rest)
 	 * public commands, we can go directly to common_public()
 	 */
 	if (CurrentChan && !CurrentChan->setting[TOG_PUB].int_var)
-	{
-		common_public(CurrentChan,from,"<%s> %s",rest);
-		return;
-	}
+		goto public_msg_unchopped;
 
 	if (CurrentDCC)
 	{
@@ -425,12 +435,8 @@ void on_msg(char *from, char *to, char *rest)
 		return;
 	}
 
-	/*
-	 *  remember where the string started
-	 */
-	origstart = rest;
 
-	if (from == CoreUser.name)
+	if (from == cx.CoreUser.name)
 	{
 		has_cc = TRUE;
 	}
@@ -445,7 +451,7 @@ void on_msg(char *from, char *to, char *rest)
 	if ((p2 = (uchar*)(command = chop(&rest))) == NULL)
 		return;
 
-	p1 = (uchar*)current->nick;
+	p1 = (uchar*)getbotnick(current);
 	while(!(i = tolowertab[*(p1++)] - tolowertab[*p2]) && *(p2++))
 		;
 
@@ -469,15 +475,15 @@ void on_msg(char *from, char *to, char *rest)
 		command++;
 	}
 
+	command_hash = mkhash(command);
+
 #ifdef ALIAS
 	arec = 0;
 recheck_alias:
-#endif /* ALIAS */
 
-#ifdef ALIAS
 	for(alias=aliaslist;alias;alias=alias->next)
 	{
-		if (!stringcasecmp(alias->alias,command))
+		if (command_hash == alias->hash && stringcasecmp(alias->alias,command) == 0)
 		{
 			unchop(command,rest);
 			afmt(amem,alias->format,command);
@@ -521,177 +527,186 @@ recheck_alias:
 	if (i) return;
 #endif /* SCRIPTING */
 
+	command_hash = mkhash(command);
+	i = hashmap[command_hash];
+#ifdef DEBUG
+	debug("(on_msg) %s = hash %i, mapped to %i %s\n",command,command_hash,i,(i==255)?"(no match)":mcmd[i].name);
+#endif /* DEBUG */
+	if (i == 255)
+		goto public_msg;
+
+	if (!has_cc && mcmd[i].cc && !(has_bang && mcmd[i].cbang))
+		goto public_msg;
+	if (uaccess < acmd[i])
+		goto public_msg;
 	/*
-	 *  match "command" against internal command list
+	 *  The string hash matches a command, but is it a false positive?
 	 */
-	for(;mcmd[i].name;i++)
-	{
-		if (!has_cc && mcmd[i].cc && !(has_bang && mcmd[i].cbang))
-			continue;
-		if (uaccess < acmd[i])
-			continue;
-		j = stringcasecmp(mcmd[i].name,command);
-		if (j < 0)
-			continue;
-		if (j > 0)
-			break;
+	if (stringcasecmp(mcmd[i].name,command) != 0)
+		goto public_msg;
 
 #if defined(BOTNET) && defined(REDIRECT)
-		if (mcmd[i].nocmd && redirect.to)
-			return;
+	if (mcmd[i].nocmd && redirect.to)
+		return;
 #endif /* BOTNET && REDIRECT */
 
-		if (mcmd[i].nopub && CurrentChan)
-		{
+	if (mcmd[i].nopub && CurrentChan)
+	{
 #ifdef DEBUG
-			debug("(on_msg) Public command (%s) ignored\n",command);
+		debug("(on_msg) Public command (%s) ignored\n",command);
 #endif /* DEBUG */
-			return;
-		}
-
-		CurrentCmd = &mcmd[i];
-
-#ifdef SUPPRESS
-#ifdef BOTNET
-		/* experimental command supression */
-		if (CurrentCmd->name == current->supres_cmd)
-		{
-			int	crc;
-
-			crc = makecrc(rest);
-			if (current->supres_crc == crc)
-			{
-				/* another bot has already executed this command and is trying to supress its execution on other bots */
-				current->supres_cmd = NULL;
-				current->supres_crc = 0;
-#ifdef DEBUG
-				debug("(on_msg) command \"%s\" from %s was supressed\n",CurrentCmd->name,CurrentNick);
-#endif
-				return;
-			}
-		}
-		/*if command should be supressed ... */
-		if (mcmd[i].supres && CurrentChan)
-		{
-			send_suppress(CurrentCmd->name,rest);
-		}
-#endif
-#endif /* SUPPRESS */
-		/*
-		 *  convert the command to uppercase
-		 */
-		stringcpy(command,mcmd[i].name);
-
-		/*
-		 *  send statmsg with info on the command executed
-		 */
-		if (current->setting[TOG_SPY].int_var)
-		{
-			send_spy(SPYSTR_STATUS,":%s[%i]: Executing %s[%i]",
-				CurrentNick,uaccess,command,(int)acmd[i]);
-		}
-
-		/*
-		 *  CAXS check: first argument might be a channel
-		 *              check user access on target channel
-		 */
-		if (mcmd[i].caxs)
-		{
-			/* get channel name; 1: msg, 2: to, 3: active channel */
-			to = (char*)get_channel(to,&rest);
-			if (!ischannel(to))
-				return;
-			uaccess = get_authaccess(from,to);
-			if (uaccess < acmd[i])
-				return;
-			CurrentChan = find_channel_ny(to);
-			if (mcmd[i].acchan && (CurrentChan == NULL || CurrentChan->active == 0))
-			{
-				to_user(from,ERR_CHAN,to);
-				return;
-			}
-		}
-		else
-		/*
-		 *  GAXS check: user needs global access
-		 */
-		if (mcmd[i].gaxs)
-		{
-			uaccess = get_authaccess(from,MATCH_ALL);
-			if (uaccess < acmd[i])
-				return;
-		}
-
-		/*
-		 *  list of last LASTCMDSIZE commands
-		 */
-		if (from != CoreUser.name)
-		{
-			Free(&current->lastcmds[LASTCMDSIZE-1]);
-			for(j=LASTCMDSIZE-2;j>=0;j--)
-				current->lastcmds[j+1] = current->lastcmds[j];
-			if ((pt = STRCHR(from,'@')) == NULL)
-				pt = from;
-			set_mallocdoer(on_msg);
-			current->lastcmds[0] = (char*)Calloc(strlen(pt) + 45);
-			if (CurrentUser)
-			{
-				sprintf(current->lastcmds[0],"[%s] %s\r%s[%-3i]\t(*%s)",
-					time2medium(now),command,CurrentUser->name,
-					(CurrentUser->x.x.access),pt);
-			}
-			else
-			{
-				sprintf(current->lastcmds[0],"[%s] %s\r%s[---]\t(*%s)",
-					time2medium(now),command,CurrentNick,pt);
-			}
-		}
-
-		/*
-		 *  CARGS check: at least one argument is required
-		 */
-		if (mcmd[i].args && !*rest)
-		{
-			if (uaccess) usage_command(from,command);
-			return;
-		}
-
-#ifdef REDIRECT
-		/*
-		 *  can this command be redirected?
-		 */
-		if (!redirect.to && mcmd[i].redir)
-		{
-			if (mcmd[i].lbuf && ischannel(orig_to))
-			{
-				set_mallocdoer(on_msg);
-				redirect.to = stringdup(to);
-				redirect.method = R_PRIVMSG;
-			}
-			else
-			if (begin_redirect(from,rest) < 0)
-				return;
-		}
-#endif /* REDIRECT */
-
-		if (mcmd[i].dcc && partyline_only_command(from))
-			return;
-
-		mcmd[i].func(from,to,rest,acmd[i]);
-
-#ifdef DEBUG
-		CurrentCmd = NULL;
-#endif /* DEBUG */
-#ifdef REDIRECT
-		end_redirect();
-#endif /* REDIRECT */
-
-		/*
-		 *  be quick to exit afterwards, there are "dangerous" commands like DIE and DEL (user)
-		 */
 		return;
 	}
 
+	CurrentCmd = &mcmd[i];
+
+#ifdef SUPPRESS
+#ifdef BOTNET
+	/* experimental command supression */
+	if (CurrentCmd->name == current->supres_cmd)
+	{
+		int	crc;
+
+		crc = makecrc(rest);
+		if (current->supres_crc == crc)
+		{
+			/* another bot has already executed this command and is trying to supress its execution on other bots */
+			current->supres_cmd = NULL;
+			current->supres_crc = 0;
+#ifdef DEBUG
+			debug("(on_msg) command \"%s\" from %s was supressed\n",CurrentCmd->name,CurrentNick);
+#endif
+			return;
+		}
+	}
+	/*if command should be supressed ... */
+	if (mcmd[i].supres && CurrentChan)
+	{
+		send_suppress(CurrentCmd->name,rest);
+	}
+#endif
+#endif /* SUPPRESS */
+	/*
+	 *  convert the command to uppercase
+	 */
+	stringcpy(command,mcmd[i].name);
+
+	/*
+	 *  send statmsg with info on the command executed
+	 */
+	if (current->setting[TOG_SPY].int_var)
+	{
+		send_spy(SPYSTR_STATUS,":%s[%i]: Executing %s[%i]",
+			CurrentNick,uaccess,command,(int)acmd[i]);
+	}
+
+	/*
+	 *  CAXS check: first argument might be a channel
+	 *              check user access on target channel
+	 */
+	if (mcmd[i].caxs)
+	{
+		/* get channel name; 1: msg, 2: to, 3: active channel */
+		to = (char*)get_channel(to,&rest);
+		if (!ischannel(to))
+			return;
+		uaccess = get_authaccess(from,to);
+		if (uaccess < acmd[i])
+			return;
+		CurrentChan = find_channel_ny(to);
+		if (mcmd[i].acchan && (CurrentChan == NULL || CurrentChan->active == 0))
+		{
+			to_user(from,ERR_CHAN,to);
+			return;
+		}
+	}
+	else
+	/*
+	 *  GAXS check: user needs global access
+	 */
+	if (mcmd[i].gaxs)
+	{
+		uaccess = get_authaccess(from,MATCH_ALL);
+		if (uaccess < acmd[i])
+			return;
+	}
+
+	/*
+	 *  list of last LASTCMDSIZE commands
+	 */
+	if (from != cx.CoreUser.name)
+	{
+		Free(&current->lastcmds[LASTCMDSIZE-1]);
+		for(j=LASTCMDSIZE-2;j>=0;j--)
+			current->lastcmds[j+1] = current->lastcmds[j];
+		if ((pt = stringchr(from,'@')) == NULL)
+			pt = from;
+		set_mallocdoer(on_msg);
+		current->lastcmds[0] = (char*)Calloc(strlen(pt) + 45);
+		if (CurrentUser)
+		{
+			sprintf(current->lastcmds[0],"[%s] %s\r%s[%-3i]\t(*%s)",
+				maketimestr(cx.now,TFMT_CLOCK),command,CurrentUser->name,
+				(CurrentUser->x.x.access),pt);
+		}
+		else
+		{
+			sprintf(current->lastcmds[0],"[%s] %s\r%s[---]\t(*%s)",
+				maketimestr(cx.now,TFMT_CLOCK),command,CurrentNick,pt);
+		}
+	}
+
+	/*
+	 *  CARGS check: at least one argument is required
+	 */
+	if (mcmd[i].args && !*rest)
+	{
+		if (uaccess) usage_command(from,command);
+		return;
+	}
+
+#ifdef REDIRECT
+	/*
+	 *  can this command be redirected?
+	 */
+	if (!redirect.to && mcmd[i].redir)
+	{
+		if (mcmd[i].lbuf && ischannel(orig_to))
+		{
+			set_mallocdoer(on_msg);
+			redirect.to = stringdup(to);
+			redirect.method = R_PRIVMSG;
+		}
+		else
+		if (begin_redirect(from,rest) < 0)
+			return;
+	}
+#endif /* REDIRECT */
+
+	if (mcmd[i].dcc && partyline_only_command(from))
+		return;
+
+	/*
+	 *  Run command function
+	 */
+	if (mcmd[i].noargfunc && *rest == 0)
+		mcmd[i].noargfunc(from);
+	else
+		mcmd[i].func(from,to,rest,acmd[i]);
+
+#ifdef REDIRECT
+	end_redirect();
+#endif /* REDIRECT */
+
+	/*
+	 *  be quick to exit afterwards, there are "dangerous" commands like DIE and USER -...
+	 */
+	return;
+
+	/*
+	 *  If the input isnt a command or the sender lacks access
+	 */
+public_msg:
 	/*
 	 *  un-chop() the message string
 	 */
@@ -699,6 +714,7 @@ recheck_alias:
 
 	if (CurrentChan)
 	{
+public_msg_unchopped:
 		common_public(CurrentChan,from,"<%s> %s",origstart);
 	}
 	else
@@ -711,7 +727,7 @@ recheck_alias:
 	{
 		partyline_broadcast(CurrentDCC,"<%s> %s\n",origstart);
 #ifdef BOTNET
-		botnet_relay(NULL,"PM* * %s@%s %s\n",CurrentNick,current->nick,origstart);
+		botnet_relay(NULL,"PM* * %s@%s %s\n",CurrentNick,getbotnick(current),origstart);
 #endif /* BOTNET */
 	}
 	else
@@ -729,8 +745,11 @@ void on_mode(char *from, char *channel, char *rest)
 	char	templimit[20];
 	char	*nick;
 	char	*parm,*nickuh,*mode;
-	int	i,sign,enfm,maxprot;
+	int	i,sign,rev,enfm,flag,maxprot,isself;
 
+#ifdef DEBUG
+	debug("(on_mode) %s --> %s: %s\n",from,channel,rest);
+#endif /* DEBUG */
 	if ((chan = find_channel_ac(channel)) == NULL)
 		return;
 	channel = chan->name;
@@ -749,16 +768,6 @@ void on_mode(char *from, char *channel, char *rest)
 	doer = find_chanuser(chan,from);
 
 modeloop:
-	if (*mode == 'o' || *mode == 'v')
-	{
-		nick = chop(&rest);
-		if ((victim = find_chanuser(chan,nick)) == NULL)
-		{
-			mode++;
-			goto modeloop;
-		}
-	}
-
 	switch(*mode)
 	{
 	case '+':
@@ -767,25 +776,50 @@ modeloop:
 		break;
 	/*
 	 *
+	 *  MODE <channel> +/-v <nick>
 	 *  MODE <channel> +/-o <nick>
 	 *
 	 */
+	case 'v':
 	case 'o':
+		nick = chop(&rest);
+		victim = find_chanuser(chan,nick);
+		if (victim == NULL) /* Cant take action against an unknown entity */
+		{
+			mode++;
+			goto modeloop;
+		}
+
+		rev = 0;
 		i = (victim->user) ? victim->user->x.x.access : 0;
+
+		/*
+		 *  Can only be 'o' or 'v'
+		 *  Sign can only be '+' or '-'
+		 *  #define CU_VOICE                0x0001
+		 *  #define CU_CHANOP               0x0002
+		*/
+		flag = CU_VOICE + (*mode == 'o');
+		victim->flags &= ~flag;
+		victim->flags |= (flag & (-(sign == '+')));
+
+		if (*mode == 'v')
+			break;
+
+		victim->flags &= ~CU_DEOPPED;
+
+		isself = (0 == nickcmp(getbotnick(current),nick)) ? TRUE : FALSE;
+
 /* +o */	if (sign == '+')
 		{
-			victim->flags |= CU_CHANOP;
-			victim->flags &= ~CU_DEOPPED;
-			if (!i)
+			if (0 == i)
 			{
-				if (victim->shit || (chan->setting[TOG_SD].int_var && !doer) ||
-					chan->setting[TOG_SO].int_var)
+				if (victim->shit || (chan->setting[TOG_SO].int_var) || (chan->setting[TOG_SD].int_var && !doer))
 				{
-					send_mode(chan,60,QM_CHANUSER,'-','o',victim);
+					rev = '-';
 				}
 			}
-			else
-			if (!nickcmp(current->nick,nick))
+			if (isself)
 			{
 				/*
 				 *  wooohoooo! they gave me ops!!!
@@ -799,35 +833,30 @@ modeloop:
 				}
 				check_shit();
 				update_modes(chan);
+				if (current->spy & SPYF_STATUS && doer)
+				send_spy(SPYSTR_STATUS,"Given op on %s, set by %s",chan->name,doer->nick);
 			}
-#ifdef DEBUG
-			debug("(on_mode) %s!%s --> %i\n",victim->nick,victim->userhost,i);
-#endif /* DEBUG */
 		}
 /* -o */	else
 		{
-			victim->flags &= ~(CU_CHANOP|CU_DEOPPED);
-			if (i == BOTLEVEL)
+			if (isself)
 			{
-				if (!nickcmp(current->nick,nick))
-				{
-					/*
-					 *  they dont love me!!! :~(
-					 */
-					chan->bot_is_op = FALSE;
-				}
+				/*
+				 *  they dont love me!!! :~(
+				 */
+				chan->bot_is_op = FALSE;
+				if (current->spy & SPYF_STATUS)
+				send_spy(SPYSTR_STATUS,"Lost op on %s, removed by %s",chan->name,nick);
 			}
 			/*
 			 *  idiots deopping themselves
 			 */
-			if (!nickcmp(from,nick))
+#ifdef DEBUG
+			debug("(on_mode) doer == victim: %s\n",(doer == victim) ? "TRUE" : "FALSE");
+#endif /* DEBUG */
+			if (doer == victim)
 				break;
-			/*
-			 *  1. Use enfm var to temporarily store users access
-			 *  2. get_userlevel also checks is_localbot()...
-			 */
-			enfm = (doer && doer->user) ? doer->user->x.x.access : 0;
-			if (enfm == BOTLEVEL)
+			if (doer && doer->user && doer->user->x.x.access >= OWNERLEVEL)
 				break;
 			if (check_mass(chan,doer,INT_MDL))
 				mass_action(chan,doer);
@@ -839,29 +868,14 @@ modeloop:
 				nickuh = get_nuh(victim);
 				if (get_authaccess(nickuh,channel))
 				{
-					send_mode(chan,60,QM_CHANUSER,'+','o',victim);
+					rev = '+';
 					prot_action(chan,from,doer,NULL,victim);
 				}
 			}
 		}
+		if (rev)
+			send_mode(chan,60,QM_CHANUSER,rev,'o',victim);
 		break;
-	/*
-	 *
-	 *  MODE <channel> +/-v <nick>
-	 *
-	 */
-	case 'v':
-		if (sign == '+')
-			victim->flags |= CU_VOICE;
-		else
-			victim->flags &= ~CU_VOICE;
-		break;
-#ifdef IRCD_EXTENSIONS
-/*
-:joonicks!*@* MODE #emech +I *king*!*@*
-:joonicks!*@* MODE #emech +e *kong*!*@*
-*/
-#endif /* IRCD_EXTENSIONS */
 	/*
 	 *
 	 *  MODE <channel> +/-b <parm>
@@ -870,6 +884,8 @@ modeloop:
 #ifdef IRCD_EXTENSIONS
 	/*
 	 *  ircnet braindamage modes
+	 *  :joonicks!*@* MODE #emech +I *king*!*@*
+	 *  :joonicks!*@* MODE #emech +e *kong*!*@*
 	 */
 	case 'I':
 	case 'e':
@@ -881,7 +897,7 @@ modeloop:
 #ifdef IRCD_EXTENSIONS
 			Ban	*newban;
 
-			newban = make_ban(&chan->banlist,from,parm,now);
+			newban = make_ban(&chan->banlist,from,parm,cx.now);
 			if (*mode == 'I') newban->imode = TRUE;
 			if (*mode == 'e') newban->emode = TRUE;
 			/*
@@ -889,7 +905,7 @@ modeloop:
 			 */
 			break;
 #else /* IRCD_EXTENSIONS */
-			make_ban(&chan->banlist,from,parm,now);
+			make_ban(&chan->banlist,from,parm,cx.now);
 #endif /* IRCD_EXTENSIONS */
 			/*
 			 *  skip protection checks if the doer is myself or another known bot
@@ -1090,7 +1106,7 @@ void on_action(char *from, char *to, char *rest)
 	{
 		partyline_broadcast(CurrentDCC,"* %s %s\n",rest);
 #ifdef BOTNET
-		botnet_relay(NULL,"PM* * %s@%s \001%s\n",CurrentNick,current->nick,rest);
+		botnet_relay(NULL,"PM* * %s@%s \001%s\n",CurrentNick,getbotnick(current),rest);
 #endif /* BOTNET */
 		return;
 	}

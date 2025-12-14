@@ -1,7 +1,7 @@
 /*
 
     EnergyMech, IRC bot software
-    Copyright (c) 2000-2009 proton
+    Copyright (c) 2000-2025 proton
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -26,7 +26,7 @@ typedef struct
 
 } UsageList;
 
-LS const UsageList ulist[] =
+const UsageList ulist[] =
 {
 #ifdef TOYBOX
 { C_8BALL,	"[text]"								},
@@ -59,7 +59,7 @@ LS const UsageList ulist[] =
 #endif /* CTCP */
 { C_CYCLE,	"[channel]"								},
 #ifdef DEBUG
-{ C_DEBUG,	NULL									},
+{ C_DEBUG,	"[On <debugfile>|Off]"									},
 #endif /* DEBUG */
 { C_DEOP,	"[channel] <nick|pattern [...]>"					},
 { C_DIE,	"[reason]"								},
@@ -115,6 +115,9 @@ LS const UsageList ulist[] =
 #endif /* CTCP */
 { C_QSHIT,	"<nick> [reason]"							},
 #ifdef NOTE
+#ifdef TOYBOX
+{ C_RAND,	"[#|#-#|# #|\"nick\"|\"luser\"]"					},
+#endif /* TOYBOX */
 { C_READ,	"[-]<number>"								},
 #endif /* NOTE */
 { C_RESET,	NULL									},
@@ -137,7 +140,6 @@ LS const UsageList ulist[] =
 { C_SEND,	"[to] <filename>"							},
 #endif /* DCC_FILE */
 { C_SERVER,	"[[+|-]servername] [port] [pass]"					},
-{ C_SERVERGROUP,"[identifier]"								},
 { C_SET,	"[channel|*] [setting [value]]"						},
 { C_SETPASS,	"<handle> <password>"							},
 { C_SHIT,	"<channel|*> <nick|mask> <action> [expire] <reason>"			},
@@ -146,7 +148,7 @@ LS const UsageList ulist[] =
 { C_SHUTDOWN,	NULL									},
 { C_SITEBAN,	"[channel] <nick|userhost>"						},
 { C_SITEKB,	"[channel] <nick> [reason]"						},
-{ C_SPY,	"[STATUS|MESSAGE|RAWIRC|[guid\":\"|botnick\":\"] [channel|\">\" filename]" },
+{ C_SPY,	"[<source>|[guid\":\"|botnick\":\"] [channel|\">\" filename]]"		},
 { C_STATS,	"<type> [servername]"							},
 #ifdef TCL
 #ifdef PLEASE_HACK_MY_SHELL

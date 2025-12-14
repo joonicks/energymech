@@ -32,7 +32,7 @@
 
 #include <tcl.h>
 
-LS Tcl_Interp *energymech_tcl = NULL;
+Tcl_Interp *energymech_tcl = NULL;
 
 #define	tclv_READ	TCL_TRACE_READS
 #define tclv_WRITE	TCL_TRACE_WRITES
@@ -62,7 +62,7 @@ typedef struct Tcl_TVInfo
 
 } Tcl_TVInfo;
 
-LS Tcl_TVInfo vinfolist[] =
+Tcl_TVInfo vinfolist[] =
 {
 { TVINFO_pointer	| TVINFO_CHAR,	tclv_READ,	"mech_currentnick",	CurrentNick	},
 { TVINFO_guid		| TVINFO_INT,	tclv_READ,	"mech_guid"				},
@@ -99,7 +99,7 @@ char *tcl_var_read(Tcl_TVInfo *vinfo, Tcl_Interp *I, char *n1, char *n2, int fla
 		rdata.i = (current) ? current->guid : -1;
 		break;
 	case TVINFO_nick:
-		rdata.c = (current) ? current->nick : "(undefined variable)";
+		rdata.c = (current) ? getbotnick(current) : "(undefined variable)";
 		break;
 	case TVINFO_wantnick:
 		rdata.c = (current) ? current->wantnick : "(undefined variable)";
@@ -518,7 +518,7 @@ int tcl_dns(void *foo, Tcl_Interp *I, int objc, Tcl_Obj *CONST objv[])
  *
  */
 
-LS struct
+struct
 {
 	char	*cmdname;
 	void	*func;

@@ -1,7 +1,7 @@
 /*
 
     EnergyMech, IRC bot software
-    Parts Copyright (c) 1997-2021 proton
+    Parts Copyright (c) 1997-2025 proton
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -67,7 +67,7 @@ void parse_invite(char *from, char *rest)
 	if ((i >= JOINLEVEL) && (i < BOTLEVEL))
 	{
 		join_channel(chan,NULL);
-		current->lastrejoin = now;
+		current->lastrejoin = cx.now;
 	}
 }
 
@@ -84,7 +84,7 @@ void parse_join(char *from, char *rest)
 	if ((CurrentChan = chan = find_channel_ny(rest)) == NULL)
 		return;
 
-	if (!nickcmp(current->nick,from))
+	if (!nickcmp(getbotnick(current),from))
 	{
 #ifdef DEBUG
 		debug("(parse_join) Im joining %s\n",chan->name);
@@ -122,7 +122,7 @@ void parse_join(char *from, char *rest)
 			stats = chan->stats;
 			stats->userseconds = 0;
 			stats->users = 0;
-			stats->lastuser = now;
+			stats->lastuser = cx.now;
 			stats->flags |= CSTAT_PARTIAL;
 		}
 #endif /* STATS */
@@ -151,7 +151,7 @@ void parse_join(char *from, char *rest)
 		 */
 		if (is_bot(from))
 		{
-			CurrentUser = (User*)&LocalBot;
+			CurrentUser = (User*)&cx.LocalBot;
 			CurrentShit = NULL;
 		}
 		else
@@ -202,7 +202,7 @@ void parse_mode(char *from, char *rest)
 		on_mode(from,to,rest);
 	}
 	else
-	if (!stringcasecmp(current->nick,to))
+	if (!stringcasecmp(getbotnick(current),to)) /* todo: nickcmp? */
 	{
 		char	*dst;
 		char	sign;
@@ -259,7 +259,7 @@ void parse_notice(char *from, char *rest)
 		if (!stringcasecmp(ctcp,"PING") && ((pingtime = get_number(rest)) != -1))
 		{
 			send_spy(SPYSTR_STATUS,"[CTCP PING Reply From %s] %i second(s)",
-				CurrentNick,(int)(now - pingtime));
+				CurrentNick,(int)(cx.now - pingtime));
 		}
 		else
 		{
@@ -311,7 +311,7 @@ void parse_part(char *from, char *rest)
 	if (current->spy & SPYF_CHANNEL)
 		send_spy(channel,"*** Parts: %s (%s)",nick,from);
 
-	if (!nickcmp(current->nick,nick))
+	if (!nickcmp(getbotnick(current),nick))
 	{
 #ifdef DEBUG
 		debug("(parse_part) Im parting %s\n",chan->name);
@@ -333,7 +333,7 @@ void parse_part(char *from, char *rest)
 #endif /* STATS */
 
 #ifdef SEEN
-	make_seen(nick,from,channel,NULL,now,SEEN_PARTED);
+	make_seen(nick,from,channel,NULL,cx.now,SEEN_PARTED);
 #endif /* SEEN */
 
 	remove_chanuser(chan,nick);
@@ -367,7 +367,7 @@ void parse_pong(char *from, char *rest)
 			ot = (ot * 10) + (*src++ - '0');
 		current->ontime = ot;
 #ifdef DEBUG
-		debug("(parse_pong) recovering ontime = %lu (%s)\n",ot,idle2str(now - ot,TRUE));
+		debug("(parse_pong) recovering ontime = %lu (%s)\n",ot,idle2str(ot,TRUE));
 #endif
 	}
 }
@@ -377,7 +377,7 @@ void parse_privmsg(char *from, char *rest)
 	ChanUser *cu;
 	char	*to,*channel;
 #ifdef URLCAPTURE
-	const char *src;
+	unsigned char *src;
 #endif /* URLCAPTURE */
 
 	to = chop(&rest);
@@ -391,7 +391,7 @@ void parse_privmsg(char *from, char *rest)
 	{
 		if ((cu = find_chanuser(CurrentChan,from)))
 		{
-			cu->idletime = now;
+			cu->idletime = cx.now;
 			if (cu->shit)
 				return;
 			CurrentUser = cu->user;
@@ -430,7 +430,7 @@ void parse_privmsg(char *from, char *rest)
 		CurrentChan->stats->privmsg++;
 #endif /* STATS */
 #ifdef URLCAPTURE
-	src = rest;
+	src = (unsigned char *)rest;
 	while(*src)
 	{
 		if (tolowertab[*src] == 'h')
@@ -440,7 +440,7 @@ void parse_privmsg(char *from, char *rest)
 				if ((src[4] == ':') || /* "http:" */
 				    (tolowertab[src[4]] == 's' && src[5] == ':')) /* "https:" */
 				{
-					urlcapture(src);
+					urlcapture((const char *)src);
 				}
 			}
 		}
@@ -457,7 +457,7 @@ void parse_quit(char *from, char *rest)
 	nickcpy(CurrentNick,from);
 
 #ifdef SEEN
-	make_seen(CurrentNick,from,rest,NULL,now,SEEN_QUIT);
+	make_seen(CurrentNick,from,rest,NULL,cx.now,SEEN_QUIT);
 #endif /* SEEN */
 
 #ifdef FASTNICK
@@ -505,6 +505,9 @@ void parse_topic(char *from, char *rest)
 	reverse_topic(chan,from,rest);
 }
 
+/*
+(in)  {5} :She!haveident@libera/staff/she/her WALLOPS :Services stuff done. PSA for channel founders: Single-# channels that do NOT belong
+*/
 void parse_wallops(char *from, char *rest)
 {
 	nickcpy(CurrentNick,from);
@@ -547,12 +550,15 @@ void parse_251(char *from, char *rest)
 	{
 		nick = chop(&rest);
 		setbotnick(current,nick);
+#ifdef BOTNET
+		botnet_refreshbotinfo();
+#endif /* BOTNET */
 		for(sp=serverlist;sp;sp=sp->next)
 		{
 			if (!stringcasecmp(sp->name,from) || !stringcasecmp(sp->realname,from))
 			{
-				sp->lastconnect = now;
-				current->ontime = now;
+				sp->lastconnect = cx.now;
+				current->ontime = cx.now;
 				current->server = sp->ident;
 			}
 		}
@@ -702,11 +708,9 @@ void parse_311(char *from, char *rest)
 	if (host)
 		host[-1] = '@';
 
-	if (!nickcmp(nick,current->nick))
+	if (!nickcmp(getbotnick(current),nick))
 	{
-		Free((char**)&current->userhost);
-		set_mallocdoer(parse_311);
-		current->userhost = stringdup(user);
+		setbotuserhost(current,user);
 #ifdef BOTNET
 		botnet_refreshbotinfo();
 #endif /* BOTNET */
@@ -812,7 +816,7 @@ void parse_317(char *from, char *rest)
 	}
 
 	if (when != -1)
-		send_pa(PA_WHOIS,nick,"Signed On: %s",time2away(when));
+		send_pa(PA_WHOIS,nick,"Signed On: %s",maketimestr(when,TFMT_AWAY));
 
 	send_pa(PA_WHOIS,nick,
 		(sec) ? "Idle: %i minute%s, %i second%s" : "Idle: %i minute%s",
@@ -855,7 +859,7 @@ void parse_319(char *from, char *rest)
 	send_pa(PA_WHOIS,nick,"Channels: %s",rest);
 
 	/* if nick is myself (the bot), check for reset recovery */
-	if (!nickcmp(nick,current->nick))
+	if (!nickcmp(getbotnick(current),nick))
 	{
 		if (current->reset)
 		{
@@ -871,7 +875,7 @@ loop:
 			 */
 			while(*channel && *channel != '#') /* this is a recipe for disaster with other valid channels than '#' */
 				channel++;
-			sprintf(nuh,"%s!%s",current->nick,current->userhost);
+			sprintf(nuh,"%s!%s",getbotnick(current),getbotuserhost(current));
 #ifdef DEBUG
 			debug("(parse_319) :%s JOIN :%s\n",nuh,channel);
 #endif /* DEBUG */
@@ -961,6 +965,10 @@ void parse_352(char *from, char *rest)
 
 	if (chan->wholist == TRUE)
 		return;
+#ifdef STATS
+	if (chan->stats)
+		chan->stats->users++;
+#endif /* STATS */
 
 	userhost = chop(&rest);
 	rest[-1] = '@';		/* glue: "user\0host" --> "user@host" */
@@ -977,7 +985,7 @@ void parse_352(char *from, char *rest)
 #ifdef DEBUG
 		debug("(parse_352) setting as local bot: %s (%s)\n",nuh,channel);
 #endif /* DEBUG */
-		chan->users->user = (User*)&LocalBot;
+		chan->users->user = (User*)&cx.LocalBot;
 		chan->users->shit = NULL;
 	}
 	else
@@ -996,7 +1004,7 @@ void parse_352(char *from, char *rest)
 		if (*rest == '@')
 		{
 			chan->users->flags = CU_CHANOP;
-			if (!nickcmp(current->nick,nick))
+			if (!nickcmp(getbotnick(current),nick))
 			{
 #ifdef DEBUG
 				debug("(parse_352) According to wholist I have ops\n");
@@ -1040,7 +1048,7 @@ void parse_367(char *from, char *rest)
 		banfrom = "?";
 
 	if ((bantime = get_number(rest)) == -1)
-		bantime = now;
+		bantime = cx.now;
 
 	make_ban(&chan->banlist,banfrom,banmask,bantime);
 }
@@ -1060,19 +1068,16 @@ void parse_376(char *from, char *rest)
 	{
 		if (*sp->realname == 0)
 			stringcpy_n(sp->realname,from,NAMELEN);
-		sp->lastconnect = now;
+		sp->lastconnect = cx.now;
 	}
 	if (current->connect != CN_ONLINE)
 	{
 		current->connect = CN_ONLINE;
-		current->ontime = now;
-		to_server("WHOIS %s\n",current->nick);
+		current->ontime = cx.now;
+		to_server("WHOIS %s\n",getbotnick(current));
 		if ((mode = current->setting[STR_UMODES].str_var))
-			to_server("MODE %s %s\n",current->nick,mode);
+			to_server("MODE %s %s\n",getbotnick(current),mode);
 	}
-#ifdef IDWRAP
-	unlink_identfile();
-#endif /* IDWRAP */
 }
 
 /*
@@ -1113,7 +1118,7 @@ void parse_433(char *from, char *rest)
 		do
 		{
 			s2 = chop(&s);
-			if (current->connect == CN_ONLINE && !stringcasecmp(current->nick,s2))
+			if (current->connect == CN_ONLINE && !stringcasecmp(getbotnick(current),s2)) /* todo: nickcmp? */
 			{
 				/* nicks listed first are more worth, dont try nicks after */
 				break;
@@ -1134,14 +1139,12 @@ void parse_433(char *from, char *rest)
 		if (nick)
 		{
 #ifdef DEBUG
-			debug("(parse_433) Nick: %s, Altnick: %s\n",current->nick,nick);
+			debug("(parse_433) Nick: %s, Altnick: %s\n",getbotnick(current),nick);
 #endif /* DEBUG */
 			to_server("NICK %s\n",nick);
 			if (current->connect != CN_ONLINE)
 			{
-				Free((char**)&current->nick);
-				set_mallocdoer(parse_433);
-				current->nick = stringdup(nick);
+				setbotnick(current,nick);
 			}
 			return;
 		}
@@ -1225,7 +1228,7 @@ void parse_346(char *from, char *rest)
 		banfrom = "?";
 
 	if ((bantime = get_number(rest)) == -1)
-		bantime = now;
+		bantime = cx.now;
 
 	new = make_ban(&chan->banlist,banfrom,banmask,bantime);
 	new->imode = TRUE;
@@ -1255,7 +1258,7 @@ void parse_348(char *from, char *rest)
 		banfrom = "?";
 
 	if ((bantime = get_number(rest)) == -1)
-		bantime = now;
+		bantime = cx.now;
 
 	new = make_ban(&chan->banlist,banfrom,banmask,bantime);
 	new->emode = TRUE;
@@ -1373,21 +1376,24 @@ void parse_005(char *from, char *rest)
 #define NEEDFROM	1
 #define DROPONE		2
 
-LS const struct
+struct ParseFunctions
 {
-	uint32_t hash;
-	short	flags;
-	void	(*func)(char *, char *);
+	const uint32_t	hash;
+	const short	flags;
+	void		(*func)(char *, char *);
+	int		hits;
 
 } pFuncs[] =
 {
+	{ 0x50494E47,	0,			parse_ping	},	/* PING */
 	{ 0x50524956,	NEEDFROM,		parse_privmsg	},	/* PRIVMSG */
+	{ 0x00333532,	NEEDFROM|DROPONE,	parse_352	},	/* 352 RPL_WHOREPLY		*/
+	{ 0x00333637,	NEEDFROM|DROPONE,	parse_367	},	/* 367 RPL_BANLIST		*/
 	{ 0x4A4F494E,	NEEDFROM,		parse_join	},	/* JOIN */
 	{ 0x50415254,	NEEDFROM,		parse_part	},	/* PART */
 	{ 0x4D4F4445,	NEEDFROM,		parse_mode	},	/* MODE */
 	{ 0x4E49434B,	NEEDFROM,		on_nick		},	/* NICK */
 	{ 0x4B49434B,	NEEDFROM,		on_kick		},	/* KICK */
-	{ 0x50494E47,	0,			parse_ping	},	/* PING */
 	{ 0x504F4E47,	DROPONE,		parse_pong	},	/* PONG */
 	{ 0x544F5049,	NEEDFROM,		parse_topic	},	/* TOPIC */
 	{ 0x4E4F5449,	NEEDFROM,		parse_notice	},	/* NOTICE */
@@ -1395,7 +1401,6 @@ LS const struct
 	{ 0x494E5649,	NEEDFROM|DROPONE,	parse_invite	},	/* INVITE */
 	{ 0x57414C4C,	NEEDFROM,		parse_wallops	},	/* WALLOPS */
 	{ 0x4552524F,	0,			parse_error	},	/* ERROR */
-	{ 0x00333532,	NEEDFROM|DROPONE,	parse_352	},	/* 352 RPL_WHOREPLY		*/
 	{ 0x00333135,	NEEDFROM|DROPONE,	parse_315	},	/* 315 RPL_ENDOFWHO		*/
 	{ 0x00323231,	NEEDFROM,		parse_mode	},	/* 221 RPL_UMODEIS		*/
 	{ 0x00333131,	NEEDFROM|DROPONE,	parse_311	},	/* 311 RPL_WHOISUSER		*/
@@ -1429,7 +1434,6 @@ LS const struct
 	{ 0x00333137,	NEEDFROM|DROPONE,	parse_317	},	/* 317 RPL_WHOISIDLE		*/
 	{ 0x00333139,	NEEDFROM|DROPONE,	parse_319	},	/* 319 RPL_WHOISCHANNELS	*/
 	{ 0x00333234,	NEEDFROM|DROPONE,	parse_324	},	/* 324 RPL_CHANNELMODEIS	*/
-	{ 0x00333637,	NEEDFROM|DROPONE,	parse_367	},	/* 367 RPL_BANLIST		*/
 	{ 0x00343531,	0,			parse_451	},	/* 451 ERR_NOTREGISTERED	*/
 	{ 0x00343035,	NEEDFROM|DROPONE,	parse_471	},	/* 405 ERR_TOOMANYCHANNELS	*/
 	{ 0x00343731,	NEEDFROM|DROPONE,	parse_471	},	/* 471 ERR_CHANNELISFULL	*/
@@ -1448,7 +1452,7 @@ LS const struct
 	{ 0,		0,			NULL		}
 };
 
-uint32_t stringhash(char *s)
+static __INLINE__ uint32_t stringhash(char *s)
 {
 	uint32_t hash;
 	int	i;
@@ -1463,16 +1467,28 @@ void parse_server_input(char *rest)
 {
 #ifdef SCRIPTING
 	Hook	*hook;
+	int	skip;
 #endif /* SCRIPTING */
 	char	*from,*command;
 	uint32_t cmdhash;
 	int	i;
 
+#ifdef DEBUG
+	if (rest == NULL)
+	{
+		for(i=0;pFuncs[i].hash;i++)
+		{
+			debug("[PsI] (%i) hash %X: hits %i\n",i,pFuncs[i].hash,pFuncs[i].hits);
+		}
+		return;
+	}
+#endif /* DEBUG */
+
 	if (current->spy & (SPYF_RAWIRC|SPYF_RANDSRC))
 		send_spy(SPYSTR_RAWIRC,rest);
 
-/*new undernet amusements */
-/*(in)  {5} NOTICE AUTH :*** You have identd disabled (or broken), to continue to connect you must type /QUOTE PASS 17071 */
+/* New undernet amusements */
+/* NOTICE AUTH :*** You have identd disabled (or broken), to continue to connect you must type /QUOTE PASS 17071 */
 	if (current->connect == CN_CONNECTED && *rest == 'N' && !matches("NOTICE AUTH * /QUOTE PASS *",rest))
 	{
 		from = STREND(rest);
@@ -1502,7 +1518,7 @@ void parse_server_input(char *rest)
 		rest++;
 
 #ifdef SCRIPTING
-	cmdhash = 1;
+	skip = 0;
 	for(hook=hooklist;hook;hook=hook->next)
 	{
 		/*
@@ -1515,18 +1531,16 @@ void parse_server_input(char *rest)
 		 */
 		if (hook->flags == MEV_PARSE && !stringcasecmp(command,hook->type.command))
 		{
-			if (hook->func(from,rest,hook))
-				/* if the hook returns non-zero, the input should not be parsed internally */
-				cmdhash = 0;
+			/* if the hook returns non-zero, the input should not be parsed internally */
+			skip += hook->func(from,rest,hook);
 		}
 	}
-	if (cmdhash == 0)
+	if (skip)
 		return;
 #endif /* SCRIPTING */
 
 	cmdhash = stringhash(command);
 
-	/*debug("cmdhash = %08X\n",cmdhash); */
 	for(i=0;pFuncs[i].hash;i++)
 	{
 		if (cmdhash == pFuncs[i].hash)
@@ -1535,9 +1549,9 @@ void parse_server_input(char *rest)
 				return;
 			if (pFuncs[i].flags & DROPONE)
 				chop(&rest);	/* discard one argument (usually bot nick) */
+			pFuncs[i].hits++;
 			pFuncs[i].func(from,rest);
 			return;
 		}
 	}
-	/*debug("unmatched cmdhash %08X\n",cmdhash); */
 }

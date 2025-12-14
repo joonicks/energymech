@@ -45,15 +45,7 @@
 #define BNC_ACTIVE		5
 #define BNC_DEAD		6
 
-#ifdef IDWRAP
-
-#define USE_VHOST		2
-
-#else /* not IDWRAP */
-
 #define USE_VHOST		TRUE
-
-#endif /* IDWRAP */
 
 void bounce_parse(ircLink *irc, char *message)
 {
@@ -90,7 +82,7 @@ void bounce_parse(ircLink *irc, char *message)
 		if (irc->userLine && irc->nickLine)
 		{
 			to_file(irc->usersock,TEXT_ASK_HANDLE,irc->nick);
-			irc->active = now;
+			irc->active = cx.now;
 			++irc->status;
 		}
 		return;
@@ -143,7 +135,7 @@ void bounce_parse(ircLink *irc, char *message)
 				{
 					to_file(irc->usersock,TEXT_ASK_SERVER,irc->nick);
 					irc->status = BNC_ASK_SERVER;
-					irc->active = now;
+					irc->active = cx.now;
 					return;
 				}
 			}
@@ -175,10 +167,6 @@ void bounce_parse(ircLink *irc, char *message)
 #ifdef WINGATE
 		current->setting[STR_WINGATE].str_var = NULL;
 #endif /* WINGATE */
-#ifdef IDWRAP
-		current->identfile = NULL;
-		current->setting[STR_IDENT].str_var = irc->handle;
-#endif /* IDWRAP */
 
 		if (virtual)
 		{
@@ -188,30 +176,15 @@ void bounce_parse(ircLink *irc, char *message)
 		if ((irc->servsock = SockConnect(server,iport,USE_VHOST)) >= 0)
 		{
 			irc->status = BNC_CONNECTING;
-			irc->active = now + 60;	/* 120 second timeout */
-#ifdef IDWRAP
-			irc->idfile = current->identfile;
-#endif /* IDWRAP */
+			irc->active = cx.now + 60;	/* 120 second timeout */
 		}
 	}
 }
 
-#ifdef IDWRAP
-
-void bounce_cleanup(void)
-{
-	ircLink *irc;
-
-	for(irc=bnclist;irc;irc=irc->next)
-	{
-		if (irc->idfile)
-			unlink(irc->idfile);
-	}
-}
-
-#endif /* IDWRAP */
-
-void new_port_bounce(const struct Setting *no_op)
+/*
+ *  any time setting is changed
+ */
+void new_port_bounce(const struct Setting *dontcare)
 {
 	if (bounce_sock != -1)
 		close(bounce_sock);
@@ -276,7 +249,7 @@ void process_bounce(void)
 			irc = (ircLink*)Calloc(sizeof(ircLink));		/* sets all to zero */
 			irc->next = bnclist;
 			bnclist = irc;
-			irc->active = now;
+			irc->active = cx.now;
 			irc->usersock = s;
 			--irc->servsock; /* == -1 */
 		}
@@ -324,7 +297,7 @@ void process_bounce(void)
 			debug("(process_bounce) {%i} servsock connected\n",irc->servsock);
 #endif /* DEBUG */
 			irc->status = BNC_ACTIVE;
-			irc->active = now;
+			irc->active = cx.now;
 			to_file(irc->servsock,"USER %s\n",irc->userLine);
 			if (to_file(irc->servsock,"NICK %s\n",irc->nickLine) < 0)
 			{
@@ -341,7 +314,7 @@ void process_bounce(void)
 		 */
 		if (FD_ISSET(irc->servsock,&read_fds))
 		{
-			irc->active = now;
+			irc->active = cx.now;
 			while((p = sockread(irc->servsock,irc->servmem,message)))
 			{
 				if (to_file(irc->usersock,FMT_PLAINLINE,message) < 0)
@@ -365,7 +338,7 @@ void process_bounce(void)
 	pp = &bnclist;
 	while((irc = *pp))
 	{
-		if (irc->status == BNC_DEAD || ((irc->status != BNC_ACTIVE) && ((now - irc->active) > 60)))
+		if (irc->status == BNC_DEAD || ((irc->status != BNC_ACTIVE) && ((cx.now - irc->active) > 60)))
 		{
 #ifdef DEBUG
 			debug("(process_bounce) {%i} {%i} BNC_DEAD or timeout, removing...\n",irc->usersock,irc->servsock);
@@ -379,13 +352,6 @@ void process_bounce(void)
 			Free((char**)&irc->nickLine);
 			Free((char**)&irc->nick);
 			Free((char**)&irc->handle);
-#ifdef IDWRAP
-			if (irc->idfile)
-			{
-				unlink(irc->idfile);
-				Free((char**)&irc->idfile);
-			}
-#endif /* IDWRAP */
 			Free((char**)&irc);
 			continue;
 		}

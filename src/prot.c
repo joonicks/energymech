@@ -29,6 +29,60 @@
 #include "mcmd.h"
 
 /*
+ *  deal with undesired lusers
+ */
+void screwban_format(char *userhost)
+{
+	int	sz,n,pos;
+
+#ifdef DEBUG
+	debug("(screwban_format) %s\n",userhost);
+#endif /* DEBUG */
+
+	if ((sz = strlen(userhost)) < 8)
+		return;
+
+	n = RANDOM(4,sz);
+	while(--n)
+	{
+		pos = RANDOM(0,(sz - 1));
+		if (!stringchr("?!@*",userhost[pos]))
+		{
+			userhost[pos] = (RANDOM(0,3) == 0) ? '*' : '?';
+		}
+	}
+}
+
+void deop_ban(Chan *chan, ChanUser *victim, char *mask)
+{
+	if (!mask)
+		mask = format_uh(get_nuh(victim),FUH_USERHOST);
+	send_mode(chan,85,QM_CHANUSER,'-','o',victim);
+	send_mode(chan,90,QM_RAWMODE,'+','b',mask);
+}
+
+void deop_siteban(Chan *chan, ChanUser *victim)
+{
+	char	*mask;
+
+	mask = format_uh(get_nuh(victim),FUH_HOST);
+	deop_ban(chan,victim,mask);
+}
+
+void deop_screwban(Chan *chan, ChanUser *victim)
+{
+	char	*mask;
+	int	i;
+
+	for(i=2;--i;)
+	{
+		mask = format_uh(get_nuh(victim),FUH_USERHOST);
+		screwban_format(mask);
+		deop_ban(chan,victim,mask);
+	}
+}
+
+/*
  *
  *  kicking and screaming
  *
@@ -63,7 +117,7 @@ void push_kicks(Chan *chan)
 	qKick	*kick;
 	int	n;
 
-	n = (current->sendq_time - now);
+	n = (current->sendq_time - cx.now);
 	while(n < 6)
 	{
 		if ((kick = chan->kicklist) == NULL)
@@ -189,7 +243,7 @@ void push_modes(Chan *chan, int lowpri)
 	char	*dstflag,*dstparm,lastmode;
 	int	n,maxmodes;
 
-	n = (current->sendq_time - now);
+	n = (current->sendq_time - cx.now);
 
 loop:
 	maxmodes = current->setting[INT_MODES].int_var;
@@ -278,7 +332,6 @@ void update_modes(Chan *chan)
  */
 int check_mass(Chan *chan, ChanUser *doer, int type)
 {
-	time_t	when;
 	int	num,limit;
 
 	/*
@@ -325,9 +378,9 @@ int check_mass(Chan *chan, ChanUser *doer, int type)
 		break;
 	}
 
-	if ((now - doer->action_time[num]) > 10)
+	if ((cx.now - doer->action_time[num]) > 10)
 	{
-		doer->action_time[num] = now;
+		doer->action_time[num] = cx.now;
 		doer->action_num[num] = 0;
 	}
 	++(doer->action_num[num]);
@@ -388,6 +441,9 @@ void prot_action(Chan *chan, char *from, ChanUser *doer, char *target, ChanUser 
 		uprot = get_protaction(chan,target);
 	}
 
+	/* dont enforce protection levels higher than channel is set to */
+	if (maxprot < uprot) uprot = maxprot;
+
 	if ((uprot >= 4) && (!(doer->flags & CU_BANNED)))
 	{
 		doer->flags |= CU_BANNED|CU_DEOPPED;
@@ -442,12 +498,12 @@ void check_dynamode(Chan *chan)
 		}
 	}
 	v[0] = (v[0] < 20) ? 20 : (v[0] > 600) ? 600 : v[0];
-	if ((now - chan->lastlimit) < v[0])
+	if ((cx.now - chan->lastlimit) < v[0])
 		return;
 	v[1] = (v[1] < 5) ? 5 : (v[1] > 50) ? 50 : v[1];
 	v[2] = (v[2] < 1) ? 1 : (v[2] > 50) ? 50 : v[2];
 
-	chan->lastlimit = now;
+	chan->lastlimit = cx.now;
 
 	n = 0;
 	for(cu=chan->users;cu;cu=cu->next)
@@ -494,18 +550,18 @@ void process_chanbans(void)
 
 	for (current=botlist;current;current=current->next)
 	{
-		if (current->lastchanban > (now - 10))
+		if (current->lastchanban > (cx.now - 10))
 		{
 #ifdef DEBUG
 			debug("(process_chanbans) skipping %s (%i), (lastchanban (%lu) > now - 10 (%lu)\n",
-				current->nick,current->guid,current->lastchanban,(now - 10));
+				getbotnick(current),current->guid,current->lastchanban,(cx.now - 10));
 #endif /* DEBUG */
 			continue;
 		}
 		if (current->sendq) /* only do chanbans on empty queue */
 		{
 #ifdef DEBUG
-			debug("(process_chanbans) skipping %s (%i), sendq not empty\n",current->nick,current->guid);
+			debug("(process_chanbans) skipping %s (%i), sendq not empty\n",getbotnick(current),current->guid);
 #endif /* DEBUG */
 			continue;
 		}
@@ -530,11 +586,11 @@ void process_chanbans(void)
 			}
 		}
 
-		if (selcu && selcu->lastwhois < (now-30))
+		if (selcu && selcu->lastwhois < (cx.now-30))
 		{
 			selcu->flags &= ~CU_CHANBAN;
-			selcu->lastwhois = now;
-			current->lastchanban = now;
+			selcu->lastwhois = cx.now;
+			current->lastchanban = cx.now;
 
 			pp = &current->sendq;
 			while(*pp)
@@ -659,7 +715,7 @@ void check_kicksay(Chan *chan, ChanUser *doer, char *text)
 			mask = format_uh(get_nuh(doer),FUH_USERHOST);
 			if (action > 2)
 			{
-				add_shit("Auto KS",chan->name,mask,save->reason,2,now+3600);
+				add_shit("Auto KS",chan->name,mask,save->reason,2,cx.now+3600);
 			}
 			if (!(doer->flags & CU_BANNED))
 			{
@@ -819,7 +875,7 @@ void do_unban(COMMAND_ARGS)
 	if (((chan = find_channel_ac(to)) == NULL) || !chan->bot_is_op)
 		return;
 
-	if (nick && STRCHR(nick,'*'))
+	if (nick && stringchr(nick,'*'))
 	{
 		channel_massunban(chan,nick,0);
 		return;

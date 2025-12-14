@@ -1,7 +1,7 @@
 /*
 
     EnergyMech, IRC bot software
-    Parts Copyright (c) 1997-2018 proton
+    Parts Copyright (c) 1997-2025 proton
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -51,7 +51,6 @@
 #include "hostinfo.c"
 #include "io.c"
 #include "irc.c"
-#include "lib/string.c"
 #include "net.c"
 #include "note.c"
 #include "ons.c"
@@ -67,6 +66,7 @@
 #include "seen.c"
 #include "shit.c"
 #include "spy.c"
+#include "string.c"
 #include "tcl.c"
 #include "toybox.c"
 #include "uptime.c"
@@ -144,8 +144,8 @@ void mech_exec(void)
 	exit(1);
 }
 
-LS int r_ct;
-LS char r_str[MSGLEN];
+int r_ct;
+char r_str[MSGLEN];
 
 int randstring_count(char *line)
 {
@@ -199,7 +199,7 @@ char *randstring(const char *file)
  *  SIGUSR2	Call run_debug() (dump `everything' to a debug file)
  */
 
-LS struct
+struct
 {
 	uint32_t sighup:1,
 		sigint:1,
@@ -209,7 +209,7 @@ LS struct
 
 int sig_hup_callback(char *line)
 {
-	on_msg((char*)CoreUser.name,current->nick,line);
+	on_msg((char*)cx.CoreUser.name,getbotnick(current),line);
 	return(FALSE);
 }
 
@@ -221,7 +221,7 @@ void do_sighup(void)
 
 	CurrentShit = NULL;
 	CurrentChan = NULL;
-	CurrentUser = (User*)&CoreUser;
+	CurrentUser = (User*)&cx.CoreUser;
 	CurrentDCC  = (Client*)&CoreClient;
 	*CurrentNick = 0;
 
@@ -295,9 +295,6 @@ void do_sigusr1(void)
 	{
 		if (current->sock != -1)
 		{
-#ifdef IDWRAP
-			unlink_identfile();
-#endif /* IDWRAP */
 			close(current->sock);
 		}
 		current->sock = -1;
@@ -324,7 +321,7 @@ void sig_usr1(int crap)
  */
 void sig_usr2(int crap)
 {
-	time(&now);
+	time(&cx.now);
 
 	debug("(sigusr2)\n");
 	signal(SIGUSR2,sig_usr2);
@@ -402,20 +399,20 @@ void sig_int(int signum)
  *  SIGILL, Illegal instruction
  */
 #ifdef DEBUG
+
 void sig_ill(int crap)
 {
 	debug("(sigill)\n");
 }
-#endif /* DEBUG */
 
 /*
  *  SIGABRT, abort(3)
  */
-#ifdef DEBUG
 void sig_abrt(int crap)
 {
 	debug("(sigabrt)\n");
 }
+
 #endif /* DEBUG */
 
 /*
@@ -423,7 +420,7 @@ void sig_abrt(int crap)
  */
 void sig_bus(int crap)
 {
-	time(&now);
+	time(&cx.now);
 
 	respawn++;
 	if (respawn > 10)
@@ -441,27 +438,42 @@ void sig_bus(int crap)
 /*
  *  SIGSEGV shows no mercy, cant schedule it.
  */
-#if defined(__linux__) && defined(__x86_64__) && defined(DEBUG) && !defined(__STRICT_ANSI__)
+#if defined(__linux__) && defined(DEBUG) && !defined(__STRICT_ANSI__)
 #include <sys/ucontext.h>
-void sig_segv(int crap, siginfo_t *si, void *uap)
+void sig_segv(int sig, siginfo_t *si, void *context)
 {
-	mcontext_t *mctx;
-	greg_t	*rsp,*rip; /* general registers */
+	ucontext_t *crashcontext = (ucontext_t*)context;
+	char	*sp,*ip; /* general registers */
 
-	time(&now);
 	startup = STARTUP_SIGSEGV;
 
-	debug("(sigsegv) trying to access "mx_pfmt"\n",(mx_ptr)si->si_addr);
-	mctx = &((ucontext_t *)uap)->uc_mcontext;
-	rsp = &mctx->gregs[15];	/* RSP, 64-bit stack pointer */
-	rip = &mctx->gregs[16]; /* RIP, 64-bit instruction pointer */
+#if defined(__x86_64__)
+	ip = (char*)crashcontext->uc_mcontext.gregs[16];
+	sp = (char*)crashcontext->uc_mcontext.gregs[15];
+#elif defined(__i386__)
+	void *ip = (void*)crashcontext->uc_mcontext.gregs[REG_EIP];
+	void *sp = (void*)crashcontext->uc_mcontext.gregs[REG_ESP];
+#elif defined(__aarch64__)
+	void *ip = (void*)uc->uc_mcontext.pc;
+	void *sp = (void*)uc->uc_mcontext.sp;
+#elif defined(__arm__)
+	void *pc = (void*)uc->uc_mcontext.arm_pc;
+	void *sp = (void*)uc->uc_mcontext.arm_sp;
+#elif defined(__mips__)
+	void *pc = (void*)uc->uc_mcontext.pc;
+	void *sp = (void*)uc->uc_mcontext.gregs[29];
+#else
+#error "sig_segv(): Unsupported architecture"
+#endif
 
-	debug("(sigsegv) Stack pointer: "mx_pfmt", Instruction pointer: "mx_pfmt"\n",(mx_ptr)*rsp,(mx_ptr)*rip);
+	debug("(sigsegv) trying to access "mx_pfmt"\n",(mx_ptr)si->si_addr);
+	debug("(sigsegv) Stack pointer: "mx_pfmt", Instruction pointer: "mx_pfmt"\n",(mx_ptr)sp,(mx_ptr)ip);
 	debug("(sigsegv) sig_segv() = "mx_pfmt"\n",(mx_ptr)sig_segv);
 	debug("(sigsegv) do_crash() = "mx_pfmt"\n",(mx_ptr)do_crash);
 
 	if (debug_on_exit)
 	{
+		time(&cx.now);
 		run_debug();
 		debug_on_exit = FALSE;
 	}
@@ -475,11 +487,11 @@ void sig_segv(int crap, siginfo_t *si, void *uap)
 	/* NOT REACHED */
 }
 
-#else /* defined(__linux__) && defined(__x86_64__) && defined(DEBUG) && !defined(__STRICT_ANSI__) */
+#else /* defined(__linux__) && defined(DEBUG) && !defined(__STRICT_ANSI__) */
 
 void sig_segv(int signum)
 {
-	time(&now);
+	startup = STARTUP_SIGSEGV;
 
 #ifdef DEBUG
 	if (debug_on_exit)
@@ -498,7 +510,7 @@ void sig_segv(int signum)
 	/* NOT REACHED */
 }
 
-#endif /* else defined(__linux__) && defined(__x86_64__) && defined(DEBUG) && !defined(__STRICT_ANSI__) */
+#endif /* else defined(__linux__) && defined(DEBUG) && !defined(__STRICT_ANSI__) */
 
 /*
  *  SIGTERM
@@ -508,8 +520,6 @@ void sig_term(int signum)
 #ifdef __profiling__
 	exit(0);
 #endif /* __profiling__ */
-
-	time(&now);
 
 #ifdef DEBUG
 	debug("(sigterm)\n");
@@ -525,25 +535,23 @@ void sig_term(int signum)
  *
  */
 
-#ifdef __GNUC__
-LS void doit(void) __attribute__ ((__noreturn__, __sect(CORE_SEG)));
-#endif
-void doit(void)
+void mainloop(void)
 {
-	struct	timeval tv;
+	SequenceTime this;
 	Chan	*chan;
 	Client	*client;
-	SequenceTime this;
 	Strp	*qm;
+	struct	timeval tv;
 	time_t	last_update;
 
-	last_update = now;
+
+	last_update = cx.now;
 
 	/*
 	 *  init update times so that they dont all run right away
 	 */
-	this.tenminute = now / 600;
-	this.hour = now / 3600;
+	this.tenminute = cx.now / 600;
+	this.hour = cx.now / 3600;
 
 	/*
 	 *  The Main Loop
@@ -569,15 +577,15 @@ mainloop:
 	/*
 	 *  check for regular updates
 	 */
-	if (last_update != now)
+	if (last_update != cx.now)
 	{
-		last_update = now;
+		last_update = cx.now;
 		update(&this);
 	}
 
 	FD_ZERO(&read_fds);
 	FD_ZERO(&write_fds);
-	hisock = -1;
+	cx.hisock = -1;
 
 #ifdef BOTNET
 	select_botnet();
@@ -602,7 +610,7 @@ mainloop:
 	/*
 	 *  unset here, reset if needed in bot loop
 	 */
-	short_tv &= ~(TV_SERVCONNECT|TV_LINEBUF);
+	cx.short_tv &= ~(TV_SERVCONNECT|TV_LINEBUF);
 	for(current=botlist;current;current=current->next)
 	{
 		if (current->sock == -1)
@@ -615,7 +623,7 @@ mainloop:
 
 				if ((sp = find_server(current->server)))
 				{
-					if ((now - current->conntry) > ctimeout)
+					if ((cx.now - current->conntry) > ctimeout)
 					{
 #ifdef DEBUG
 						debug("(doit) RAWDNS timed out (%s)\n",sp->name);
@@ -641,27 +649,27 @@ mainloop:
 			{
 				if (current->connect == CN_SPINNING)
 				{
-					if ((now - current->conntry) >= 60)
+					if ((cx.now - current->conntry) >= 60)
 						connect_to_server();
 				}
 				else
 				{
 doit_jumptonext:
-					short_tv |= TV_SERVCONNECT;
-					if ((now - current->conntry) >= 2)
+					cx.short_tv |= TV_SERVCONNECT;
+					if ((cx.now - current->conntry) >= 2)
 						connect_to_server();
 				}
 			}
 #else /* ! RAWDNS */
 			if (current->connect == CN_SPINNING)
 			{
-				if ((now - current->conntry) >= 60)
+				if ((cx.now - current->conntry) >= 60)
 					connect_to_server();
 			}
 			else
 			{
-				short_tv |= TV_SERVCONNECT;
-				if ((now - current->conntry) >= 2)
+				cx.short_tv |= TV_SERVCONNECT;
+				if ((cx.now - current->conntry) >= 2)
 					connect_to_server();
 			}
 #endif /* RAWDNS */
@@ -672,7 +680,7 @@ doit_jumptonext:
 			if (current->ip.s_addr == 0)
 			{
 				struct	sockaddr_in sai;
-				int	sz;
+				unsigned int sz;
 
 				sz = sizeof(sai);
 				if (getsockname(current->sock,(struct sockaddr *)&sai,&sz) == 0)
@@ -680,15 +688,12 @@ doit_jumptonext:
 			}
 			if ((current->connect == CN_TRYING) || (current->connect == CN_CONNECTED))
 			{
-				short_tv |= TV_SERVCONNECT;
-				if ((now - current->conntry) > ctimeout)
+				cx.short_tv |= TV_SERVCONNECT;
+				if ((cx.now - current->conntry) > ctimeout)
 				{
 #ifdef DEBUG
 					debug("(doit) {%i} Connection timed out\n",current->sock);
 #endif /* DEBUG */
-#ifdef IDWRAP
-					unlink_identfile();
-#endif /* IDWRAP */
 					close(current->sock);
 					current->sock = -1;
 					goto restart_dcc;
@@ -698,7 +703,7 @@ doit_jumptonext:
 			}
 			if (current->sendq)
 			{
-				short_tv |= TV_LINEBUF;
+				cx.short_tv |= TV_LINEBUF;
 			}
 			else
 			{
@@ -706,7 +711,7 @@ doit_jumptonext:
 				{
 					if (chan->kicklist || chan->modelist)
 					{
-						short_tv |= TV_LINEBUF;
+						cx.short_tv |= TV_LINEBUF;
 						break;
 					}
 				}
@@ -752,19 +757,19 @@ restart_dcc:
 	 *  Longer delay saves CPU but some features require shorter delays
 	 */
 #ifdef NOTIFY
-	tv.tv_sec = (short_tv) ? 1 : 5;
+	tv.tv_sec = (cx.short_tv) ? 1 : 5;
 #else /* NOTIFY */
-	tv.tv_sec = (short_tv) ? 1 : 30;
+	tv.tv_sec = (cx.short_tv) ? 1 : 30;
 #endif /* NOTIFY */
 	tv.tv_usec = 0;
 
-	if ((select(hisock+1,&read_fds,&write_fds,0,&tv) == -1) && (errno == EINTR))
+	if ((select(cx.hisock+1,&read_fds,&write_fds,0,&tv) == -1) && (errno == EINTR))
 		goto mainloop;
 
 	/*
 	 *  Update current time
 	 */
-	time(&now);
+	time(&cx.now);
 
 	for(current=botlist;current;current=current->next)
 	{
@@ -773,8 +778,8 @@ restart_dcc:
 		 *  it is important that the check is done before anything
 		 *  else that could potentially send output to the server!
 		 */
-		if (current->sendq_time < now)
-			current->sendq_time = now;
+		if (current->sendq_time < cx.now)
+			current->sendq_time = cx.now;
 	}
 
 	for(current=botlist;current;current=current->next)
@@ -785,6 +790,18 @@ restart_dcc:
 		if (current->sock != -1)
 			process_server_input();
 
+#ifdef DEBUG
+		if (current->inject)
+		{
+			char	injection[MSGLEN];
+
+			stringcpy(injection,current->inject);
+			Free((char**)&current->inject);
+			debug("(*inject) %s\n");
+			parse_server_input(injection);
+		}
+#endif /* DEBUG */
+
 		if (current->connect == CN_ONLINE)
 		{
 			/*
@@ -792,10 +809,10 @@ restart_dcc:
 			 */
 			if (current->setting[TOG_NOIDLE].int_var)
 			{
-				if ((now - current->lastantiidle) > PINGSENDINTERVAL)
+				if ((cx.now - current->lastantiidle) > PINGSENDINTERVAL)
 				{
 					to_server("PRIVMSG * :0\n");
-					current->lastantiidle = now;
+					current->lastantiidle = cx.now;
 				}
 			}
 			/*
@@ -825,7 +842,7 @@ restart_dcc:
 			/*
 			 *  the un-important sendq only sends when sendq_time <= now
 			 */
-			if ((current->sendq) && (current->sendq_time <= now))
+			if ((current->sendq) && (current->sendq_time <= cx.now))
 			{
 				qm = current->sendq;
 				to_server(FMT_PLAINLINE,qm->p);
@@ -857,7 +874,8 @@ restart_die:
 #endif /* BOTNET */
 
 #ifdef BOUNCE
-	process_bounce();
+	if (bounce_sock != -1 || bnclist)
+		process_bounce();
 #endif /* BOUNCE */
 
 #ifdef CHANBAN
@@ -865,7 +883,11 @@ restart_die:
 #endif /* CHANBAN */
 
 #ifdef RAWDNS
-	process_rawdns();
+	/*
+	 *  Only a single socket to check.
+	 */
+	if (dnssock != -1 && FD_ISSET(dnssock,&read_fds))
+		process_rawdns();
 #endif /* RAWDNS */
 
 #ifdef UPTIME
@@ -881,7 +903,8 @@ restart_die:
 #endif
 
 #ifdef TRIVIA
-	trivia_tick();
+	if (triv_next_time && (cx.now >= triv_next_time))
+		trivia_tick();
 #endif /* TRIVIA */
 
 	/*
@@ -894,15 +917,12 @@ restart_die:
 }
 
 /*
- *  main(), we love it and cant live without it
+ *  parse commandline
  */
 
-LS char *bad_exe = "init: Error: Improper executable name\n";
+const char *bad_exe = "init: Error: Improper executable name\n";
 
-#ifdef __GNUC__
-int main(int argc, char **argv, char **envp) __attribute__ ((__sect(INIT_SEG)));
-#endif
-int main(int argc, char **argv, char **envp)
+void parse_commandline(int argc, char **argv, char **envp)
 {
 	struct stat st;
 	char	*opt;
@@ -911,8 +931,9 @@ int main(int argc, char **argv, char **envp)
 #ifdef NEWBIE
 	int	n = 0;
 #endif
+	memset(&cx,0,sizeof(cx));
 
-	uptime = time(&now);
+	uptime = time(&cx.now);
 	startup = STARTUP_NORMALSTART;
 
 	if ((getuid() == 0) || (geteuid() == 0))
@@ -924,7 +945,12 @@ int main(int argc, char **argv, char **envp)
 	stat("..",&st);
 	parent_inode = st.st_ino; /* used for is_safepath() */
 
-	srand(now+getpid());
+	if (stat("/proc",&st) >= 0)
+	{
+		cx.system_uptime = st.st_ctime;
+	}
+
+	srand(cx.now + getpid());
 
 	/*
 	 *   Code to detect and recover after a RESET
@@ -961,6 +987,7 @@ int main(int argc, char **argv, char **envp)
 	}
 
 #ifdef DEBUG
+	/* memory tracking */
 	mrrec = calloc(sizeof(aMEA),1);
 #endif /* DEBUG */
 
@@ -969,7 +996,7 @@ int main(int argc, char **argv, char **envp)
 		to_file(1,bad_exe);
 		_exit(1);
 	}
-	if ((opt = STRCHR(*argv,' ')) != NULL)
+	if ((opt = stringchr(*argv,' ')) != NULL)
 	{
 		*(opt++) = 0;
 		respawn = asc2int(opt);
@@ -989,66 +1016,26 @@ int main(int argc, char **argv, char **envp)
 		opt = *argv;
 		switch(opt[1])
 		{
-		case 'v':
-			versiononly = TRUE;
-			break;
-		case 'h':
-			to_file(1,TEXT_USAGE,executable);
-			to_file(1,
-				TEXT_CSWITCH
-#ifdef DEBUG
-				TEXT_DSWITCH
-#endif /* DEBUG */
-				TEXT_ESWITCH
-				TEXT_FSWITCH
-				TEXT_HSWITCH
-#ifdef DEBUG
-				TEXT_OSWITCH
-				TEXT_PSWITCH1
-				TEXT_PSWITCH2
-#endif /* DEBUG */
-				TEXT_TSWITCH
-				TEXT_VSWITCH
-#ifdef DEBUG
-				TEXT_XSWITCH
-#endif /* DEBUG */
-				  );
-			_exit(0);
 		case 'c':
 			makecore = TRUE;
 			break;
 #ifdef DEBUG
 		case 'd':
 			dodebug = TRUE;
-			do_fork = FALSE;
-			break;
-		case 'o':
-			if (opt[2] != 0)
+			do_fork = TRUE;
+			if (opt[2] != 0) /* -d[file] */
 			{
 				debugfile = &opt[2];
 			}
 			else
+			if (argv[1] && argv[1][0] != '-') /* -d [file] */
 			{
 				++argv;
-				if (!*argv)
-				{
-					to_file(1,"init: No debugfile specified\n");
-					_exit(0);
-				}
 				debugfile = *argv;
 				argc--;
 			}
-			do_fork = TRUE;
-			break;
-		case 'p':
-			++argv;
-			if (*argv)
-				to_file(1,"%s\n",makepass(*argv));
 			else
-				to_file(1,"error: Missing argument for -p <string>\n");
-			_exit(0);
-		case 'X':
-			debug_on_exit = TRUE;
+				do_fork = FALSE;
 			break;
 #endif /* DEBUG */
 		case 'e': /* run a single command before exiting */
@@ -1062,9 +1049,6 @@ int main(int argc, char **argv, char **envp)
 			else
 				to_file(1,"error: Missing argument for -e <command string>\n");
 			_exit(0);
-		case 't':
-			startup = STARTUP_TESTRUN;
-			break;
 		case 'f':
 			if (opt[2] != 0)
 			{
@@ -1083,14 +1067,48 @@ int main(int argc, char **argv, char **envp)
 			}
 			to_file(1,INFO_USINGCONF,configfile);
 			break;
+		case 'h':
+			to_file(1,TEXT_USAGE,executable);
+			to_file(1,
+				TEXT_CSWITCH
+#ifdef DEBUG
+				TEXT_DSWITCH
+#endif /* DEBUG */
+				TEXT_ESWITCH
+				TEXT_FSWITCH
+				TEXT_HSWITCH
+				TEXT_PSWITCH1
+				TEXT_PSWITCH2
+				TEXT_TSWITCH
+				TEXT_VSWITCH
+#ifdef DEBUG
+				TEXT_XSWITCH
+#endif /* DEBUG */
+				  );
+			_exit(0);
+		case 'p':
+			++argv;
+			if (*argv)
+				to_file(1,"%s\n",makepass(*argv));
+			else
+				to_file(1,"error: Missing argument for -p <string>\n");
+			_exit(0);
+		case 't':
+			startup = STARTUP_TESTRUN;
+			break;
+		case 'v':
+			versiononly = TRUE;
+			break;
+#ifdef DEBUG
+		case 'x':
+			debug_on_exit = TRUE;
+			break;
+#endif /* DEBUG */
 		default:
 			to_file(1,ERR_UNKNOWNOPT,opt);
 			_exit(1);
 		}
 	}
-
-	servergrouplist = (ServerGroup*)&defaultServerGroup;
-	currentservergroup = (ServerGroup*)&defaultServerGroup;
 
 	if (!mechresetenv)
 	{
@@ -1106,7 +1124,7 @@ int main(int argc, char **argv, char **envp)
 		to_file(1,"warning: current configuration file overrides session file\n");
 	}
 #endif /* SESSION */
-	if (stat(configfile,&st));
+	if (stat(configfile,&st))
 	{
 		if ((st.st_mode & (S_IWGRP|S_IWOTH)) != 0)
 		{
@@ -1116,7 +1134,7 @@ int main(int argc, char **argv, char **envp)
 		if ((st.st_mode & (S_IRGRP|S_IROTH)) != 0)
 			to_file(1,"warning: configfile is readable by others\n");
 	}
-	if (stat(".",&st));
+	if (stat(".",&st))
 	{
 		if ((st.st_mode & (S_IWGRP|S_IWOTH)) != 0)
 		{
@@ -1154,11 +1172,10 @@ int main(int argc, char **argv, char **envp)
 	ia_default.s_addr = LOCALHOST_ULONG;
 #endif /* RAWDNS */
 
-	memset(&__internal_users,0,sizeof(User)*2);
-	CoreUser.x.x.access = 100;
-	LocalBot.x.x.access = 200;
-	LocalBot.x.x.aop = 1;
-	LocalBot.chan = CoreUser.chan = (Strp*)&CMA;
+	cx.CoreUser.x.x.access = 100;
+	cx.LocalBot.x.x.access = 200;
+	cx.LocalBot.x.x.aop = 1;
+	cx.LocalBot.chan = cx.CoreUser.chan = (Strp*)&CMA;
 
 	readcfgfile();
 
@@ -1182,7 +1199,7 @@ int main(int argc, char **argv, char **envp)
 	}
 #else
 		{
-			if (stat(opt,&st));
+			if (stat(opt,&st))
 			{
 				if ((st.st_mode & (S_IWGRP|S_IWOTH)) != 0)
 				{
@@ -1196,7 +1213,10 @@ int main(int argc, char **argv, char **envp)
 		}
 		if (current->userlist == NULL)
 		{
-			to_file(1,"init: No userlist loaded for %s\n",nullstr(current->nick));
+			char *nick;
+
+			nick = getbotnick(current);
+			to_file(1,"init: No userlist loaded for %s\n",nullstr(nick));
 			n++;
 		}
 	}
@@ -1252,7 +1272,7 @@ int main(int argc, char **argv, char **envp)
 #endif /* CTCP */
 
 #ifdef BOTNET
-	last_autolink = now + 30 + (rand() >> 27);	/* + 0-31 seconds */
+	last_autolink = cx.now + 30 + (rand() >> 27);	/* + 0-31 seconds */
 #endif /* BOTNET */
 
 	if (mechresetenv)
@@ -1296,7 +1316,16 @@ int main(int argc, char **argv, char **envp)
 	}
 	startup = STARTUP_RUNNING;
 #ifdef DEBUG
-	debug("(main) entering doit()...\n");
+	debug("(main) entering main loop...\n");
 #endif
-	doit();
+}
+
+/*
+ *  Make main short and sweet, reduce stack data
+ *  Main(), we love it and cant live without it
+ */
+int main(int argc, char **argv, char **envp)
+{
+	parse_commandline(argc, argv, envp);
+	mainloop();
 }

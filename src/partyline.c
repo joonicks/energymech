@@ -55,7 +55,7 @@ check_telnet_malloc:
 	client->fileno = -1;
 #endif /* DCC_FILE */
 	client->flags = DCC_TELNETPASS;
-	client->lasttime = now;
+	client->lasttime = cx.now;
 	client->next = current->clientlist;
 	current->clientlist = client;
 #ifdef DEBUG
@@ -119,12 +119,12 @@ void partyline_banner(Client *client)
 	char	tmp[MSGLEN];
 
 	client->flags = DCC_ACTIVE;
-	client->lasttime = now;
+	client->lasttime = cx.now;
 
 	sprintf(tmp,"[%s] %s[%i] has connected",
-		current->nick,client->user->name,(int)client->user->x.x.access);
+		getbotnick(current),client->user->name,(int)client->user->x.x.access);
 
-	if ((to_file(client->sock,"[%s] %s\n",time2medium(now),tmp)) < 0)
+	if ((to_file(client->sock,"[%s] %s\n",maketimestr(cx.now,TFMT_CLOCK),tmp)) < 0)
 	{
 		client->flags = DCC_DELETE;
 		return;
@@ -134,7 +134,7 @@ void partyline_banner(Client *client)
 	{
 		CurrentDCC = client;
 		stringcpy(tmp,SPYSTR_STATUS);
-		do_spy(client->user->name,current->nick,tmp,0);
+		do_spy(client->user->name,getbotnick(current),tmp,0);
 		CurrentDCC = NULL;
 	}
 }
@@ -142,9 +142,10 @@ void partyline_banner(Client *client)
 void dcc_chat(char *from)
 {
 	struct	sockaddr_in sai;
+	unsigned int sz;
 	Client	*client;
 	User	*user;
-	int	sock,sz;
+	int	sock;
 
 	if ((user = get_authuser(from,NULL)) == NULL)
 		return;
@@ -169,7 +170,7 @@ void dcc_chat(char *from)
 	client->user = user;
 	client->sock = sock;
 	client->flags = DCC_WAIT;
-	client->lasttime = now;
+	client->lasttime = cx.now;
 
 	client->next = current->clientlist;
 	current->clientlist = client;
@@ -240,11 +241,11 @@ void do_whom(COMMAND_ARGS)
 		{
 			stringcpy(stt,TEXT_NOTCONNECTED);
 		}
-		table_buffer(TEXT_WHOMSELFLINE,bot->nick,(bot == current) ? "(me)" : "b200",stt);
+		table_buffer(TEXT_WHOMSELFLINE,getbotnick(bot),(bot == current) ? "(me)" : "b200",stt);
 		for(client=bot->clientlist;client;client=client->next)
 		{
-			m = (now - client->lasttime) / 60;
-			s = (now - client->lasttime) % 60;
+			m = (cx.now - client->lasttime) / 60;
+			s = (cx.now - client->lasttime) % 60;
 			table_buffer(TEXT_WHOMUSERLINE,
 #ifdef TELNET
 				client->user->name,client->user->x.x.access,(client->flags & DCC_TELNET) ? "telnet" : "DCC",m,s);

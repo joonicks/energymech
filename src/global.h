@@ -1,7 +1,7 @@
 /*
 
     EnergyMech, IRC bot software
-    Copyright (c) 1997-2024 proton
+    Copyright (c) 1997-2025 proton
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -21,10 +21,10 @@
 #ifndef GLOBAL_H
 #define GLOBAL_H 1
 
-#ifdef MAIN_C
+#if defined(MAIN_C) || defined(TEST)
 
 #define MDEF(x)		= x
-#define BEG		LS
+#define BEG
 
 #else /* MAIN_C */
 
@@ -39,11 +39,34 @@
  *
  */
 
+struct CoreData		/* Collect core data all in one place */
+{
+	time_t	now;
+	time_t	system_uptime;
+	Mech	*current;
+	char	*from;
+	char	*to;
+	char	*rest;
+	char	*rest_end;
+	char	*chop_end;
+	sai_v4	myip4;			/* where to reach me by ipv4 */
+	sai_v6	myip6;			/* where to reach me by ipv4 */
+	int	socksmodified;
+	int	hisock;
+	int	short_tv;
+	User	CoreUser;
+	User	LocalBot;
+};
+
+BEG struct CoreData cx;
+
+#define current	cx.current
+
 #define DEFAULTCMDCHAR			'-'
 #define MECHUSERLOGIN			"v3.energymech.net"
 
-BEG const char VERSION[]		MDEF("3.2p" GITHASH);
-BEG const char SRCDATE[]		MDEF("May 13th, 2024");
+BEG const char VERSION[]		MDEF("3.5.dev" GITHASH);
+BEG const char SRCDATE[]		MDEF("November 20th, 2025");
 #ifdef __CYGWIN__
 BEG const char BOTCLASS[]		MDEF("WinMech");
 #else /* ! CYGWIN */
@@ -52,10 +75,15 @@ BEG const char BOTCLASS[]		MDEF("EnergyMech");
 BEG const char BOTLOGIN[]		MDEF("emech");
 
 BEG const char NULLSTR[]		MDEF("<NULL>");
+#define	       EMPTYSTR			(&NULLSTR[6])
+BEG const char DEFAULTSTR[]		MDEF("default");
+BEG const char UNKNOWNATUNKNOWN[]	MDEF("unknown@unknown");
+#define	       UNKNOWN			(&UNKNOWNATUNKNOWN[8])
+BEG const char FMT_PLAIN[]		MDEF("%s");
+BEG const char FMT_PLAINLINE[]		MDEF("%s\n");
 
 BEG const char ERR_CHAN[]		MDEF("I'm not on %s");
 BEG const char ERR_FILEOPEN[]		MDEF("Couldn't open the file %s");
-BEG const char ERR_INIT[]		MDEF("init: Warning:");
 BEG const char ERR_NICK[]		MDEF("Invalid nickname: %s");
 BEG const char ERR_NOCHANNELS[]		MDEF("I'm not active on any channels");
 BEG const char ERR_NOTOPPED[]		MDEF("I'm not opped on %s");
@@ -78,10 +106,8 @@ BEG const char STR_MECHRESET[]		MDEF("MECHRESET=");
 BEG const char FMT_6XSTRTAB[]		MDEF("%s\t%s\t%s\t%s\t%s\t%s");
 #define FMT_4XSTRTAB			&FMT_6XSTRTAB[6]
 #define FMT_3XSTRTAB			&FMT_6XSTRTAB[9]
-#define FMT_PLAIN			&FMT_6XSTRTAB[15]
 
 BEG Mech	*botlist		MDEF(NULL);
-BEG Mech	*current;
 
 BEG char	*executable;
 BEG char	*configfile		MDEF(CFGFILE);
@@ -99,9 +125,6 @@ BEG ino_t	parent_inode;
 BEG KillSock	*killsocks		MDEF(NULL);
 
 BEG Server	*serverlist		MDEF(NULL);
-BEG ServerGroup	*servergrouplist	MDEF(NULL);
-BEG ServerGroup	*currentservergroup	MDEF(NULL);
-BEG int		servergroupid		MDEF(0);
 BEG int		serverident		MDEF(1);
 
 BEG char	CurrentNick[NUHLEN];
@@ -113,9 +136,6 @@ BEG const OnMsg	*CurrentCmd		MDEF(NULL);
 BEG User	*cfgUser		MDEF(NULL);
 BEG const char	*global_from		MDEF(NULL);
 
-BEG User	__internal_users[2];
-#define CoreUser (__internal_users[0])
-#define LocalBot (__internal_users[1])
 
 /*
  *  generic output buffer, can be used as buffer in any `leaf' function
@@ -131,14 +151,6 @@ BEG char	nuh_buf[NUHLEN];
 
 BEG fd_set	read_fds;
 BEG fd_set	write_fds;
-BEG int		hisock;
-BEG int		short_tv;
-
-/*
- *  current UNIX timestamp
- */
-
-BEG time_t	now;
 
 /*
  *  defined features
@@ -151,9 +163,6 @@ BEG Alias	*aliaslist		MDEF(NULL);
 #endif /* ALIAS */
 
 #ifdef BOTNET
-
-BEG const char	UNKNOWNATUNKNOWN[]	MDEF("unknown@unknown");
-#define		UNKNOWN			(&UNKNOWNATUNKNOWN[8])
 
 BEG BotNet	*botnetlist		MDEF(NULL);
 BEG NetCfg	*netcfglist		MDEF(NULL);
@@ -184,6 +193,7 @@ BEG time_t	ctcp_slot[CTCP_SLOTS];
 
 BEG char	debugbuf[MAXLEN];
 BEG char	*debugfile		MDEF(NULL);
+BEG int		debugfilemalloc		MDEF(FALSE);
 BEG int		dodebug			MDEF(FALSE);
 BEG int		debug_fd		MDEF(-1);
 BEG int		debug_on_exit		MDEF(FALSE);
@@ -204,6 +214,8 @@ BEG Note	*notelist		MDEF(NULL);
 
 #ifdef RAWDNS
 
+BEG int		dnssock			MDEF(-1);
+BEG int		dnsserver		MDEF(0);
 BEG dnsList	*dnslist		MDEF(NULL);
 BEG dnsAuthority *dnsroot		MDEF(NULL);
 BEG struct in_addr ia_ns[MAX_NAMESERVERS];
@@ -241,12 +253,12 @@ BEG Seen	*seenlist		MDEF(NULL);
 
 #endif /* SEEN */
 
-BEG char *fontname			MDEF(NULL);
-BEG BigC *fontlist			MDEF(NULL);
-BEG int charlines;
-BEG int charheight;
-BEG int spacewidth;
-BEG int kerning;
+BEG char	*fontname		MDEF(NULL);
+BEG BigC	*fontlist		MDEF(NULL);
+BEG int		charlines;
+BEG int		charheight;
+BEG int		spacewidth;
+BEG int		kerning;
 
 #ifdef TRIVIA
 
@@ -254,6 +266,7 @@ BEG int		triv_qdelay		MDEF(30);	/* proc var */
 BEG char	*triv_qfile		MDEF(NULL);	/* proc var */
 BEG char	triv_qchar		MDEF('*');	/* proc var */
 BEG TrivScore	*scorelist		MDEF(NULL);
+BEG time_t	triv_next_time		MDEF(0);
 
 #endif /* TRIVIA */
 
@@ -264,7 +277,7 @@ BEG char	*uptimehost		MDEF(NULL);	/* proc var */
 BEG char	*uptimenick		MDEF(NULL);	/* proc var */
 BEG int		uptimesock;
 BEG uint32_t	uptimeip		MDEF((uint32_t)-1);
-BEG uint32_t	uptimecookie;
+BEG uint32_t	uptimepackets		MDEF(0);
 BEG uint32_t	uptimeregnr		MDEF(0);
 BEG time_t	uptimelast		MDEF(0);
 BEG const char	*defaultuptimehost	MDEF("uptime.eggheads.org");
@@ -300,14 +313,14 @@ BEG int		spawning_lamer		MDEF(0);
 #define CRLF	0x08
 
 #define FNICK	(NICK|FIRST)
-#define NNICK	(NICK|NUM)
+#define NUMNI	(NICK|NUM)
 
 #if defined(MAIN_C) || defined(MAKETABLES)
 
 /*
  *  tolowertab blatantly ripped from ircu2.9.32
  */
-LS const uchar tolowertab[256] =
+const uchar tolowertab[256] =
 {
 	0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
 	0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
@@ -346,7 +359,7 @@ LS const uchar tolowertab[256] =
 /*
  *  be wary, this is not a normal upper-to-lower table...
  */
-LS const uchar nickcmptab[256] =
+const uchar nickcmptab[256] =
 {
 	0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
 	0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
@@ -382,7 +395,16 @@ LS const uchar nickcmptab[256] =
 	0xf8, 0xf9, 0xfa, 0xfb, 0xfc, 0xfd, 0xfe, 0xff
 };
 
-LS const uchar attrtab[256] =
+/*
+#define NUM	0x01
+#define NICK	0x02
+#define FIRST	0x04
+#define CRLF	0x08
+#define FNICK	(NICK|FIRST)
+#define NUMNI	(NICK|NUM)
+*/
+
+const uchar attrtab[256] =
 {
 	0,	0,	0,	0,	0,	0,	0,	0,	/* 0x00 - 0x07 */
 	0,	0,	CRLF,	0,	0,	CRLF,	0,	0,	/* 0x08 - 0x0F */
@@ -390,8 +412,10 @@ LS const uchar attrtab[256] =
 	0,	0,	0,	0,	0,	0,	0,	0,	/* 0x18 - 0x1F */
 	0,	0,	0,	0,	0,	0,	0,	0,	/* 0x20 - 0x27 */
 	0,	0,	0,	0,	0,	NICK,	0,	0,	/* 0x28 - 0x2F */
-	NNICK,	NNICK,	NNICK,	NNICK,	NNICK,	NNICK,	NNICK,	NNICK,	/* 0x30 - 0x37 */
-	NNICK,	NNICK,	0,	0,	0,	0,	0,	0,	/* 0x38 - 0x3F */
+
+	NUMNI,	NUMNI,	NUMNI,	NUMNI,	NUMNI,	NUMNI,	NUMNI,	NUMNI,	/* 0x30 - 0x37 */
+	NUMNI,	NUMNI,	0,	0,	0,	0,	0,	0,	/* 0x38 - 0x3F */
+
 	0,	FNICK,	FNICK,	FNICK,	FNICK,	FNICK,	FNICK,	FNICK,	/* 0x40 - 0x47 */
 	FNICK,	FNICK,	FNICK,	FNICK,	FNICK,	FNICK,	FNICK,	FNICK,	/* 0x48 - 0x4F */
 	FNICK,	FNICK,	FNICK,	FNICK,	FNICK,	FNICK,	FNICK,	FNICK,	/* 0x50 - 0x57 */
@@ -425,7 +449,7 @@ LS const uchar attrtab[256] =
 /*
  *  user struct for the core client
  */
-LS const Strp CMA =
+const Strp CMA =
 {
 	NULL,
 	"*"
@@ -434,37 +458,23 @@ LS const Strp CMA =
 /*
  *  client struct for the core client
  */
-LS ShortClient CoreClient =
+ShortClient CoreClient =
 {
 	NULL,			/* next */
-	(User*)&CoreUser,	/* user */
+	(User*)&cx.CoreUser,	/* user */
 	-1,			/* socket */
 	0,			/* flags */
 	0,			/* inputcount */
 	0			/* lasttime */
 };
 
-LS ShortChan CoreChan =
+ShortChan CoreChan =
 {
 	NULL,
 	NULL
 };
 
-typedef struct coreServerGroup
-{
-	ServerGroup	*next;
-	int		servergroup;
-	char		name[8];
-} coreServerGroup;
-
-LS coreServerGroup defaultServerGroup =
-{
-	NULL,			/* next */
-	0,			/* servergroup */
-	"default"		/* name */
-};
-
-LS struct
+struct
 {
 	const char *string;
 	const int id;
@@ -482,11 +492,8 @@ LS struct
 extern const uchar tolowertab[];
 extern const uchar nickcmptab[];
 extern const uchar attrtab[];
-extern const User xxCoreUser;
-extern const User xxLocalBot;
 extern ShortClient CoreClient;
 extern ShortChan CoreChan;
-extern ServerGroup defaultServerGroup;
 
 #endif /* MAIN_C */
 

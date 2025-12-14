@@ -63,7 +63,7 @@ char *cipher(char *arg)
 	static	char res[40];
 	uint32_t B1a,B2a,B3a,B4a;
 	uint32_t B1b,B2b,B3b,B4b;
-	uchar	*ptr;
+	unsigned char *ptr;
 	uint32_t R1;
 	int	i;
 
@@ -72,7 +72,7 @@ char *cipher(char *arg)
 
 	B1a = B2a = B3a = B4a = 0;
 	B1b = B2b = B3b = B4b = 0;
-	ptr = arg;
+	ptr = (unsigned char *)arg;
 
 	while(*ptr)
 	{
@@ -259,7 +259,7 @@ void change_authnick(char *nuh, char *newnuh)
 				set_mallocdoer(change_authnick);
 				auth = (Auth*)Calloc(sizeof(Auth) + strlen(newnuh));
 				auth->user = oldauth->user;
-				auth->active = now;
+				auth->active = cx.now;
 				auth->next = current->authlist;
 				current->authlist = auth;
 				stringcpy(auth->nuh,newnuh);
@@ -271,10 +271,10 @@ void change_authnick(char *nuh, char *newnuh)
 	}
 }
 
-LS User *au_user;
-LS const char *au_userhost;
-LS const char *au_channel;
-LS int au_access;
+User *au_user;
+const char *au_userhost;
+const char *au_channel;
+int au_access;
 
 void aucheck(User *user)
 {
@@ -282,6 +282,7 @@ void aucheck(User *user)
 
 	if (au_channel)
 	{
+		/* does the user record have channel access? */
 		for(ump=user->chan;ump;ump=ump->next)
 		{
 			if (*ump->p == '*' || !stringcasecmp(au_channel,ump->p))
@@ -348,7 +349,7 @@ int get_authaccess(const char *userhost, const char *channel)
 	User	*user;
 	Strp	*ump;
 
-	if (userhost == CoreUser.name)
+	if (userhost == cx.CoreUser.name)
 		return(100);
 	if (CurrentDCC && CurrentDCC->user->name == userhost)
 	{
@@ -390,7 +391,7 @@ int make_auth(const char *userhost, const User *user)
 	set_mallocdoer(make_auth);
 	auth = (Auth*)Calloc(sizeof(Auth) + strlen(userhost));
 	auth->user = (User*)user;
-	auth->active = now;
+	auth->active = cx.now;
 	stringcpy(auth->nuh,userhost);
 
 	auth->next = current->authlist;
@@ -418,6 +419,25 @@ int make_auth(const char *userhost, const User *user)
  *
  */
 
+void do_auth_noargs(const char *from)
+{
+	Auth	*au;
+
+	if (get_authaccess(from,MATCH_ALL) < 100)
+		return;
+
+	/* no args + owner: List active auths */
+	table_buffer("\037Active Auths\037");
+	if (current->authlist == NULL)
+		table_buffer("(none)");
+	for(au=current->authlist;au;au=au->next)
+	{
+		table_buffer("%s\t%i\t%s\t%s",au->user->name,au->user->x.x.access,au->nuh,
+			idle2str(au->active,TRUE));
+	}
+	table_send(from,3);
+}
+
 /*
 help:AUTH
 help:VERIFY
@@ -434,7 +454,6 @@ See also: passwd, setpass
 */
 void do_auth(COMMAND_ARGS)
 {
-	Auth	*au;
 #ifdef BOTNET
 	char	*checksum;
 #endif /* BOTNET */
@@ -443,22 +462,7 @@ void do_auth(COMMAND_ARGS)
 	char	*pass;
 	int	hostmatch;
 
-	if ((pass = chop(&rest)) == NULL)
-	{
-		if (get_authaccess(from,MATCH_ALL) == 100)
-		{
-			/* empty pass + owner: List active auths */
-			table_buffer("\037Active Auths\037");
-			if (current->authlist == NULL)
-				table_buffer("(none)");
-			for(au=current->authlist;au;au=au->next)
-			{
-				table_buffer("%s\t%i\t%s\t%s",au->user->name,au->user->x.x.access,au->nuh,idle2str(now - au->active,TRUE));
-			}
-			table_send(from,3);
-		}
-		return;
-	}
+	pass = chop(&rest);
 
 	/*
 	 *  chop chop

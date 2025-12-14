@@ -34,24 +34,25 @@ char *chop(char **src)
 {
 	char	*tok,*cut = *src;
 
-	while(*cut && *cut == ' ')
+	/* skip leading spaces */
+	while(*cut == ' ')
 		cut++;
 
-	if (*cut)
-	{
-		tok = cut;
-		while(*cut && *cut != ' ')
-			cut++;
-		*src = cut;
-		while(*cut && *cut == ' ')
-			cut++;
-		**src = 0;
-		*src = cut;
-	}
-	else
-	{
-		tok = NULL;
-	}
+	if (*cut == 0)
+		return(NULL);
+
+	tok = cut;
+	while(*cut && *cut != ' ')
+		cut++;
+	*src = cut;
+
+	/* skip more spaces */
+	while(*cut == ' ')
+		cut++;
+
+	**src = 0;
+	cx.chop_end = *src = cut;
+
 	return(tok);
 }
 
@@ -132,17 +133,6 @@ void stringcpy_n(char *dst, const char *src, int sz)
 		n++;
 	}
 	dst[n] = 0;
-/*
-	char	*stop = dst + sz - 1;
-
-	while(*src)
-	{
-		*(dst++) = *(src++);
-		if (dst == stop)
-			break;
-	}
-	*dst = 0;
-*/
 }
 
 char *stringcpy(char *dst, const char *src)

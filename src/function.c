@@ -1,7 +1,7 @@
 /*
 
     EnergyMech, IRC bot software
-    Parts Copyright (c) 1997-2020 proton
+    Parts Copyright (c) 1997-2025 proton
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -30,12 +30,13 @@
 #include "h.h"
 #include "text.h"
 
-#ifndef TEST
+char timebuf[64];		/* max format lentgh == 20+1 */
+char idlestr[64];		/* max format lentgh == 24+1 */
 
-LS char timebuf[32];		/* max format lentgh == 20+1, round up to 32 */
-LS char idlestr[36];		/* max format lentgh == 24+1, round up to 36 */
-LS const char monlist[12][4] = { "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" };
-LS const char daylist[7][4] = {	"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat" };
+const char monlist[12][4] = { "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" };
+const char daylist[7][4] = { "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat" };
+
+#ifndef TEST
 
 /*
  *  memory allocation routines
@@ -91,7 +92,7 @@ void *Calloc(int size)
 		exit(1);
 	}
 	mmep->size = size;
-	mmep->when = now;
+	mmep->when = cx.now;
 	mmep->doer = mallocdoer;
 	mallocdoer = NULL;
 	return((void*)mmep->area+4);
@@ -126,7 +127,8 @@ void Free(char **mem)
 			{
 				debug("(Free) PANIC: Free(0x"mx_pfmt"); Unregistered memory block\n",(mx_ptr)src);
 				run_debug();
-				/*exit(1);	/* overreacting. just ignore it and accept the leak.  */
+				/*exit(1);*/
+				/* overreacting. just ignore it and accept the leak.  */
 				return;
 			}
 			mp = mp->next;
@@ -166,6 +168,50 @@ void Free(char **mem)
 }
 
 #endif /* DEBUG */
+
+void set_mix16(Mix16 *mix, const char *str)
+{
+	int	sz;
+
+	if (mix->opt >= 16)
+	{
+		Free(&mix->x.ptr);
+	}
+
+	sz = strlen(str);
+	if (sz < 16)
+	{
+		stringcpy(mix->x.string,str);
+	}
+	else
+	{
+		set_mallocdoer(set_mix16);
+		mix->x.ptr = stringdup(str);
+	}
+	mix->opt = sz;
+}
+
+void set_mix64(Mix64 *mix, const char *str)
+{
+	int	sz;
+
+	if (mix->opt >= 64)
+	{
+		Free(&mix->x.ptr);
+	}
+
+	sz = strlen(str);
+	if (sz < 64)
+	{
+		stringcpy(mix->x.string,str);
+	}
+	else
+	{
+		set_mallocdoer(set_mix64);
+		mix->x.ptr = stringdup(str);
+	}
+	mix->opt = sz;
+}
 
 Strp *make_strp(Strp **pp, const char *string)
 {
@@ -223,96 +269,6 @@ void dupe_strp(Strp *sp, Strp **pp)
 	}
 }
 
-Strp *e_table = NULL;
-
-void table_buffer(const char *format, ...)
-{
-	Strp	**sp;
-	va_list	msg;
-	int	sz;
-
-	va_start(msg,format);
-	sz = sizeof(Strp) + vsprintf(globaldata,format,msg);
-	va_end(msg);
-
-	for(sp=&e_table;*sp;sp=&(*sp)->next)
-		;
-
-	set_mallocdoer(table_buffer);
-	*sp = (Strp*)Calloc(sz);
-	/* Calloc sets to zero (*sp)->next = NULL; */
-	stringcpy((*sp)->p,globaldata);
-}
-
-void table_send(const char *from, const int space)
-{
-	char	message[MAXLEN];
-	Strp	*sp,*next;
-	char	*src,*o,*end;
-	int	i,u,g,x,z[6];
-
-	z[0] = z[1] = z[2] = z[3] = z[4] = z[5] = 0;
-	for(sp=e_table;sp;sp=sp->next)
-	{
-		u = i = 0;
-		src = o = sp->p;
-		while(*src)
-		{
-			if (*src == '\037' || *src == '\002')
-				u++;
-			if (*src == '\t' || *src == '\r')
-			{
-				x = (src - o) - u;
-				if (x > z[i])
-					z[i] = x;
-				i++;
-				o = src+1;
-				u = 0;
-			}
-			src++;
-		}
-	}
-
-	for(sp=e_table;sp;sp=next)
-	{
-		next = sp->next;
-
-		o = message;
-		src = sp->p;
-		g = x = i = 0;
-		while(*src)
-		{
-			if (g)
-			{
-				end = src;
-				while(*end && *end != '\t' && *end != '\r')
-					end++;
-				g -= (end - src);
-				while(g-- > 0)
-					*(o++) = ' ';
-			}
-			if (*src == '\037' || *src == '\002')
-				x++;
-			if (*src == '\t' || *src == '\r')
-			{
-				if (*src == '\r')
-					g = z[i+1];
-				src++;
-				x += (z[i++] + space);
-				while(o < (message + x))
-					*(o++) = ' ';
-			}
-			else
-				*(o++) = *(src++);
-		}
-		*o = 0;
-		to_user(from,FMT_PLAIN,message);
-
-		Free((char**)&sp);
-	}
-	e_table = NULL;
-}
-
 char *getuh(char *nuh)
 {
 	char	*s;
@@ -322,12 +278,11 @@ char *getuh(char *nuh)
 	{
 		if (*s == '!')
 		{
-			nuh = s + 1;
 			/*
 			 *  We have to grab everything from the first '!' since some
 			 *  braindamaged ircds allow '!' in the "user" part of the nuh
 			 */
-			break;
+			return(s + 1);
 		}
 		s++;
 	}
@@ -385,80 +340,63 @@ a:	++(*src);
 	return(token);
 }
 
+#endif /* ifndef TEST */
+
 /*
  *  time to string routines
  */
 
-char *logtime(time_t when)
+char *maketimestr(time_t when, int format)
 {
 	struct	tm *btime;
+	char	*dest,*f,ampm;
+	int	option;
 
 	btime = localtime(&when);
-	sprintf(timebuf,"%s %i %i %02i:%02i:%02i",	/* max format length: 20+1 */
-		monlist[btime->tm_mon],btime->tm_mday,btime->tm_year+1900,
-		btime->tm_hour,btime->tm_min,btime->tm_sec);
-	return(timebuf);
-}
+	dest = timebuf;
 
-char *time2str(time_t when)
-{
-	struct	tm *btime;
-
-	if (!when)
-		return(NULL);
-
-	btime = localtime(&when);
-	sprintf(timebuf,"%02i:%02i:%02i %s %02i %i",	/* max format length: 20+1 */
-		btime->tm_hour,btime->tm_min,btime->tm_sec,monlist[btime->tm_mon],
-		btime->tm_mday,btime->tm_year+1900);
-	return(timebuf);
-}
-
-char *time2away(time_t when)
-{
-	struct	tm *btime;
-	char	ampm;
-
-	if (!when)
-		return(NULL);
-
-	btime = localtime(&when);
-	if (btime->tm_hour < 12)
+	do
 	{
-		if (btime->tm_hour == 0)
-			btime->tm_hour = 12;
-		ampm = 'a';
+		option = format & 0x7;
+		format = format >> 4;
+
+		f = "%02i:%02i:%02i";
+		switch(option)
+		{
+		case 0:
+			*(dest++) = ' ';
+			break;
+		case 1:/* HH:mm */
+			f += 5;
+		case 2:/* HH:mm:ss */
+			dest += sprintf(dest,f,btime->tm_hour,btime->tm_min,btime->tm_sec);
+			break;
+		case 3:/* WeekDay */
+			/* stringcpy return a pointer to the last char, not how many chars was copied */
+			dest = stringcpy(dest,daylist[btime->tm_wday]);
+			break;
+		case 4:/* ascii-Month Day */
+			dest += sprintf(dest,"%s %i",monlist[btime->tm_mon],btime->tm_mday);
+			break;
+		case 5:/* num-Month Day */
+			dest += sprintf(dest,"%02i %02i",btime->tm_mon+1,btime->tm_mday);
+			break;
+		case 6:/* Year */
+			dest += sprintf(dest,"%i",btime->tm_year+1900);
+			break;
+		case 7:/* am/pm */
+			unsigned char a,b;
+			a = ((unsigned char)btime->tm_hour - 1);
+			a >>= 7;
+			b = ((unsigned char)btime->tm_hour - 12);
+			b >>= 7;
+			btime->tm_hour += (a * 12) - 12 * (b^1);
+			ampm = 'p' - (b * ('p' - 'a'));
+			dest += sprintf(dest,"%i:%02i%cm",btime->tm_hour,btime->tm_min,ampm);
+			break;
+		}
 	}
-	else
-	{
-		if (btime->tm_hour != 12)
-			btime->tm_hour -= 12;
-		ampm = 'p';
-	}
-
-	sprintf(timebuf,"%i:%02i%cm %s %s %i",		/* max format length: 18+1 */
-		btime->tm_hour,btime->tm_min,ampm,daylist[btime->tm_wday],
-		monlist[btime->tm_mon],btime->tm_mday);
-	return(timebuf);
-}
-
-char *time2medium(time_t when)
-{
-	struct	tm *btime;
-
-	btime = localtime(&when);
-	sprintf(timebuf,"%02i:%02i",			/* max format length: 5+1 */
-		btime->tm_hour,btime->tm_min);
-	return(timebuf);
-}
-
-char *time2small(time_t when)
-{
-	struct	tm *btime;
-
-	btime = localtime(&when);
-	sprintf(timebuf,"%s %02i",			/* max format length: 6+1 */
-		monlist[btime->tm_mon],btime->tm_mday);
+	while(format);
 	return(timebuf);
 }
 
@@ -467,10 +405,23 @@ char *idle2str(time_t when, int small)
 	char	*dst;
 	int	n,z[4];
 
+	when = cx.now - when;
+
 	z[0] = when / 86400;
 	z[1] = (when -= z[0] * 86400) / 3600;
 	z[2] = (when -= z[1] * 3600) / 60;
 	z[3] = when % 60;
+
+#ifdef DEBUG
+	{
+	struct	tm *btime;
+	btime = localtime(&when);
+	debug("(idle2str) days %i, hours %i, minutes %i, seconds %i\n"
+	      "(idle2str) d %i, h %i, m %i, s %i\n",
+		z[0],z[1],z[2],z[3],
+		btime->tm_yday,btime->tm_hour,btime->tm_min,btime->tm_sec);
+	}
+#endif /* DEBUG*/
 
 	/* 32 : "9999 days, 24 hours, 59 minutes" */
 	/* xx : "24 hours, 59 minutes" */
@@ -478,7 +429,7 @@ char *idle2str(time_t when, int small)
 	/* xx : "59 seconds" */
 	if (small)
 	{
-		char *f[] = {"day","hour","minute","second"};
+		const char *f[] = {"day","hour","minute","second"};
 
 		*idlestr = 0;
 		for(n=0;n<4;n++)
@@ -495,6 +446,8 @@ char *idle2str(time_t when, int small)
 		sprintf(idlestr,"%i day%s %02i:%02i:%02i",z[0],EXTRA_CHAR(z[0]),z[1],z[2],z[3]);
 	return(idlestr);
 }
+
+#ifndef TEST
 
 const char *get_channel(const char *to, char **rest)
 {
@@ -608,7 +561,7 @@ char *format_uh(char *userhost, int type)
 	char	tmpmask[NUHLEN];
 	char	*u,*h;
 
-	if (STRCHR(userhost,'*'))
+	if (stringchr(userhost,'*'))
 		return(userhost);
 
 	stringcpy(tmpmask,userhost);
@@ -632,87 +585,6 @@ char *format_uh(char *userhost, int type)
 	return(userhost);
 }
 
-/*
- *  NOTE! beware of conflicts in the use of nuh_buf, its also used by find_nuh()
- */
-char *nick2uh(char *from, char *userhost)
-{
-	if (STRCHR(userhost,'!') && STRCHR(userhost,'@'))
-	{
-		stringcpy(nuh_buf,userhost);
-	}
-	else
-	if (!STRCHR(userhost,'!') && !STRCHR(userhost,'@'))
-	{
-		/* find_nuh() stores nickuserhost in nuh_buf */
-		if (find_nuh(userhost) == NULL)
-		{
-			if (from)
-				to_user(from,"No information found for %s",userhost);
-			return(NULL);
-		}
-	}
-	else
-	{
-		stringcpy(nuh_buf,"*!");
-		if (!STRCHR(userhost,'@'))
-			stringcat(nuh_buf,"*@");
-		stringcat(nuh_buf,userhost);
-	}
-	return(nuh_buf);
-}
-
-void deop_ban(Chan *chan, ChanUser *victim, char *mask)
-{
-	if (!mask)
-		mask = format_uh(get_nuh(victim),FUH_USERHOST);
-	send_mode(chan,85,QM_CHANUSER,'-','o',victim);
-	send_mode(chan,90,QM_RAWMODE,'+','b',mask);
-}
-
-void deop_siteban(Chan *chan, ChanUser *victim)
-{
-	char	*mask;
-
-	mask = format_uh(get_nuh(victim),FUH_HOST);
-	deop_ban(chan,victim,mask);
-}
-
-void screwban_format(char *userhost)
-{
-	int	sz,n,pos;
-
-#ifdef DEBUG
-	debug("(screwban_format) %s\n",userhost);
-#endif /* DEBUG */
-
-	if ((sz = strlen(userhost)) < 8)
-		return;
-
-	n = RANDOM(4,sz);
-	while(--n)
-	{
-		pos = RANDOM(0,(sz - 1));
-		if (!STRCHR("?!@*",userhost[pos]))
-		{
-			userhost[pos] = (RANDOM(0,3) == 0) ? '*' : '?';
-		}
-	}
-}
-
-void deop_screwban(Chan *chan, ChanUser *victim)
-{
-	char	*mask;
-	int	i;
-
-	for(i=2;--i;)
-	{
-		mask = format_uh(get_nuh(victim),FUH_USERHOST);
-		screwban_format(mask);
-		deop_ban(chan,victim,mask);
-	}
-}
-
 int is_nick(const char *nick)
 {
 	uchar	*p;
@@ -728,6 +600,8 @@ int is_nick(const char *nick)
 	}
 	return(TRUE);
 }
+
+#endif /* ifndef TEST */
 
 /* asc2int requires the whole string *anum to be a valid numeric */
 int asc2int(const char *anum)
@@ -770,6 +644,46 @@ int get_number(const char *rest)
 	return(n);
 }
 
+#define checkifdigit(xcx) (xcx >= '0' && xcx <= '9')
+
+void parse_range(char **s, int *a)
+{
+	int	v;
+
+	a[0] = -1;
+	a[1] = -1;
+	a[2] = 0;
+
+	if (0 == checkifdigit(**s))
+		return;
+
+	v = 0;
+	while(checkifdigit(**s))
+	{
+        	v = (v * 10) + **s - '0';
+		(*s)++;
+	}
+	a[0] = v;
+
+	/* optional second number */
+	if (**s == '-')
+	{
+		a[2] = 1;
+		(*s)++;
+	}
+
+	if (0 == checkifdigit(**s))
+		return;
+
+	v = 0;
+	while(checkifdigit(**s))
+	{
+        	v = (v * 10) + **s - '0';
+		(*s)++;
+	}
+	a[1] = v;
+}
+
 void fix_config_line(char *text)
 {
 	char	*s,*space;
@@ -787,8 +701,6 @@ void fix_config_line(char *text)
 	if (space)
 		*space = 0;
 }
-
-#endif /* ifndef TEST */
 
 /*
  *  mask matching
@@ -996,7 +908,9 @@ void teststring(void)
 
 int main(int argc, char **argv, char **envp)
 {
+	char	mybuffer[64];
 	struct stat st;
+	time_t	when;
 	int	r;
 
 	dodebug = 1;
@@ -1020,11 +934,25 @@ int main(int argc, char **argv, char **envp)
 		testcase("../../nosuchfile",-5,FILE_MUST_NOTEXIST);
 		testcase(P2,-6,FILE_MAY_EXIST);
 		teststring();
-		exit(0);
 	}
 
-	r = is_safepath(argv[1],FILE_MAY_EXIST);
-	debug("testpath %s -> result %s\n",argv[1],(r) ? "TRUE" : "FALSE");
+	if (argv[1])
+	{
+		r = is_safepath(argv[1],FILE_MAY_EXIST);
+		debug("testpath %s -> result %s\n",argv[1],(r) ? "TRUE" : "FALSE");
+	}
+
+	time(&cx.now);
+
+	for(r=0;r<10;r++)
+	{
+	when = cx.now - (int[]){100000,888,534569,999999,99,9000,84600,7777777,56565656+3600,78987654}[r];
+	debug("\nmaketimestr %s\n",maketimestr(when,TFMT_LOG));
+	debug("maketimestr %s\n",maketimestr(when,TFMT_FULL));
+	debug("maketimestr %s\n",maketimestr(when,TFMT_AWAY));
+	debug("maketimestr %s\n",maketimestr(when,TFMT_CLOCK));
+	debug("maketimestr %s\n",maketimestr(when,TFMT_DATE));
+	}
 }
 
 #endif /* TEST */

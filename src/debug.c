@@ -36,9 +36,11 @@
 
 #define boolstr(x)	(x) ? "TRUE" : "FALSE"
 
-LS const char tabs[20] = "\t\t\t\t\t\t\t\t\t\t";
+#define UNKNOWNSTR	"(unknown)"
 
-LS const struct
+const char tabs[20] = "\t\t\t\t\t\t\t\t\t\t";
+
+const struct
 {
 	char	*name;
 	int	size;
@@ -92,7 +94,6 @@ LS const struct
 { "Seen",		sizeof(Seen)		},
 #endif /* SEEN */
 { "Server",		sizeof(Server)		},
-{ "ServerGroup",	sizeof(ServerGroup)	},
 { "Setting",		sizeof(Setting)		},
 { "Shit",		sizeof(Shit)		},
 { "Spy\t",		sizeof(Spy)		},
@@ -115,7 +116,7 @@ LS const struct
 #define RARE_SE		,"RARE"
 #define DBUG_SE		,"DBUG"
 
-LS struct
+struct
 {
 	void	*func;
 	char	*name;
@@ -142,7 +143,6 @@ LS struct
 {	do_die,				"do_die"			RARE_SE },
 {	do_nick,			"do_nick"			CMD1_SE },
 {	do_kicksay,			"do_kicksay"			CMD1_SE },
-{	do_servergroup,			"do_servergroup"		CMD1_SE },
 {	do_set,				"do_set"			CMD1_SE },
 {	do_spy,				"do_spy"			CMD1_SE },
 {	join_channel,			"join_channel"			CFG1_SE },
@@ -168,7 +168,8 @@ LS struct
 {	send_kick,			"send_kick"			},
 {	send_mode,			"send_mode"			},
 {	set_str_varc,			"set_str_varc"			CFG1_SE },
-{	setbotnick,			"setbotnick"			},
+{	set_mix16,			"set_mix16"			CORE_SE },
+{	set_mix64,			"set_mix64"			CORE_SE },
 {	sig_hup,			"sig_hup"			RARE_SE },
 {	table_buffer,			"table_buffer"			},
 #ifdef ALIAS
@@ -206,6 +207,8 @@ LS struct
 #ifdef PYTHON
 {	python_hook,			"python_hook"			},
 {	python_unhook,			"python_unhook"			},
+{	python_timer_jump,		"python_timer_jump"		},
+{	python_parse_jump,		"python_parse_jump"		},
 #endif /* PYTHON */
 #ifdef RAWDNS
 {	rawdns,				"rawdns"			},
@@ -223,6 +226,8 @@ LS struct
 #endif /* STATS */
 #ifdef TCL
 {	tcl_hook,			"tcl_hook"			},
+{	tcl_timer_jump,			"tcl_timer_jump"		},
+{	tcl_parse_jump,			"tcl_parse_jump"		},
 #endif /* TCL */
 #ifdef TELNET
 {	check_telnet,			"check_telnet"			},
@@ -242,11 +247,34 @@ LS struct
 #ifdef URLCAPTURE
 {	urlcapture,			"urlcapture"			CORE_SE },
 #endif /* URLCAPTURE */
-{	0,				"(unknown)"			},
+{	0,				UNKNOWNSTR			},
 { NULL, }};
 
+#ifdef HOSTINFO
+
+#include <sys/inotify.h>
+
+const DEFstruct inomasks[] =
+{
+{ IN_ACCESS,		"IN_ACCESS" },		/* File was accessed (read) */
+{ IN_ATTRIB,		"IN_ATTRIB" },		/* Metadata changed, e.g., permissions, timestamps, extended attributes, link count, UID, GID, etc. */
+{ IN_CLOSE_WRITE,	"IN_CLOSE_WRITE" },	/* File opened for writing was closed */
+{ IN_CLOSE_NOWRITE,	"IN_CLOSE_NOWRITE" },	/* File not opened for writing was closed */
+{ IN_CREATE,		"IN_CREATE" },		/* File/directory created in watched directory */
+{ IN_DELETE,		"IN_DELETE" },		/* File/directory deleted from watched directory */
+{ IN_DELETE_SELF,	"IN_DELETE_SELF" },	/* Watched file/directory was itself deleted */
+{ IN_MODIFY,		"IN_MODIFY" },		/* File was modified */
+{ IN_MOVE_SELF,		"IN_MOVE_SELF" },	/* Watched file/directory was itself moved */
+{ IN_MOVED_FROM,	"IN_MOVED_FROM" },	/* Generated for the directory containing the old filename when a file is renamed */
+{ IN_MOVED_TO,		"IN_MOVED_TO" },	/* Generated for the directory containing the new filename when a file is renamed */
+{ IN_OPEN,		"IN_OPEN" },		/* File was opened */
+{ 0, }};
+
+#endif /* HOSTINFO */
+
 #ifdef SCRIPTING
-LS const DEFstruct SCRIPTdefs[] =
+
+const DEFstruct SCRIPTdefs[] =
 {
 { MEV_PARSE,		"MEV_PARSE"		},
 { MEV_TIMER,		"MEV_TIMER"		},
@@ -254,18 +282,11 @@ LS const DEFstruct SCRIPTdefs[] =
 { MEV_BOTNET,		"MEV_BOTNET"		},
 { MEV_DCC_COMPLETE,	"MEV_DCC_COMPLETE"	},
 { MEV_DNSRESULT,	"MEV_DNSRESULT"		},
-#ifdef TCL
-{ .v.func=tcl_timer_jump,	"tcl_timer_jump"	},
-{ .v.func=tcl_parse_jump,	"tcl_parse_jump"	},
-#endif /* TCL */
-#ifdef PYTHON
-{ .v.func=python_timer_jump, "python_timer_jump"	},
-{ .v.func=python_parse_jump, "python_parse_jump"	},
-#endif /* PYTHON */
 { 0, }};
+
 #endif /* SCRIPTING */
 
-LS const DEFstruct CNdefs[] =
+const DEFstruct CNdefs[] =
 {
 { CN_NOSOCK,		"CN_NOSOCK"		},
 { CN_DNSLOOKUP,		"CN_DNSLOOKUP"		},
@@ -279,7 +300,7 @@ LS const DEFstruct CNdefs[] =
 { CN_SPINNING,		"CN_SPINNING"		},
 { 0, }};
 
-LS const DEFstruct SPdefs[] =
+const DEFstruct SPdefs[] =
 {
 { SP_NULL,		"SP_NULL"		},
 { SP_NOAUTH,		"SP_NOAUTH"		},
@@ -291,17 +312,20 @@ LS const DEFstruct SPdefs[] =
 { 0, }};
 
 #ifdef NOTIFY
-LS const DEFstruct NFdefs[] =
+
+const DEFstruct NFdefs[] =
 {
 { NF_OFFLINE,		"NF_OFFLINE"		},
 { NF_WHOIS,		"NF_WHOIS"		},
 { NF_MASKONLINE,	"NF_MASKONLINE"		},
 { NF_NOMATCH,		"NF_NOMATCH"		},
 { 0, }};
+
 #endif /* NOTIFY */
 
 #ifdef SEEN
-LS const DEFstruct SEdefs[] =
+
+const DEFstruct SEdefs[] =
 {
 { SEEN_PARTED,		"SEEN_PARTED"		},
 { SEEN_QUIT,		"SEEN_QUIT"		},
@@ -311,7 +335,8 @@ LS const DEFstruct SEdefs[] =
 #endif /* SEEN */
 
 #ifdef BOTNET
-LS const DEFstruct BNdefs[] =
+
+const DEFstruct BNdefs[] =
 {
 { BN_UNKNOWN,		"BN_UNKNOWN"		},
 { BN_DEAD,		"BN_DEAD"		},
@@ -322,9 +347,10 @@ LS const DEFstruct BNdefs[] =
 { BN_WAITLINK,		"BN_WAITLINK"		},
 { BN_LINKED,		"BN_LINKED"		},
 { 0, }};
+
 #endif /* BOTNET */
 
-LS const DEFstruct dcc_flags[] =
+const DEFstruct dcc_flags[] =
 {
 { DCC_SEND,		"DCC_SEND"		},
 { DCC_RECV,		"DCC_RECV"		},
@@ -336,7 +362,7 @@ LS const DEFstruct dcc_flags[] =
 { DCC_DELETE,		"DCC_DELETE"		},
 { 0, }};
 
-LS const DEFstruct ircx_flags[] =
+const DEFstruct ircx_flags[] =
 {
 { IRCX_WALLCHOPS,	"IRCX_WALLCHOPS"	},
 { IRCX_WALLVOICES,	"IRCX_WALLVOICES"	},
@@ -344,7 +370,7 @@ LS const DEFstruct ircx_flags[] =
 { IRCX_EMODE,		"IRCX_EMODE"		},
 { 0, }};
 
-LS const DEFstruct chanuser_flags[] =
+const DEFstruct chanuser_flags[] =
 {
 { CU_VOICE,		"CU_VOICE"		},
 { CU_CHANOP,		"CU_CHANOP"		},
@@ -362,9 +388,9 @@ void strflags(char *dst, const DEFstruct *flagsstruct, int flags)
 	int	i;
 
 	*dst = 0;
-	for(i=0;(flagsstruct[i].v.id);i++)
+	for(i=0;(flagsstruct[i].id);i++)
 	{
-		if (flagsstruct[i].v.id & flags)
+		if (flagsstruct[i].id & flags)
 		{
 			if (*dst)
 				stringcat(dst,"|");
@@ -379,22 +405,10 @@ const char *strdef(const DEFstruct *dtab, int num)
 
 	for(i=0;(dtab[i].idstr);i++)
 	{
-		if (dtab[i].v.id == num)
+		if (dtab[i].id == num)
 			return(dtab[i].idstr);
 	}
-	return("UNKNOWN");
-}
-
-const char *funcdef(const DEFstruct *dtab, void *func)
-{
-	int	i;
-
-	for(i=0;(dtab[i].idstr);i++)
-	{
-		if (dtab[i].v.func == func)
-			return(dtab[i].idstr);
-	}
-	return("UNKNOWN");
+	return(UNKNOWNSTR);
 }
 
 void memreset(void)
@@ -409,8 +423,8 @@ void memreset(void)
 	}
 }
 
-LS const void *mem_lowptr;
-LS const void *mem_hiptr;
+const void *mem_lowptr;
+const void *mem_hiptr;
 
 void memtouch(const void *addr)
 {
@@ -435,6 +449,18 @@ void memtouch(const void *addr)
 			}
 		}
 	}
+}
+
+const char *proc_getname(void *addr)
+{
+	int	i;
+
+	for(i=0;ProcList[i].name;i++)
+	{
+		if (ProcList[i].func == addr)
+			return(ProcList[i].name);
+	}
+	return(UNKNOWNSTR);
 }
 
 const char *proc_lookup(void *addr, int size)
@@ -495,14 +521,13 @@ char *atime(time_t when)
 	char	*pt,*zp;
 
 	pt = ctime(&when);
-	zp = STRCHR(pt,'\n');
+	zp = stringchr(pt,'\n');
 	*zp = 0;
 	return(pt);
 }
 
 void debug_server(Server *sp, char *pad)
 {
-	ServerGroup *sg;
 	char	*pl;
 
 	if (!sp)
@@ -516,17 +541,9 @@ void debug_server(Server *sp, char *pad)
 	debug("%s; ident\t\t%i\n",pad,sp->ident);
 	debug("%s; name\t\t\"%s\"\n",pad,nullbuf(sp->name));
 	debug("%s; pass\t\t\"%s\"\n",pad,nullbuf(sp->pass));
+	debug("%s; group\t\t\"%s\"\n",pad,nullbuf(sp->group));
 	debug("%s; realname\t\t\"%s\"\n",pad,nullbuf(sp->realname));
 	debug("%s; usenum\t\t%i\n",pad,sp->usenum);
-	sg = getservergroupid(sp->servergroup);
-	if (sg)
-	{
-		debug("%s; servergroup\t%s%i \"%s\"\n",pad,pl,sp->servergroup,sg->name);
-	}
-	else
-	{
-		debug("%s; servergroup\t%s%i (unknown)\n",pad,pl,sp->servergroup);
-	}
 	debug("%s; port\t\t%i\n",pad,sp->port);
 	debug("%s; err\t\t%s%s (%i)\n",pad,pl,strdef(SPdefs,sp->err),sp->err);
 	debug("%s; lastconnect\t%s%s (%lu)\n",pad,pl,atime(sp->lastconnect),sp->lastconnect);
@@ -561,7 +578,7 @@ void debug_settings(UniVar *setting, int type)
 	}
 
 	debug("%s> setting\n",pad+2);
-	for(;VarName[i].name;i++)
+	for(;i<SIZE_VARS;i++)
 	{
 		if ((type == DSET_CHAN) && (i >= CHANSET_SIZE))
 			break;
@@ -644,7 +661,7 @@ void debug_memory(void)
 #endif /* URLCAPTURE */
 	for(bot=botlist;bot;bot=bot->next)
 	{
-		for(i=CHANSET_SIZE;VarName[i].name;i++)
+		for(i=CHANSET_SIZE;i<SIZE_VARS;i++)
 		{
 			if (IsStr(i))
 				memtouch(bot->setting[i].str_var);
@@ -661,7 +678,6 @@ void debug_memory(void)
 		{
 			memtouch(bot->lastcmds[i]);
 		}
-		memtouch(bot->userhost);
 	}
 	debug("> Memory allocations\n");
 	for(mea=mrrec;(mea);mea=mea->next)
@@ -741,7 +757,7 @@ void debug_botnet(void)
 	struct	sockaddr_in sai;
 	BotNet	*bn;
 	NetCfg	*cfg;
-	int	sz;
+	unsigned int sz;
 
 	debug("; linkpass\t\t\"%s\"\n",nullstr(linkpass));
 	memtouch(linkpass);
@@ -826,7 +842,6 @@ void debug_core(void)
 	Seen	*seen;
 #endif /* SEEN */
 	Server	*sp;
-	ServerGroup *sg;
 	Spy	*spy;
 	Strp	*st;
 	Shit	*shit;
@@ -851,31 +866,13 @@ void debug_core(void)
 	}
 	debug("  ; ---\n");
 	if (current)
-		debug("; current\t\t"mx_pfmt" \"%s\"\n",(mx_ptr)current,nullstr(current->nick));
+		debug("; current\t\t"mx_pfmt" \"%s\"\n",(mx_ptr)current,nullstr(getbotnick(current)));
 	else
 		debug("; current\t\t"mx_pfmt"\n",(mx_ptr)current);
 	debug("; executable\t\t\"%s\"\n",executable);
 	debug("; configfile\t\t\"%s\"\n",configfile);
 	debug("; uptime\t\t%s (%lu)\n",atime(uptime),uptime);
-	debug("; short_tv\t\t%s (%is wait)\n",boolstr(short_tv),(short_tv) ? 1 : 30);
-	debug("> currentservergroup\t"mx_pfmt"\n",(mx_ptr)currentservergroup);
-	if (currentservergroup)
-	{
-		sg = currentservergroup;
-		debug("  ; next\t\t"mx_pfmt"\n",(mx_ptr)sg->next);
-		debug("  ; servergroup\t\t%i\n",sg->servergroup);
-		debug("  ; name\t\t\"%s\"\n",nullbuf(sg->name));
-		debug("  ; ---\n");
-	}
-	debug("> servergrouplist\t"mx_pfmt"\n",(mx_ptr)servergrouplist);
-	for(sg=servergrouplist;sg;sg=sg->next)
-	{
-		memtouch(sg);
-		debug("  ; next\t\t"mx_pfmt"\n",(mx_ptr)sg->next);
-		debug("  ; servergroup\t\t%i\n",sg->servergroup);
-		debug("  ; name\t\t\"%s\"\n",nullbuf(sg->name));
-		debug("  ; ---\n");
-	}
+	debug("; short_tv\t\t%s (%is wait)\n",boolstr(cx.short_tv),(cx.short_tv) ? 1 : 30);
 	debug("> serverlist\t\t"mx_pfmt"\n",(mx_ptr)serverlist);
 	for(sp=serverlist;sp;sp=sp->next)
 	{
@@ -887,8 +884,6 @@ void debug_core(void)
 	for(bot=botlist;bot;bot=bot->next)
 	{
 		memtouch(bot);
-		memtouch(bot->nick);
-		memtouch(bot->wantnick);
 		debug("  ; Mech*\t\t"mx_pfmt"\n",(mx_ptr)bot);
 		debug("  ; next\t\t"mx_pfmt"\n",(mx_ptr)bot->next);
 		debug("  ; connect\t\t%s (%i)\n",strdef(CNdefs,bot->connect),bot->connect);
@@ -906,8 +901,8 @@ void debug_core(void)
 		{
 			debug_server(sp,"    ");
 		}
-		debug("  ; nick\t\t\"%s\"\n",nullstr(bot->nick));
-		debug("  ; wantnick\t\t\"%s\"\n",nullstr(bot->wantnick));
+		debug("  ; nick\t\t\"%s\"\n",nullstr(getbotnick(bot)));
+		debug("  ; wantnick\t\t\"%s\"\n",nullstr(getbotwantnick(bot)));
 
 		debug_settings(bot->setting,DSET_GLOBAL);
 
@@ -1361,7 +1356,7 @@ void debug_scripthook(void)
 	for(h=hooklist;h;h=h->next)
 	{
 		memtouch(h);
-		debug("  ; func\t\t"mx_pfmt" %s\n",(mx_ptr)h->func,funcdef(SCRIPTdefs,h->func));
+		debug("  ; func\t\t"mx_pfmt" %s\n",(mx_ptr)h->func,proc_getname(h->func));
 		debug("  ; guid\t\t%i\n",h->guid);
 		debug("  ; flags\t\t%s (%i)\n",strdef(SCRIPTdefs,h->flags),h->flags);
 		if (h->flags == MEV_TIMER)
@@ -1429,13 +1424,14 @@ int wrap_debug(void)
 	backup_dodebug = dodebug;
 	backup_fd = debug_fd;
 
-	sprintf(fname,"debug.%lu",now);
+	sprintf(fname,"debug.%lu",cx.now);
 	if ((fd = open(fname,O_WRONLY|O_CREAT|O_TRUNC,NEWFILEMODE)) < 0)
 		return(0);
 	debug_fd = fd;
 	dodebug = TRUE;
 
 	run_debug();
+	parse_server_input(NULL);
 
 	close(fd);
 	debug_fd = backup_fd;
@@ -1445,8 +1441,49 @@ int wrap_debug(void)
 	return(1);
 }
 
+void do_inject(COMMAND_ARGS)
+{
+	set_mallocdoer(do_inject);
+	current->inject = stringdup(rest);
+}
+
 void do_debug(COMMAND_ARGS)
 {
+	const char *arg;
+	int	m;
+
+	arg = chop(&rest);
+	if (arg && strcasecmp(arg,"off") == 0)
+	{
+		if (debugfile && debugfilemalloc == TRUE)
+			Free(&debugfile);
+		debugfilemalloc = FALSE;
+		debugfile = NULL;
+		dodebug = FALSE;
+		to_user(from,"Debug output turned off");
+		return;
+	}
+	if (arg && strcasecmp(arg,"on") == 0)
+	{
+		m = is_safepath(rest,FILE_MAY_EXIST);
+		debug("(do_debug) turn on, rest = '%s', %i\n",rest,m);
+		if (*rest && m == FILE_IS_SAFE)
+		{
+			if (debugfile && debugfilemalloc == TRUE)
+				Free(&debugfile);
+			debugfilemalloc = TRUE;
+			set_mallocdoer(do_debug);
+			debugfile = stringdup(rest);
+			dodebug = TRUE;
+			to_user(from,"Debug output turned on, Output = %s",rest);
+		}
+		else
+		{
+			to_user(from,"debug: Unsafe filename");
+		}
+		return;
+
+	}
 	if (wrap_debug())
 		to_user(from,"Debug information has been written to file");
 	else
@@ -1466,6 +1503,7 @@ void do_crash(COMMAND_ARGS)
 void debug(char *format, ...)
 {
 	va_list msg;
+	int	sz;
 
 	if (!dodebug)
 		return;
@@ -1488,10 +1526,10 @@ void debug(char *format, ...)
 	}
 
 	va_start(msg,format);
-	vsnprintf(debugbuf,sizeof(debugbuf),format,msg);
+	sz = vsnprintf(debugbuf,sizeof(debugbuf),format,msg);
 	va_end(msg);
 
-	if ((write(debug_fd,debugbuf,strlen(debugbuf))) < 0)
+	if ((write(debug_fd,debugbuf,sz)) < 0)
 		dodebug = FALSE;
 }
 

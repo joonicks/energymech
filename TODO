@@ -1,6 +1,8 @@
 /*
- *  EnergyMech TODO (March 16th, 2018)
+ *  EnergyMech TODO (November 6th, 2025)
  */
+
+ - copy a master read_fds for select instead of building a new one each loop
 
  - Toybox hangman game
 
@@ -19,6 +21,7 @@
  - DalNet Nickserv/Chanserv support (needed? they dont tolerate much bots on that network /proton)
 
  - Update/complete the help files.
+ - Parse help files out of source code comments.
 
  - Mode +/-o commands to check for SO and if SO is set, check userlevel and make sure user has access before sending MODEs.
 

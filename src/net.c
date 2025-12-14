@@ -46,10 +46,11 @@ const char banneropt[] = "BB%i %i PTA"
 #ifdef TELNET
 char *telnetprompt = TEXT_ENTERNICKNAME;
 #endif /* TELNET */
+
 /*
  *  this is a partial copy of the BotNet struct
  */
-LS struct
+struct
 {
 	struct	BotNet *next;
 
@@ -73,7 +74,7 @@ typedef struct LinkCmd
 #define RELAY_YES	1
 #define RELAY_NO	0
 
-LS const LinkCmd basicProto[] =
+const LinkCmd basicProto[] =
 {
 { "BA", basicAuth,		RELAY_NO	},
 { "BB", basicBanner,		RELAY_NO	},
@@ -95,7 +96,7 @@ LS const LinkCmd basicProto[] =
 { "\0\0", NULL,			RELAY_NO	},
 };
 
-LS int deadlinks = FALSE;
+int deadlinks = FALSE;
 
 /*
  *
@@ -159,21 +160,24 @@ NetCfg *find_netcfg(int guid)
 
 BotInfo *make_botinfo(int guid, int hops, char *nuh, char *server, char *version)
 {
-	BotInfo	*new;
+	BotInfo	*newbinfo;
 
 	set_mallocdoer(make_botinfo);
-	new = (BotInfo*)Calloc(sizeof(BotInfo) + StrlenX(nuh,server,version,NULL));
+	newbinfo = (BotInfo*)Calloc(sizeof(BotInfo) + StrlenX(nuh,server,version,NULL));
 
-	new->guid = guid;
-	new->hops = hops;
+	newbinfo->guid = guid;
+	newbinfo->hops = hops;
 
-	new->server = stringcat(new->nuh,nuh) + 1;
-	new->version = stringcat(new->server,server) + 1;
-	stringcpy(new->version,version);
+	newbinfo->server = stringcat(newbinfo->nuh,nuh) + 1;
+	newbinfo->version = stringcat(newbinfo->server,server) + 1;
+	stringcpy(newbinfo->version,version);
 
-	return(new);
+	return(newbinfo);
 }
 
+/*
+ *  broadcast data to all except the source
+ */
 void botnet_relay(BotNet *source, char *format, ...)
 {
 	BotNet	*bn;
@@ -188,9 +192,8 @@ void botnet_relay(BotNet *source, char *format, ...)
 		if (!sz)
 		{
 			va_start(msg,format);
-			vsprintf(globaldata,format,msg);
+			sz = vsprintf(globaldata,format,msg);
 			va_end(msg);
-			sz = strlen(globaldata);
 		}
 
 		if (write(bn->sock,globaldata,sz) < 0)
@@ -201,23 +204,10 @@ void botnet_relay(BotNet *source, char *format, ...)
 	}
 }
 
-void botnet_refreshbotinfo(void)
-{
-	Server	*sv;
-
-	sv = find_server(current->server);
-	botnet_relay(NULL,"BL%i 0 %s!%s %s:%i %s %s\n",	current->guid,current->nick,
-		(current->userhost) ? current->userhost : UNKNOWNATUNKNOWN,
-		(sv) ? ((*sv->realname) ? sv->realname : sv->name) : UNKNOWN,
-		(sv) ? sv->port : 0,BOTCLASS,VERSION);
-#ifdef DEBUG
-	debug("(botnet_refreshbotinfo) sent refreshed information to botnet\n");
-#endif /* DEBUG */
-}
-
 void botnet_binfo_relay(BotNet *source, BotInfo *binfo)
 {
-	botnet_relay(source,"BL%i %i %s %s %s\n",binfo->guid,(binfo->hops + 1),
+	botnet_relay(source,
+		"BL%i %i %s %s %s\n",binfo->guid,(binfo->hops + 1),
 		(binfo->nuh) ? binfo->nuh : UNKNOWNATUNKNOWN,
 		(binfo->server) ? binfo->server : UNKNOWN,
 		(binfo->version) ? binfo->version : "-");
@@ -225,10 +215,25 @@ void botnet_binfo_relay(BotNet *source, BotInfo *binfo)
 
 void botnet_binfo_tofile(int sock, BotInfo *binfo)
 {
-	to_file(sock,"BL%i %i %s %s %s\n",binfo->guid,(binfo->hops + 1),
+	to_file(sock,
+		"BL%i %i %s %s %s\n",binfo->guid,(binfo->hops + 1),
 		(binfo->nuh) ? binfo->nuh : UNKNOWNATUNKNOWN,
 		(binfo->server) ? binfo->server : UNKNOWN,
 		(binfo->version) ? binfo->version : "-");
+}
+
+void botnet_refreshbotinfo(void)
+{
+	Server	*sv;
+
+	sv = find_server(current->server);
+	botnet_relay(NULL,"BL%i 0 %s!%s %s:%i %s %s\n",	current->guid,getbotnick(current),
+		getbotuserhost(current),
+		(sv) ? ((*sv->realname) ? sv->realname : sv->name) : UNKNOWN,
+		(sv) ? sv->port : 0,BOTCLASS,VERSION);
+#ifdef DEBUG
+	debug("(botnet_refreshbotinfo) sent refreshed information to botnet\n");
+#endif /* DEBUG */
 }
 
 void botnet_dumplinklist(BotNet *bn)
@@ -248,14 +253,14 @@ void botnet_dumplinklist(BotNet *bn)
 		 */
 		sv = find_server(bot->server);
 		to_file(bn->sock,"BL%i %c %s!%s %s:%i %s %s\n",bot->guid,
-			(bot == bn->controller) ? '0' : '1',bot->nick,
-			(bot->userhost) ? bot->userhost : UNKNOWNATUNKNOWN,
+			(bot == bn->controller) ? '0' : '1',getbotnick(bot),
+			getbotuserhost(bot),
 			(sv) ? ((*sv->realname) ? sv->realname : sv->name) : UNKNOWN,
 			(sv) ? sv->port : 0,BOTCLASS,VERSION);
 	}
 	for(bn2=botnetlist;bn2;bn2=bn2->next)
 	{
-		if ((bn2 == bn) || (bn2->status != BN_LINKED) || !(bn2->list_complete))
+		if ((bn2 == bn) || (bn2->status != BN_LINKED) || (bn2->opt.links_complete == 0))
 			continue;
 		for(binfo=bn2->botinfo;binfo;binfo=binfo->next)
 			botnet_binfo_tofile(bn->sock,binfo);
@@ -289,7 +294,7 @@ int connect_to_bot(NetCfg *cfg)
 
 	bn->sock = s;
 	bn->status = BN_CONNECT;
-	bn->when = now;
+	bn->when = cx.now;
 	bn->guid = cfg->guid;
 
 	bn->next = botnetlist;
@@ -409,7 +414,7 @@ void basicAuth(BotNet *bn, char *rest)
 	{
 	case BNAUTH_PLAINTEXT:
 /*
->> plain text given: "DomoOmiGato" stored "kooplook0988"
+>> plain text given: "DomoOmiGato" stored "........."
 (reset_linkable) guid 1337 reset to linkable
 (basicAuth) bad password [ guid = 1337 ]
 */
@@ -420,6 +425,12 @@ void basicAuth(BotNet *bn, char *rest)
 			goto badpass;
 		break;
 #ifdef SHACRYPT
+/*
+(in)  {6} BB1881 634704033 PTA SHA
+(out) {6} BB9344 1233037145 PTA SHA
+>> sha pass exchange: "........ ......... 634704033 1233037145"
+(out) {2} BASHA $6$5525$mZLr762......
+*/
 	case BNAUTH_SHA:
 		{
 		char	*enc,temppass[24 + Strlen2(pass,linkpass)]; /* linkpass is never NULL */
@@ -476,7 +487,7 @@ void basicAuth(BotNet *bn, char *rest)
 	debug("(basicAuth) bn->tick = 0\n");
 #endif /* DEBUG */
 	bn->tick = 0;
-	bn->tick_last = now - 580; /* 10 minutes (10*60) - 20 seconds */
+	bn->tick_last = cx.now - 580; /* 10 minutes (10*60) - 20 seconds */
 }
 
 void basicAuthOK(BotNet *bn, char *rest)
@@ -490,7 +501,7 @@ void basicAuthOK(BotNet *bn, char *rest)
 	debug("(basicAuthOK) bn->tick = 0\n");
 #endif /* DEBUG */
 	bn->tick = 0;
-	bn->tick_last = now - 580; /* 10 minutes (10*60) - 20 seconds */
+	bn->tick_last = cx.now - 580; /* 10 minutes (10*60) - 20 seconds */
 }
 
 void basicBanner(BotNet *bn, char *rest)
@@ -608,7 +619,7 @@ void basicBanner(BotNet *bn, char *rest)
 	/*
 	 *  update timestamp
 	 */
-	bn->when = now;
+	bn->when = cx.now;
 
 	/*
 	 *  if the remote bot initiated the connection we need a valid pass from them
@@ -701,7 +712,7 @@ void basicBanner(BotNet *bn, char *rest)
 
 void basicLink(BotNet *bn, char *version)
 {
-	BotInfo	*binfo,*delete,**pp;
+	BotInfo	*binfo,**pp;
 	NetCfg	*cfg;
 	char	*nuh,*server;
 	int	guid,hops;
@@ -748,7 +759,7 @@ void basicLink(BotNet *bn, char *version)
 				continue;
 			cfg->linked = TRUE;
 		}
-		bn->list_complete = TRUE;
+		bn->opt.links_complete = TRUE;
 		return;
 	}
 
@@ -774,23 +785,25 @@ void basicLink(BotNet *bn, char *version)
 	binfo = make_botinfo(guid,hops,nuh,server,version);
 
 	if (bn->botinfo == NULL)
-		send_global(SPYSTR_BOTNET,"connecting to %s [guid %i]",nickcpy(NULL,nuh),bn->guid);
+		send_global(SPYSTR_STATUS,"Connected to %s [guid %i]",nickcpy(NULL,nuh),bn->guid);
+
 	pp = &bn->botinfo;
 	while(*pp)
 	{
-		delete = *pp;
-		if (guid == delete->guid)
+		BotInfo *trash;
+		if (guid == (*pp)->guid)
 		{
-			*pp = delete->next;
-			Free((char**)&delete);
+			trash = *pp;
+			*pp = trash->next;
+			Free((char**)&trash);
 			break;
 		}
-		pp = &delete->next;
+		pp = &(*pp)->next;
 	}
 	binfo->next = *pp;
 	*pp = binfo;
 
-	if (bn->list_complete)
+	if (bn->opt.links_complete)
 	{
 		if ((cfg = find_netcfg(guid)))
 			cfg->linked = TRUE;
@@ -904,10 +917,10 @@ void partyAuth(BotNet *bn, char *rest)
 {
 	User	*user;
 	Strp	*ump;
-	char	*name,*userhost,*checksum;
+	char	*userhost,*checksum;
 	int	m;
 
-	name = chop(&rest);
+	chop(&rest);
 	userhost = chop(&rest);
 	if ((checksum = chop(&rest)) == NULL)
 		checksum = "";
@@ -987,7 +1000,7 @@ int commandlocal(int dg, int sg, char *from, char *command)
 			*p2 = current->setting[CHR_CMDCHAR].char_var;
 			stringcpy((*p2 == *command) ? p2 : p2+1,command);
 
-			on_msg(p1,current->nick,p2);
+			on_msg(p1,getbotnick(current),p2);
 			CurrentDCC = NULL;
 		}
 		if (dg == -1)
@@ -1198,7 +1211,7 @@ void ushareUser(BotNet *bn, char *rest)
 		bn->addsession = 0;
 		bn->tick++;
 		to_file(bn->sock,"UT%i\n",bn->tick);
-		bn->tick_last = now;
+		bn->tick_last = cx.now;
 		break;
 	case '*':
 	case '#':
@@ -1319,10 +1332,8 @@ void ushareTick(BotNet *bn, char *rest)
 void ushareDelete(BotNet *bn, char *rest)
 {
 	User	*user;
-	char	*orig;
 	int	modcount;
 
-	orig = rest;
 	modcount = asc2int(chop(&rest));
 	if (errno)
 		return;
@@ -1417,7 +1428,7 @@ void botnet_newsock(void)
 	bn->sock = s;
 	bn->status = BN_UNKNOWN;
 	bn->lsid = rand();
-	bn->when = now;
+	bn->when = cx.now;
 
 	bn->next = botnetlist;
 	botnetlist = bn;
@@ -1425,7 +1436,7 @@ void botnet_newsock(void)
 	/*
 	 *  crude... but, should work
 	 */
-	last_autolink = now + AUTOLINK_DELAY;
+	last_autolink = cx.now + AUTOLINK_DELAY;
 }
 
 /*
@@ -1455,9 +1466,9 @@ void select_botnet(void)
 	/*
 	 *  autolink
 	 */
-	if (autolink && (now > last_autolink))
+	if (autolink && (cx.now > last_autolink))
 	{
-		last_autolink = now + AUTOLINK_DELAY;
+		last_autolink = cx.now + AUTOLINK_DELAY;
 
 		if (autolink_cfg)
 			autolink_cfg = autolink_cfg->next;
@@ -1474,14 +1485,14 @@ void select_botnet(void)
 		}
 	}
 
-	short_tv &= ~TV_BOTNET;
+	cx.short_tv &= ~TV_BOTNET;
 	for(bn=botnetlist;bn;bn=bn->next)
 	{
 		chkhigh(bn->sock);
 		if (bn->status == BN_CONNECT)
 		{
 			FD_SET(bn->sock,&write_fds);
-			short_tv |= TV_BOTNET;
+			cx.short_tv |= TV_BOTNET;
 		}
 		else
 		{
@@ -1502,12 +1513,12 @@ void process_botnet(void)
 		/*
 		 *  usersharing tick, 10 minute period
 		 */
-		if (bn->status == BN_LINKED && (bn->tick_last + 600) < now)
+		if (bn->status == BN_LINKED && (bn->tick_last + 600) < cx.now)
 		{
 #ifdef DEBUG
 			debug("(process_botnet) {%i} periodic ushare tick\n",bn->sock);
 #endif /* DEBUG */
-			bn->tick_last = now;
+			bn->tick_last = cx.now;
 			to_file(bn->sock,"UT%i\n",bn->tick);
 		}
 
@@ -1531,7 +1542,7 @@ void process_botnet(void)
 			else
 			{
 				bn->status = BN_BANNERSENT;
-				bn->when = now;
+				bn->when = cx.now;
 			}
 			/* write_fds is only set for sockets where reading is not needed */
 			continue;
@@ -1577,7 +1588,7 @@ void process_botnet(void)
 			}
 		}
 
-		if ((bn->status == BN_CONNECT) && ((now - bn->when) > LINKTIME))
+		if ((bn->status == BN_CONNECT) && ((cx.now - bn->when) > LINKTIME))
 		{
 #ifdef DEBUG
 			debug("(process_botnet) {%i} Life is good; but not for this guy (guid == %i). Timeout!\n",
@@ -1611,7 +1622,7 @@ clean:
 				debug("(process_botnet) botnet quit: guid %i child of %i on socket %i\n",
 					binfo->guid,bn->guid,bn->sock);
 #endif /* DEBUG */
-				if (bn->list_complete)
+				if (bn->opt.links_complete)
 				{
 					send_global(SPYSTR_BOTNET,"quit: guid %i (child of %i)",
 						binfo->guid,bn->guid);
@@ -1620,7 +1631,7 @@ clean:
 				}
 				Free((char**)&binfo);
 			}
-			if (bn->list_complete)
+			if (bn->opt.links_complete)
 			{
 				botnet_relay(bn,"BQ%i\n",bn->guid);
 			}
@@ -1639,6 +1650,22 @@ clean:
  *
  */
 
+void do_link_noargs(const char *from)
+{
+	NetCfg	*cfg;
+
+	/*
+	 *  list all the known links
+	 */
+	table_buffer("guid\tpass\thost\tport");
+	for(cfg=netcfglist;cfg;cfg=cfg->next)
+	{
+		table_buffer("%i\t%s\t%s\t%i",cfg->guid,(cfg->pass) ? cfg->pass : EMPTYSTR,
+			(cfg->host) ? cfg->host : EMPTYSTR,cfg->port);
+	}
+	table_send(from,2);
+}
+
 void do_link(COMMAND_ARGS)
 {
 	/*
@@ -1648,21 +1675,6 @@ void do_link(COMMAND_ARGS)
 	char	*guid,*pass,*host,*port;
 	int	iguid,iport;
 	int	mode;
-
-	/*
-	 *  list all the known links
-	 */
-	if (!*rest)
-	{
-		table_buffer("guid\tpass\thost\tport");
-		for(cfg=netcfglist;cfg;cfg=cfg->next)
-		{
-			table_buffer("%i\t%s\t%s\t%i",cfg->guid,(cfg->pass) ? cfg->pass : "",
-				(cfg->host) ? cfg->host : "",cfg->port);
-		}
-		table_send(from,2);
-		return;
-	}
 
 	guid = chop(&rest);
 	if (*guid == '+' || *guid == '-')
@@ -1686,7 +1698,7 @@ usage:
 		pp = &cfg->next;
 	}
 
-	if (CurrentUser == &CoreUser || mode == '+')
+	if (CurrentUser == &cx.CoreUser || mode == '+')
 	{
 		if (cfg)
 		{
@@ -1726,6 +1738,7 @@ usage:
 
 	if (mode == '-')
 	{
+		to_user(from,"removing link guid: %i",iguid);
 		*pp = cfg->next;
 		Free((char**)&cfg);
 		return;
@@ -1759,10 +1772,9 @@ void do_cmd(COMMAND_ARGS)
 	Mech	*backup;
 	char	tempdata[MAXLEN];
 	char	*target,*orig = rest;
-	int	guid;
 
 	target = chop(&rest);
-	guid = asc2int(target);
+	asc2int(target);
 	if (errno)
 	{
 		unchop(orig,rest);
@@ -1776,7 +1788,7 @@ void do_cmd(COMMAND_ARGS)
 		return;
 	}
 
-	if (STRCHR(from,'!'))
+	if (stringchr(from,'!'))
 		sprintf(tempdata,"%s %i %s %s",target,current->guid,from,rest);
 	else
 		sprintf(tempdata,"%s %i %s!%s %s",target,current->guid,from,CurrentUser->mask->p,rest);

@@ -88,11 +88,11 @@ static PyObject *python_getvar(PyObject *self, PyObject *args)
 	case PYVAR_currentnick:
 		return Py_BuildValue("s", CurrentNick);
 	case PYVAR_botnick:
-		return Py_BuildValue("s", current && current->nick ? current->nick : "");
+		return Py_BuildValue("s", current && getbotnick(current));
 	case PYVAR_wantnick:
-		return Py_BuildValue("s", current && current->wantnick ? current->wantnick : "");
+		return Py_BuildValue("s", current && getbotwantnick(current));
 	case PYVAR_userhost:
-		return Py_BuildValue("s", current && current->userhost ? current->userhost : "");
+		return Py_BuildValue("s", current && getbotuserhost(current));
 	case PYVAR_server:
 		return Py_BuildValue("i", current && current->server ? current->server : -1);
 	case PYVAR_nextserver:

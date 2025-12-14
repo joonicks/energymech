@@ -46,20 +46,19 @@
 #define DAY_IN_SECONDS		(24*60*60)
 #define WEEK_IN_SECONDS		(7*24*60*60)
 
-LS TrivScore *lastwinner;
-LS Chan *triv_chan = NULL;
-LS Strp *triv_answers = NULL;
-LS time_t triv_ask_time;
-LS time_t triv_next_time = 0;
-LS time_t triv_weektop10;
-LS int triv_mode;
-LS int triv_score;
-LS int triv_streak;
-LS int triv_halt_flag;
+TrivScore *lastwinner;
+Chan *triv_chan = NULL;
+Strp *triv_answers = NULL;
+time_t triv_ask_time;
+time_t triv_weektop10;
+int triv_mode;
+int triv_score;
+int triv_streak;
+int triv_halt_flag;
 
 #endif /* TRIVIA */
 
-#define BIGSAY_DEFAULTFONT	"default"
+#define BIGSAY_DEFAULTFONT	DEFAULTSTR
 #define FONT_EXTENSION		".bigchars"
 
 BigC *newchar;
@@ -196,6 +195,7 @@ int read_bigcharset(char *fname)
 int read_ascii(char *rest)
 {
 	to_user_q(global_from,FMT_PLAIN,rest);
+	return(0);
 }
 
 #ifdef TRIVIA
@@ -216,7 +216,7 @@ void trivia_week_toppers(void)
 	int	i,x;
 
 	chosen[0] = NULL;
-	week = (now + (3 * DAY_IN_SECONDS)) / WEEK_IN_SECONDS;
+	week = (cx.now + (3 * DAY_IN_SECONDS)) / WEEK_IN_SECONDS;
 
 	for(su=scorelist;su;su=su->next)
 	{
@@ -269,7 +269,7 @@ void hint_one(void)
 	src = triv_answers->p;
 	while(*src)
 	{
-		if (STRCHR(TRIV_METACHARS,*src))
+		if (stringchr(TRIV_METACHARS,*src))
 			*(dst++) = *src;
 		else
 			*(dst++) = triv_qchar;
@@ -306,7 +306,7 @@ void hint_two(void)
 
 	while(*src)
 	{
-		if (STRCHR(TRIV_METACHARS,*src))
+		if (stringchr(TRIV_METACHARS,*src))
 			*(dst++) = *src;
 		else
 			*(dst++) = triv_qchar;
@@ -343,7 +343,7 @@ void hint_three(void)
 
 	while(*src)
 	{
-		if (STRCHR(TRIV_METACHARS "aeiouyAEIOUY",*src))
+		if (stringchr(TRIV_METACHARS "aeiouyAEIOUY",*src))
 			*(dst++) = *src;
 		else
 			*(dst++) = triv_qchar;
@@ -364,7 +364,7 @@ void trivia_cleanup(void)
 	Strp	*ans;
 
 	triv_mode = TRIV_WAIT_QUESTION;
-	triv_next_time = now + triv_qdelay;
+	triv_next_time = cx.now + triv_qdelay;
 	while((ans = triv_answers))
 	{
 		triv_answers = ans->next;
@@ -389,7 +389,7 @@ void trivia_check(Chan *chan, char *rest)
 	return;
 
 have_answer:
-	week = (now + (3 * DAY_IN_SECONDS)) / WEEK_IN_SECONDS;
+	week = (cx.now + (3 * DAY_IN_SECONDS)) / WEEK_IN_SECONDS;
 
 	for(su=scorelist;su;su=su->next)
 	{
@@ -425,7 +425,7 @@ have_answer:
 
 	to_server("PRIVMSG %s :Yes, %s! got the answer -> %s <- in %i seconds, and gets %i points!\n",
 		triv_chan->name,CurrentNick,triv_answers->p,
-		(int)(now - triv_ask_time),triv_score);
+		(int)(cx.now - triv_ask_time),triv_score);
 
 	if (su == lastwinner)
 	{
@@ -481,7 +481,7 @@ char *random_question(char *triv_rand)
 
 	} entry;
 
-	if (STRCHR(triv_qfile,'/') || strlen(triv_qfile) > 100) /* really bad filenames... */
+	if (stringchr(triv_qfile,'/') || strlen(triv_qfile) > 100) /* really bad filenames... */
 		return(NULL);
 
 	stringcat(stringcpy(tmpname,"trivia/"),triv_qfile);
@@ -497,7 +497,7 @@ char *random_question(char *triv_rand)
 #endif /* DEBUG */
 
 	stringcpy(triv_rand,tmpname);
-	if ((p = STRCHR(triv_rand,'.')) == NULL)
+	if ((p = stringchr(triv_rand,'.')) == NULL)
 		p = STREND(triv_rand);
 	stringcpy(p,".index");
 
@@ -545,7 +545,7 @@ stop_trivia:
 		triv_chan = NULL;
 		triv_next_time = 0;
 		triv_halt_flag = FALSE;
-		short_tv &= ~TV_TRIVIA;
+		cx.short_tv &= ~TV_TRIVIA;
 		return;
 	}
 
@@ -558,12 +558,12 @@ stop_trivia:
 		goto bad_question;
 
 	triv_score = (RANDOM(2,9) + RANDOM(2,10) + RANDOM(2,10)) / 3;
-	triv_ask_time = now;
+	triv_ask_time = cx.now;
 
-	if (now > (triv_weektop10 + 1200))
+	if (cx.now > (triv_weektop10 + 1200))
 	{
 		trivia_week_toppers();
-		triv_weektop10 = now;
+		triv_weektop10 = cx.now;
 	}
 
 	to_server("PRIVMSG %s :%s\n",triv_chan->name,question);
@@ -575,37 +575,34 @@ void trivia_tick(void)
 	Chan	*chan;
 	Mech	*bot;
 
-	if (triv_next_time && (now >= triv_next_time))
+	for(bot=botlist;bot;bot=bot->next)
 	{
-		for(bot=botlist;bot;bot=bot->next)
+		for(chan=bot->chanlist;chan;chan=chan->next)
 		{
-			for(chan=bot->chanlist;chan;chan=chan->next)
+			if (triv_chan == chan)
 			{
-				if (triv_chan == chan)
+				current = bot;
+				triv_next_time = cx.now + TRIV_HINT_DELAY;
+				switch(triv_mode)
 				{
-					current = bot;
-					triv_next_time = now + TRIV_HINT_DELAY;
-					switch(triv_mode)
-					{
-					case TRIV_WAIT_QUESTION:
-						trivia_question();
-						break;
-					case TRIV_HINT_TWO:
-						hint_two();
-						break;
-					case TRIV_HINT_THREE:
-						hint_three();
-						break;
-					case TRIV_NO_ANSWER:
-						trivia_no_answer();
-						return; /* dont increment with triv_mode */
-					}
-					triv_mode++;
-#ifdef DEBUG
-					current = NULL;
-#endif /* DEBUG */
-					return;
+				case TRIV_WAIT_QUESTION:
+					trivia_question();
+					break;
+				case TRIV_HINT_TWO:
+					hint_two();
+					break;
+				case TRIV_HINT_THREE:
+					hint_three();
+					break;
+				case TRIV_NO_ANSWER:
+					trivia_no_answer();
+					return; /* dont increment with triv_mode */
 				}
+				triv_mode++;
+#ifdef DEBUG
+				current = NULL;
+#endif /* DEBUG */
+				return;
 			}
 		}
 	}
@@ -737,7 +734,7 @@ void do_bigsay(COMMAND_ARGS)
 		if (temp[1] == '-')
 			; /* allow .bigsay -- -dash- */
 		else
-		if (STRCHR(temp,'/') == NULL) /* no filesystem perversions... */
+		if (stringchr(temp,'/') == NULL) /* no filesystem perversions... */
 		{
 			stringcat(stringcat(stringcpy(output,COMMONDIR),temp+1),".bigchars"); /* temp+1 = skip initial '-' */
 		}
@@ -770,7 +767,7 @@ reuse_font:
 			}
 			for(bigc=fontlist;bigc;bigc=bigc->next)
 			{
-				if (STRCHR(bigc->chars,*pt))
+				if (stringchr(bigc->chars,*pt))
 				{
 					sp = bigc->data;
 					for(x=0;x<i;x++)
@@ -816,7 +813,7 @@ reuse_font:
 	}
 }
 
-void do_random_msg(COMMAND_ARGS)
+void do_randmsg(COMMAND_ARGS)
 {
 	const char *filename;
 	const char *message;
@@ -899,7 +896,7 @@ void do_ascii(COMMAND_ARGS)
 	int	fd;
 
 #ifdef DEBUG
-	if (STRCHR(rest,'/'))
+	if (stringchr(rest,'/'))
 	{
 		debug("(do_ascii) '/' not permitted in filename\n");
 ascii_badfile:
@@ -919,7 +916,7 @@ ascii_badfile:
 		goto ascii_badfile;
 	}
 #else
-	if (STRCHR(rest,'/'))
+	if (stringchr(rest,'/'))
 	{
 ascii_badfile:
 		to_user_q(from,"%s","Bad filename or file does not exist");
@@ -958,7 +955,11 @@ user (after eliminating all known bots) and says the nick in the channel.
 If the command ``RAND luser'' is issued in a channel, the bot picks a random channel
 user that has no access in the bots userlist and says the nick in the channel.
 
+0299
 */
+#define __characterisnumeric (attrtab[(uchar)*rest] & NUM)
+#define characterisnumeric (*rest >= '0' && *rest <= '9')
+
 void do_rand(COMMAND_ARGS)
 {
 	const char *opt;
@@ -968,18 +969,18 @@ void do_rand(COMMAND_ARGS)
 	if (!rest || *rest == 0)
 		goto pick_randnum;
 
-	if (attrtab[(uchar)*rest] & NUM)
+	if (characterisnumeric)
 	{
 		max = 0;
-		while(attrtab[(uchar)*rest] & NUM)
+		while(characterisnumeric)
 			max = 10 * max + (*(rest++) - '0');
 		if (*rest == '-' || *rest == ' ')
 			rest++;
-		if ((attrtab[(uchar)*rest] & NUM) == 0)
+		if (characterisnumeric == 0)
 			goto pick_randnum;
 		min = max;
 		max = 0;
-		while(attrtab[(uchar)*rest] & NUM)
+		while(characterisnumeric)
 			max = 10 * max + (*(rest++) - '0');
 		goto pick_randnum;
 	}
@@ -1069,10 +1070,10 @@ void do_trivia(COMMAND_ARGS)
 		to_server("PRIVMSG %s :Trivia starting! Get ready...\n",chan->name);
 		triv_chan = chan;
 		triv_mode = TRIV_WAIT_QUESTION;
-		triv_next_time = now + triv_qdelay;
-		triv_weektop10 = now;
+		triv_next_time = cx.now + triv_qdelay;
+		triv_weektop10 = cx.now;
 		lastwinner = NULL;
-		short_tv |= TV_TRIVIA;
+		cx.short_tv |= TV_TRIVIA;
 		if (!scorelist)
 		{
 			read_triviascore();
@@ -1096,7 +1097,7 @@ void do_trivia(COMMAND_ARGS)
 		if (triv_chan)
 		{
 			uaccess = get_authaccess(from,triv_chan->name);
-			if (now > (triv_weektop10 + 300))
+			if (cx.now > (triv_weektop10 + 300))
 				n =  1;
 			else
 				n = uaccess;
@@ -1104,7 +1105,7 @@ void do_trivia(COMMAND_ARGS)
 			if (n)
 			{
 				trivia_week_toppers();
-				if (!uaccess) triv_weektop10 = now;
+				if (!uaccess) triv_weektop10 = cx.now;
 			}
 		}
 	}

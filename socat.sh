@@ -1,5 +1,5 @@
 #!/bin/bash
-# Simple wrapper that alows energymech to connect to SSL and/or ipv6 servers
+# Simple wrapper that allows energymech to connect to SSL and/or ipv6 servers
 # Run it before running energymech
 
 # Listen port. In the energymech config put 'server localhost 6003'

@@ -128,7 +128,6 @@ new_blank:
 	op = 0;
 	para = 0;
 
-op_or_num:
 	if (*input == '+')
 	{
 		op = OPER_ADD;
@@ -204,9 +203,11 @@ iterate:
 	para = -1;
 	for(i=0;i<=cop_count;i++)
 	{
+#ifdef TEST
 		if (cop[i].paralevel >= 0)
 			printf("number %lu, operation %i, decimals %i, paralevel %i\n",
 				cop[i].number,cop[i].operation,cop[i].decimals,cop[i].paralevel);
+#endif /* TEST */
 		if (cop[i].paralevel >= para)
 			para = cop[i].paralevel;
 	}
@@ -281,7 +282,7 @@ int bas2int(const char *src, int base)
 	char	ch;
 
 	errno = EINVAL;
-	n = 0;
+	v = n = 0;
 
 	while(*src)
 	{
@@ -291,22 +292,20 @@ int bas2int(const char *src, int base)
 		switch(base)
 		{
 		case 16:
-			ch = tolowertab[(uchar)*src];
 			if (*src <= '9')
 				v = *src - '0';
 			else
-			if (ch >= 'a' && ch <= 'f')
-				v = ch - 'a' + 10;
-			else
-				return(-1);
+			{
+				ch = tolowertab[(uchar)*src];
+				if (ch >= 'a' && ch <= 'f')
+					v = ch - 'a' + 10;
+				else
+					return(-1);
+			}
 			break;
 		case 8:
-			if (*src >= '8')
-				return(-1);
-			v = *src - '0';
-			break;
 		case 2:
-			if (*src >= '2')
+			if(*src >= ('0'+base))
 				return(-1);
 			v = *src - '0';
 		}
@@ -329,7 +328,6 @@ void do_calc(COMMAND_ARGS)
 {
 	char	prep[MSGLEN];
 	CalcOp	cop[MAX_COP];
-	int	cp = 0;
 
 	memset(&cop,0,sizeof(cop));
 
@@ -345,22 +343,22 @@ void do_calc(COMMAND_ARGS)
 void do_convert(COMMAND_ARGS)
 {
 	char	output[200];
-	char	*ops, *srcnum, *dst;
+	char	*srcnum, *dst;
+	char	inval, outval;
 	int	num, todec, tochr, tooct, tohex, tobin;
 
-	ops = chop(&rest);
-	srcnum = chop(&rest);
-
-	if (ops == NULL || srcnum == NULL)
+	if (cx.rest_end < rest+2)
 		return;
 
-	todec = tochr = tooct = tohex = tobin = 0;
+	inval = rest[0];
+	outval = rest[1];
+	rest += 2;
+	srcnum = chop(&rest);
 
-	switch(ops[1])
+	todec = tochr = tooct = tohex = tobin = (outval == ' ' || outval == 0) ? 0 : 1;
+
+	switch(outval)
 	{
-	case 0:
-		todec = tochr = tooct = tohex = tobin = 1;
-		break;
 	case 'b':
 		tobin = 1;
 		break;
@@ -375,19 +373,12 @@ void do_convert(COMMAND_ARGS)
 		break;
 	}
 
+	num = 0;
 	errno = EINVAL;
-	switch(*ops)
+	switch(inval)
 	{
 	case 'b':
-		errno = 0;
-		for(num=0;*srcnum;)
-		{
-			num = num << 1;
-			if (*srcnum != '0' && *srcnum != '1')
-				return;
-			num += *srcnum - '0';
-			srcnum++;
-		}
+		num = bas2int(srcnum,2);
 		break;
 	case 'c':
 		num = srcnum[0];
@@ -396,8 +387,7 @@ void do_convert(COMMAND_ARGS)
 		errno = tochr = 0;
 		break;
 	case 'd':
-		num = asc2int(srcnum);
-		/*todec = 0;*/
+		num = asc2int(srcnum); /* sets errno */
 		break;
 	case 'h':
 		if (*srcnum == '$')
@@ -405,11 +395,9 @@ void do_convert(COMMAND_ARGS)
 		if (*srcnum == '0' && srcnum[1] == 'x')
 			srcnum += 2;
 		num = bas2int(srcnum,16);
-		/*tohex = 1;*/
 		break;
 	case 'o':
 		num = bas2int(srcnum,8);
-		/* tooct = 0;*/
 		break;
 	}
 	if (errno)

@@ -1,7 +1,7 @@
 /*
 
     EnergyMech, IRC bot software
-    Parts Copyright (c) 1997-2024 proton
+    Parts Copyright (c) 1997-2025 proton
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -33,22 +33,6 @@
 #include <sys/utsname.h>
 #endif /* HOSTINFO */
 
-#ifdef IDWRAP
-
-void unlink_identfile(void)
-{
-	if (current->identfile)
-	{
-#ifdef DEBUG
-		debug("(unlink_identfile) unlink(%s)\n",current->identfile);
-#endif /* DEBUG */
-		unlink(current->identfile);
-		Free((char**)&current->identfile);
-	}
-}
-
-#endif /* IDWRAP */
-
 int conf_callback(char *line)
 {
 
@@ -57,7 +41,7 @@ int conf_callback(char *line)
 
 	fix_config_line(line);
 
-	on_msg((char*)CoreUser.name,current->nick,line);
+	on_msg((char*)cx.CoreUser.name,getbotnick(current),line);
 	return(FALSE);
 }
 
@@ -95,7 +79,7 @@ void readcfgfile(void)
 	CurrentShit = NULL;
 	CurrentChan = NULL;
 	CurrentDCC  = (Client*)&CoreClient;
-	CurrentUser = (User*)&CoreUser;
+	CurrentUser = (User*)&cx.CoreUser;
 
 	readline(in,&conf_callback);			/* readline closes in */
 
@@ -108,7 +92,7 @@ void readcfgfile(void)
 	}
 
 	if ((current) && (current->chanlist == NULL))
-		to_file(1,"%s %s will not join any channels\n",ERR_INIT,current->nick);
+		to_file(1,"init: Warning: %s will not join any channels\n",getbotnick(current));
 
 	oc = 0;
 #ifdef DEBUG
@@ -123,8 +107,8 @@ void readcfgfile(void)
 			to_file(1,", ...");
 			break;
 		}
-		to_file(1,"%s%s",(oc > 0) ? ", " : "",bot->nick);
-		oc += strlen(bot->nick);
+		to_file(1,"%s%s",(oc > 0) ? ", " : EMPTYSTR,getbotnick(bot));
+		oc += getbotnicklen(bot);
 	}
 	to_file(1," ]\n");
 #ifdef DEBUG
@@ -168,7 +152,7 @@ int write_session(void)
 	for(sp=serverlist;sp;sp=sp->next)
 	{
 		to_file(sf,"server %s %i %s\n",sp->name,(sp->port) ? sp->port : 6667,
-			(sp->pass[0]) ? sp->pass : "");
+			(sp->pass[0]) ? sp->pass : EMPTYSTR);
 	}
 
 #ifdef BOTNET
@@ -243,7 +227,7 @@ int write_session(void)
 
 	for(bot=botlist;bot;bot=bot->next)
 	{
-		to_file(sf,"nick %i %s\n",bot->guid,bot->wantnick);
+		to_file(sf,"nick %i %s\n",bot->guid,getbotwantnick(bot));
 		/*
 		 *  current->setting contains channel defaults and global vars
 		 */
@@ -277,7 +261,7 @@ int write_session(void)
 		{
 			if (!chan->active && !chan->rejoin)
 				continue;
-			to_file(sf,"join %s %s\n",chan->name,(chan->key) ? chan->key : "");
+			to_file(sf,"join %s %s\n",chan->name,(chan->key) ? chan->key : EMPTYSTR);
 			/*
 			 *  using CHANSET_SIZE: only the first settings contain stuff
 			 */
@@ -327,22 +311,6 @@ int write_session(void)
  *  Bot nicking, adding and killing
  */
 
-void setbotnick(Mech *bot, char *nick)
-{
-	/*
-	 *  if its exactly the same we dont need to change it
-	 */
-	if (!stringcmp(bot->nick,nick))
-		return;
-
-	Free((char**)&bot->nick);
-	set_mallocdoer(setbotnick);
-	bot->nick = stringdup(nick);
-#ifdef BOTNET
-	botnet_refreshbotinfo();
-#endif /* BOTNET */
-}
-
 Mech *add_bot(int guid, char *nick)
 {
 	Mech	*bot;
@@ -352,10 +320,8 @@ Mech *add_bot(int guid, char *nick)
 	bot->connect = CN_NOSOCK;
 	bot->sock = -1;
 	bot->guid = guid;
-	set_mallocdoer(add_bot);
-	bot->nick = stringdup(nick);
-	set_mallocdoer(add_bot);
-	bot->wantnick = stringdup(nick);
+	setbotnick(bot,nick);
+	setbotwantnick(bot,nick);
 	set_binarydefault(bot->setting);
 	bot->next = botlist;
 	botlist = bot;
@@ -375,7 +341,7 @@ void signoff(char *from, char *reason)
 
 	if (from)
 	{
-		to_user(from,"Killing mech: %s",current->nick);
+		to_user(from,"Killing mech: %s",getbotnick(current));
 		to_user(from,"Saving the lists...");
 	}
 	fname = current->setting[STR_USERFILE].str_var;
@@ -419,12 +385,9 @@ void signoff(char *from, char *reason)
 
 	if (current->sock != -1)
 	{
-#ifdef IDWRAP
-		unlink_identfile();
-#endif /* IDWRAP */
 		if (!reason)
 			reason = randstring(SIGNOFFSFILE);
-		to_server("QUIT :%s\n",(reason) ? reason : "");
+		to_server("QUIT :%s\n",(reason) ? reason : EMPTYSTR);
 		killsock(current->sock);
 		current->sock = -1;
 	}
@@ -451,9 +414,6 @@ void signoff(char *from, char *reason)
 	/*
 	 *  little of this n that
 	 */
-	Free((char**)&current->nick);
-	Free((char**)&current->wantnick);
-	Free((char**)&current->userhost);
 
 	/*
 	 *  These 2 are used by do_die() to pass reason and doer.
@@ -481,10 +441,6 @@ void signoff(char *from, char *reason)
 	 */
 	if ((current = botlist) == NULL)
 	{
-#if defined(BOUNCE) && defined(IDWRAP)
-		bounce_cleanup();
-#endif /* BOUNCE && IDWRAP */
-
 #ifdef TRIVIA
 		write_triviascore();
 #endif /* TRIVIA */
@@ -517,10 +473,13 @@ void kill_all_bots(char *reason)
 /*
  *  Server lists, connects, etc...
  */
-Server *add_server(char *host, int port, char *pass)
+Server *add_server(const char *host, const int port, const char *pass, const char *group)
 {
 	Server	*sp,**pp;
 
+#ifdef DEBUG
+	debug("(add_server) host = %s, port = %i, group = %s, pass = '%s'.\n",host,port,group,pass);
+#endif /* DEBUG */
 	pp = &serverlist;
 	while(*pp)
 	{
@@ -529,40 +488,19 @@ Server *add_server(char *host, int port, char *pass)
 			return(sp);
 		pp = &sp->next;
 	}
+#ifdef DEBUG
+	debug("(add_server) creating new entry: id %i.\n",serverident+1);
+#endif /* DEBUG */
 	set_mallocdoer(add_server);
 	*pp = sp = (Server*)Calloc(sizeof(Server));
 	sp->ident = serverident++;
+	sp->maxontime = -1;
+	/* caller must make sure host, pass, port and group is all valid */
 	stringcpy_n(sp->name,host,NAMELEN);
-	if (pass && *pass)
-		stringcpy_n(sp->pass,pass,PASSLEN);
-	sp->port = (port) ? port : DEFAULT_IRC_PORT;
-	if (currentservergroup)
-		sp->servergroup = currentservergroup->servergroup;
+	stringcpy_n(sp->pass,pass,PASSLEN);
+	stringcpy_n(sp->group,group,SERVERGROUPLEN);
+	sp->port = port;
 	return(sp);
-}
-
-ServerGroup *getservergroup(const char *name)
-{
-	ServerGroup *sg;
-
-	for(sg=servergrouplist;sg;sg=sg->next)
-	{
-		if (!stringcasecmp(sg->name,name))
-			return(sg);
-	}
-	return(NULL);
-}
-
-ServerGroup *getservergroupid(int id)
-{
-	ServerGroup *sg;
-
-	for(sg=servergrouplist;sg;sg=sg->next)
-	{
-		if (sg->servergroup == id)
-			return(sg);
-	}
-	return(NULL);
 }
 
 Server *find_server(int id)
@@ -589,7 +527,7 @@ int try_server(Server *sp, char *hostname)
 		hostname = sp->name;
 	}
 
-	sp->lastattempt = now;
+	sp->lastattempt = cx.now;
 	sp->usenum++;
 
 #ifdef RAWDNS
@@ -606,7 +544,7 @@ int try_server(Server *sp, char *hostname)
 	{
 		current->server = sp->ident;
 		current->connect = CN_DNSLOOKUP;
-		current->conntry = now;
+		current->conntry = cx.now;
 		rawdns(hostname);
 		return(0);
 	}
@@ -619,24 +557,22 @@ int try_server(Server *sp, char *hostname)
 	}
 	current->away = FALSE;
 	current->connect = CN_TRYING;
-	current->activity = current->conntry = now;
+	current->activity = current->conntry = cx.now;
 	*current->modes = 0;
 	return(current->sock);
 }
 
 void connect_to_server(void)
 {
-	ServerGroup *sg;
 	Server	*sp,*sptry;
 	Chan	*chan;
-	char	*s;
-	int	sgi;
+	char	*sgroup;
 
 	/*
 	 *  This should prevent the bot from chewing up too
 	 *  much CPU when it fails to connect to ANYWHERE
 	 */
-	current->conntry = now;
+	current->conntry = cx.now;
 
 	/*
 	 *  Is this the proper action if there is no serverlist?
@@ -678,64 +614,54 @@ void connect_to_server(void)
 	 *  The purpose of this kludge is to find the least used server
 	 *  July 7th: added logic for servergroup
 	 */
-	sptry = NULL;
-	if ((s = current->setting[STR_SERVERGROUP].str_var))
+	if ((sgroup = current->setting[STR_SERVERGROUP].str_var))
 	{
-		if ((sg = getservergroup(s)))
-			sgi = sg->servergroup;
 #ifdef DEBUG
-		if (sg)
-			debug("[CtS] trying servergroup \"%s\" (%i)\n",s,sg->servergroup);
-		else
-			debug("[CtS] trying servergroup \"%s\" (not found)\n",s);
+		debug("[CtS] servergroup set to \"%s\"\n",sgroup);
 #endif /* DEBUG */
 	}
-	else
-	{
-		sgi = 0;
-	}
+	sptry = NULL;
 	for(sp=serverlist;sp;sp=sp->next)
 	{
-		if ((sgi == 0 || sp->servergroup == sgi || sp->servergroup == 0) && sp->lastattempt != now)
-		{
-			if ((!sptry) || (sp->usenum < sptry->usenum))
-			{
-				if (sp->err == 0 || sp->err == SP_ERRCONN)
-					sptry = sp;
-				else
-				if (
-					(sp->err == SP_THROTTLED && (sp->lastattempt + 45) < now) || /* retry throttled after 45 seconds */
-					(sp->err == SP_KLINED && (sp->lastattempt + 86400) < now) /* retry Klined after a day */
-					)
-					sptry = sp;
-			}
-		}
+		if (sp->lastattempt == cx.now)
+			continue;
+		if (sgroup && (stringcasecmp(sgroup,sp->group) != 0))
+			continue;
+		if (sptry && (sp->usenum > sptry->usenum))
+			continue;
+
+		if (sp->err == 0 || sp->err == SP_ERRCONN)
+			sptry = sp;
+		else
+		if ((sp->err == SP_THROTTLED && (sp->lastattempt + 45) < cx.now) || /* retry throttled after 45 seconds */
+		    (sp->err == SP_KLINED && (sp->lastattempt + 86400) < cx.now)) /* retry Klined after a day */
+			sptry = sp;
 	}
 	/*
 	 *  Connect...
 	 */
 	if (sptry)
-		try_server(sptry,NULL);
-	else
 	{
-#ifdef DEBUG
-		const char *errtxt;
-
-		if (current->connect != CN_SPINNING)
-		{
-			debug("[CtS] Serverlist Exhausted:\n");
-			for(sp=serverlist;sp;sp=sp->next)
-			{
-				errtxt = (const char *[]){"No error","SP_NOAUTH","SP_KLINED","SP_FULLCLASS",
-					"SP_TIMEOUT","SP_ERRCONN","SP_DIFFPORT","SP_NO_DNS","SP_THROTTLED"}[sp->err];
-				debug("[CtS] (%i) %s[%i]: %s(%i) / servergroup %i\n",sp->ident,(sp->realname[0]) ? sp->realname : sp->name,
-					sp->port,errtxt,sp->err,sp->servergroup);
-			}
-			debug("[CtS] Server connection is spinning...\n");
-		}
-		current->connect = CN_SPINNING;
-#endif /* DEBUG */
+		try_server(sptry,NULL);
+		return;
 	}
+#ifdef DEBUG
+	if (current->connect != CN_SPINNING)
+	{
+		const char *errtxt;
+		debug("[CtS] Serverlist Exhausted:\n");
+		for(sp=serverlist;sp;sp=sp->next)
+		{
+			errtxt = (const char *[]){"No error","SP_NOAUTH","SP_KLINED","SP_FULLCLASS",
+				"SP_TIMEOUT","SP_ERRCONN","SP_DIFFPORT","SP_NO_DNS","SP_THROTTLED"}[sp->err];
+			debug("[CtS] (%i) %s[%i]: %s(%i) / servergroup %i\n",sp->ident,
+				(*sp->realname) ? sp->realname : sp->name,
+				sp->port,errtxt,sp->err,sp->group);
+		}
+		debug("[CtS] Server connection is spinning...\n");
+	}
+	current->connect = CN_SPINNING;
+#endif /* DEBUG */
 }
 
 /*
@@ -758,12 +684,12 @@ void register_with_server(void)
 	sendpass = (sp && *sp->pass);
 	to_server((sendpass) ? "PASS :%s\nNICK %s\nUSER %s " MECHUSERLOGIN " 0 :%s\n" :
 		"%sNICK %s\nUSER %s " MECHUSERLOGIN " 0 :%s\n",
-		(sendpass) ? sp->pass : "",
-		current->wantnick,
+		(sendpass) ? sp->pass : EMPTYSTR,
+		getbotwantnick(current),
 		(ident) ? ident : BOTLOGIN,
 		(ircname) ? ircname : VERSION);
 	current->connect = CN_CONNECTED;
-	current->conntry = now;
+	current->conntry = cx.now;
 }
 
 /*
@@ -802,7 +728,7 @@ int sub_compile_timer(int limit, uint32_t *flags1, uint32_t *flags2, char *args)
 		s = chop(&args);
 		if (s && *s)
 		{
-			if ((dash = STRCHR(s,'-')))
+			if ((dash = stringchr(s,'-')))
 			{
 				*(dash++) = 0;
 				if (!*dash)
@@ -881,7 +807,7 @@ typedef struct
 	//using that struct, calculate when the next time will be
 	//start by determining what the time is now
 
-	thistime = now;
+	thistime = cx.now;
 
 	//which second is it
 	thissecond = thistime % 60;
@@ -960,26 +886,26 @@ void update(SequenceTime *this)
 	int	tt,th;
 	int	x,n;
 
-	tt = now / 600;		/* current 10-minute period */
-	th =  tt / 6;		/* current hour */
+	tt = cx.now / 600;	/* current 10-minute period */
+	th = tt / 6;		/* current hour */
 
 #ifdef DEBUG
 	x = 0;
 	if (tt != this->tenminute)
 	{
-		debug("(update) running: ten minute updates [%i]",tt);
+		debug("(update) running: ten minute update [%i]",tt);
 		x++;
 	}
 	if (th != this->hour)
 	{
-		debug("%shour updates [%i]",(x) ? ", " : "(update) running: ",th);
+		debug("%shour update [%i]",(x) ? ", " : "(update) running: ",th);
 		x++;
 	}
 	if (x)
 		debug("\n");
 #endif /* DEBUG */
 
-	short_tv &= ~TV_REJOIN;
+	cx.short_tv &= ~TV_REJOIN;
 	for(current=botlist;current;current=current->next)
 	{
 		if (current->reset || current->connect != CN_ONLINE)
@@ -987,12 +913,12 @@ void update(SequenceTime *this)
 
 		if (current->rejoin)
 		{
-			if ((now - current->lastrejoin) > REJOIN_DELAY)
+			if ((cx.now - current->lastrejoin) > REJOIN_DELAY)
 			{
 				current->rejoin = FALSE;
-				current->lastrejoin = now;
+				current->lastrejoin = cx.now;
 			}
-			short_tv |= TV_REJOIN;
+			cx.short_tv |= TV_REJOIN;
 		}
 
 #ifdef NOTIFY
@@ -1031,18 +957,18 @@ void update(SequenceTime *this)
 				check_dynamode(chan);
 #endif /* DYNAMODE */
 		}
-		if ((now - current->lastreset) > RESETINTERVAL)
+		if ((cx.now - current->lastreset) > RESETINTERVAL)
 		{
-			current->lastreset = now;
-			if (stringcmp(current->nick,current->wantnick))
-				to_server("NICK %s\n",current->wantnick);
+			current->lastreset = cx.now;
+			if (stringcmp(getbotnick(current),getbotwantnick(current)))
+				to_server("NICK %s\n",getbotwantnick(current));
 			check_idlekick();
 			if ((x = current->setting[INT_AAWAY].int_var) && current->away == FALSE)
 			{
-				if ((now - current->activity) > (x * 60))
+				if ((cx.now - current->activity) > (x * 60))
 				{
 					temp = randstring(AWAYFILE);
-					to_server(AWAYFORM,(temp && *temp) ? temp : "auto-away",time2away(now));
+					to_server(AWAYFORM,(temp && *temp) ? temp : "auto-away",maketimestr(cx.now,TFMT_AWAY));
 					current->away = TRUE;
 				}
 			}
@@ -1073,10 +999,8 @@ void update(SequenceTime *this)
 			temp = TEXT_NOTINSERVLIST;
 			if ((sp = find_server(current->server)))
 			{
-				int	ot = (uint32_t)(now - current->ontime);
-
-				if (sp->maxontime < ot)
-					sp->maxontime = ot;
+				if (sp->maxontime > current->ontime)
+					sp->maxontime = current->ontime;
 				sprintf(globaldata,"%s:%i",(*sp->realname) ? sp->realname : sp->name,sp->port);
 				temp = globaldata;
 			}
@@ -1134,10 +1058,10 @@ void process_server_input(void)
 
 	if (FD_ISSET(current->sock,&write_fds))
 	{
-		setbotnick(current,current->wantnick);
+		setbotnick(current,getbotwantnick(current));
 #ifdef DEBUG
 		debug("[PSI] {%i} connection established (%s) [ASYNC]\n",
-			current->sock,current->wantnick);
+			current->sock,getbotwantnick(current));
 #endif /* DEBUG */
 #ifdef WINGATE
 		if ((current->vhost_type & VH_WINGATE_BOTH) == VH_WINGATE)
@@ -1161,7 +1085,7 @@ void process_server_input(void)
 				current->vhost_type |= VH_WINGATE_FAIL;
 			}
 			current->connect = CN_WINGATEWAIT;
-			current->conntry = now;
+			current->conntry = cx.now;
 			current->heartbeat = 0;
 			return;
 		}
@@ -1170,10 +1094,6 @@ void process_server_input(void)
 		 *  send NICK, USER and maybe PASS
 		 */
 		register_with_server();
-#ifdef IDWRAP
-		if (current->sock == -1)
-			unlink_identfile();
-#endif /* IDWRAP */
 		return;
 	}
 	if (FD_ISSET(current->sock,&read_fds))
@@ -1199,7 +1119,7 @@ get_line:
 				}
 			}
 #endif /* WINGATE */
-			current->conntry = now;
+			current->conntry = cx.now;
 			current->heartbeat = 0;
 			parse_server_input(linebuf);
 			goto get_line;
@@ -1215,7 +1135,7 @@ get_line:
 	}
 
 	/* server has been quiet for too long */
-	if (current->conntry + SERVERSILENCETIMEOUT <= now && current->heartbeat == 0)
+	if (current->conntry + SERVERSILENCETIMEOUT <= cx.now && current->heartbeat == 0)
 	{
 #ifdef DEBUG
 		debug("[PSI] {%i} server has been quiet for too long (%is)...\n",current->sock,SERVERSILENCETIMEOUT);
@@ -1226,7 +1146,7 @@ get_line:
 	}
 
 	/* server has been quiet for WAY too long */
-	if (current->conntry + (SERVERSILENCETIMEOUT*2) <= now)
+	if (current->conntry + (SERVERSILENCETIMEOUT*2) <= cx.now)
 	{
 #ifdef DEBUG
 		debug("[PSI] {%i} server has been quiet for WAY too long (%is), forcing reconnect...\n",current->sock,SERVERSILENCETIMEOUT*2);
@@ -1242,11 +1162,10 @@ breaksock:
 #ifdef DEBUG
 	debug("[PSI] {%i} errno = %i; closing server socket\n",current->sock,errno);
 #endif /* DEBUG */
+#ifdef WINGATE
 breaksock2:
+#endif /* WINGATE */
 	*current->sockdata = 0;
-#ifdef IDWRAP
-	unlink_identfile();
-#endif /* IDWRAP */
 	close(current->sock);
 	current->sock = -1;
 	current->connect = CN_NOSOCK;
@@ -1266,15 +1185,16 @@ void do_version(COMMAND_ARGS)
 
 void do_core(COMMAND_ARGS)
 {
+	char	tmp[MSGLEN];
 #ifdef HOSTINFO
         char    *h,hostname[256];
         struct utsname un;
 #endif /* HOSTINFO */
-	char	tmp[MSGLEN];	/* big buffers at the top */
+	const char *extra;
 	Server	*sp;
 	Chan	*chan;
 	User	*user;
-	char	*pt;
+	char *pt;
 	int	i,u,su,bu;
 
 	u = su = bu = 0;
@@ -1287,11 +1207,16 @@ void do_core(COMMAND_ARGS)
 			bu++;
 	}
 
-	i = stringcmp(current->nick,current->wantnick);
+	*tmp = 0;
+	if (*current->modes)
+	{
+		sprintf(tmp," (+%s)",current->modes);
+	}
+	i = stringcmp(getbotnick(current),getbotwantnick(current));
 	if (i)
-		table_buffer(TEXT_CURRNICKWANT,current->nick,current->wantnick,current->guid);
+		table_buffer(TEXT_CURRNICKWANT,getbotnick(current),tmp,getbotwantnick(current),current->guid);
 	else
-		table_buffer(TEXT_CURRNICKHAS,current->nick,current->guid);
+		table_buffer(TEXT_CURRNICKHAS,getbotnick(current),tmp,current->guid);
 	table_buffer(TEXT_USERLISTSTATS,u,su,EXTRA_CHAR(su),bu,EXTRA_CHAR(bu));
 
 	pt = tmp;
@@ -1325,30 +1250,29 @@ void do_core(COMMAND_ARGS)
 	if (current->setting[STR_VIRTUAL].str_var)
 	{
 		if ((current->vhost_type & VH_IPALIAS_FAIL) == 0)
-			pt = "";
+			extra = EMPTYSTR;
 		else
-			pt = TEXT_VHINACTIVE;
-		table_buffer(TEXT_VIRTHOST,current->setting[STR_VIRTUAL].str_var,pt);
+			extra = TEXT_VHINACTIVE;
+		table_buffer(TEXT_VIRTHOST,current->setting[STR_VIRTUAL].str_var,extra);
 	}
 #ifdef WINGATE
 	if (current->setting[STR_WINGATE].str_var && current->setting[INT_WINGPORT].int_var)
 	{
 		if ((current->vhost_type & VH_WINGATE_FAIL) == 0)
-			pt = "";
+			extra = EMPTYSTR;
 		else
-			pt = TEXT_VHINACTIVE;
+			extra = TEXT_VHINACTIVE;
 		table_buffer(TEXT_VIRTHOSTWINGATE,current->setting[STR_WINGATE].str_var,
-			current->setting[INT_WINGPORT].int_var,pt);
+			current->setting[INT_WINGPORT].int_var,extra);
 	}
 #endif /* WINGATE */
 	sp = find_server(current->server);
 	if (sp)
-		table_buffer(TEXT_CURRSERVER,
-			(sp->realname[0]) ? sp->realname : sp->name,sp->port);
+		table_buffer((stringcmp(sp->group,DEFAULTSTR)) ? TEXT_CURRSERVGRP : TEXT_CURRSERVER,
+			(sp->realname[0]) ? sp->realname : sp->name,sp->port,sp->group);
 	else
 		table_buffer(TEXT_CURRSERVERNOT);
-	table_buffer(TEXT_SERVERONTIME,idle2str(now - current->ontime,FALSE));
-	table_buffer(TEXT_BOTMODES,(*current->modes) ? current->modes : TEXT_NONE);
+	table_buffer(TEXT_SERVERONTIME,idle2str(current->ontime,FALSE));
 #ifdef HOSTINFO
 	hostname[255] = 0;
 	if (gethostname(hostname,250) < 0)
@@ -1359,11 +1283,22 @@ void do_core(COMMAND_ARGS)
 	if (uname(&un) == 0)
 		table_buffer(TEXT_HOSTINFO,h,un.sysname,un.release,un.machine);
 #endif /* HOSTINFO */
-	table_buffer(TEXT_CURRENTTIME,time2str(now));
-	table_buffer(TEXT_BOTSTARTED,time2str(uptime));
-	table_buffer(TEXT_BOTUPTIME,idle2str(now - uptime,FALSE));
+	table_buffer(TEXT_CURRENTTIME,maketimestr(cx.now,TFMT_FULL));
+	table_buffer(TEXT_BOTSTARTED,maketimestr(uptime,TFMT_FULL));
+	table_buffer(TEXT_BOTUPTIME,idle2str(uptime,FALSE));
 	table_buffer(TEXT_BOTVERSION,VERSION,SRCDATE);
 	table_buffer(TEXT_BOTFEATURES,__mx_opts);
+#ifdef DEBUG
+	extra = EMPTYSTR;
+	if (debugfile && dodebug)
+		extra = debugfile;
+#ifdef __profiling__
+	table_buffer("Debug\t%s%s, Compiled with Profiling",
+#else
+	table_buffer("Debug\t%s%s",
+#endif
+		(dodebug) ? "On, Output = " : "Off",extra);
+#endif /* DEBUG */
 	table_send(from,2);
 }
 
@@ -1413,196 +1348,143 @@ void do_shutdown(COMMAND_ARGS)
 	/* NOT REACHED */
 }
 
-void do_servergroup(COMMAND_ARGS)
+void do_server_noargs(const char *from)
 {
-	ServerGroup *sg,*new,**sgp;
-	char	*name;
+	Server	*sp;
+	const char *str_currentserver,*str_ago;
+	char	maxontimebuf[36],*maxontime,*lastconnect;
 
-	name = chop(&rest);
-
-	/*
-	 *  no args, list servergroups
-	 */
-	if (!name)
-	{
-		table_buffer(str_underline("id") "\t" str_underline("name"));
-		for(sg=servergrouplist;sg;sg=sg->next)
-		{
-			table_buffer("%i\t%s%s",sg->servergroup,sg->name,(sg == currentservergroup) ? " (current)" : "");
-		}
-		table_send(from,2);
+	if (partyline_only_command(from))
 		return;
-	}
+	table_buffer(str_underline("server") "\t" str_underline("last connect") "\t"
+		str_underline("maxontime") "\t" str_underline("group"));
 
-	/*
-	 *  find pre-existing severgroup by the same name (case-insensitive)
-	 */
-	sg = getservergroup(name);
-	if (!sg)
+	for(sp=serverlist;sp;sp=sp->next)
 	{
-#ifdef DEBUG
-		debug("(do_servergroup) creating new servergroup: %s\n",name);
-#endif /* DEBUG */
-		set_mallocdoer(do_servergroup);
-		new = (ServerGroup*)Calloc(sizeof(ServerGroup) + strlen(name));
-		servergroupid++;
-		new->servergroup = servergroupid;
-		stringcpy(new->name,name);
-		sgp = &servergrouplist;
-		while(*sgp)
-			sgp = &(*sgp)->next;
-		sg = *sgp = new;
-#ifdef DEBUG
+		str_ago = str_currentserver = EMPTYSTR;
+		if (sp->ident == current->server)
 		{
-			ServerGroup *g;
-
-			for (g=servergrouplist;g;g=g->next)
-			{
-				debug("(do_servergroup) %s (%i)\n",g->name,g->servergroup);
-			}
+			if (sp->maxontime == -1 || sp->maxontime > current->ontime)
+				sp->maxontime = current->ontime;
+			str_currentserver = TEXT_CURRENT;
 		}
-#endif /* DEBUG */
+
+		if (sp->maxontime == -1)
+			maxontime = TEXT_NEVER;
+		else
+		{
+			maxontime = maxontimebuf;
+			stringcpy(maxontimebuf,idle2str(sp->maxontime,FALSE));
+		}
+
+		if (sp->lastconnect)
+		{
+			str_ago = TEXT_AGO;
+			lastconnect = idle2str(sp->lastconnect,FALSE);
+		}
+		else
+		switch(sp->err)
+		{
+		case SP_NOAUTH:
+			lastconnect = TEXT_SP_NOAUTH;
+			break;
+		case SP_KLINED:
+			lastconnect = TEXT_SP_KLINED;
+			break;
+		case SP_FULLCLASS:
+			lastconnect = TEXT_SP_FULLCLASS;
+			break;
+		case SP_TIMEOUT:
+			lastconnect = TEXT_SP_TIMEOUT;
+			break;
+		case SP_ERRCONN:
+			lastconnect = TEXT_SP_ERRCONN;
+			break;
+		case SP_DIFFPORT:
+			lastconnect = TEXT_SP_DIFFPORT;
+			break;
+		case SP_NO_DNS:
+			lastconnect = TEXT_SP_NO_DNS;
+			break;
+		default:
+			lastconnect = TEXT_NEVER;
+		}
+		table_buffer("%s:%i%s\t%s%s\t%s\t%s",(*sp->realname) ? sp->realname : sp->name,sp->port,
+			str_currentserver,lastconnect,str_ago,maxontime,sp->group);
 	}
-	currentservergroup = sg;
-#ifdef DEBUG
-	debug("(do_servergroup) current servergroup set to \"%s\" (%i)\n",sg->name,sg->servergroup);
-#endif /* DEBUG */
+	table_send(from,2);
 }
 
 void do_server(COMMAND_ARGS)
 {
-	ServerGroup *sg;
 	Server	*sp,*dp,**spp;
-	char	*server,*aport,*pass;
-	char	addc,*last,*quitmsg = TEXT_TRYNEWSERVER;
-	int	n,iport,sgi;
+	char	*server,*aport,*temp;
+	const char *pass,*group;
+	char	add_or_sub,*quitmsg = TEXT_TRYNEWSERVER;
+	int	n,iport;
 
 	if (CurrentCmd->name == C_NEXTSERVER)
 	{
-		quitmsg = TEXT_SWITCHSERVER;
-		to_user(from,FMT_PLAIN,quitmsg);
+		to_user(from,FMT_PLAIN,TEXT_SWITCHSERVER);
 		goto do_server_jump;
 	}
+
+
+	add_or_sub = *rest;
+	if (*rest == '-' || *rest == '+')
+		rest++;
+
+	if (*rest == 0)
+		goto do_server_einval;
+
 	server = chop(&rest);
-
-	/*
-	 *  no args, list all known servers
-	 */
-	if (!server)
-	{
-		char	maxontime[36],*cuur;
-		int	ot;
-
-		if (partyline_only_command(from))
-			return;
-		if (servergrouplist->next)
-			table_buffer(str_underline("server") "\t" str_underline("last connect") "\t"
-			str_underline("maxontime") "\t" str_underline("group"));
-		else
-			table_buffer(str_underline("server") "\t" str_underline("last connect") "\t" str_underline("maxontime"));
-		sgi = -1;
-		for(sp=serverlist;sp;sp=sp->next)
-		{
-			cuur = "";
-			if (sp->ident == current->server)
-			{
-				cuur = TEXT_CURRENT;
-				ot = now - current->ontime;
-				if (sp->maxontime < ot)
-					sp->maxontime = ot;
-			}
-			stringcpy(maxontime,(sp->maxontime == 0) ? TEXT_NEVER : idle2str(sp->maxontime,FALSE));
-			if (sp->lastconnect)
-				last = idle2str(now - sp->lastconnect,FALSE);
-			else
-			{
-				switch(sp->err)
-				{
-				case SP_NOAUTH:
-					last = TEXT_SP_NOAUTH;
-					break;
-				case SP_KLINED:
-					last = TEXT_SP_KLINED;
-					break;
-				case SP_FULLCLASS:
-					last = TEXT_SP_FULLCLASS;
-					break;
-				case SP_TIMEOUT:
-					last = TEXT_SP_TIMEOUT;
-					break;
-				case SP_ERRCONN:
-					last = TEXT_SP_ERRCONN;
-					break;
-				case SP_DIFFPORT:
-					last = TEXT_SP_DIFFPORT;
-					break;
-				case SP_NO_DNS:
-					last = TEXT_SP_NO_DNS;
-					break;
-				default:
-					last = TEXT_NEVER;
-				}
-			}
-			if (servergrouplist->next)
-			{
-				if (sgi != sp->servergroup)
-				{
-					sg = getservergroupid(sp->servergroup);
-					if (sg)
-						sgi = sg->servergroup;
-				}
-				table_buffer("%s:%i\t%s%s%s\t%s\t%s",(*sp->realname) ? sp->realname : sp->name,sp->port,
-					last,(sp->lastconnect) ? TEXT_AGO : "",cuur,maxontime,(sg) ? sg->name : "(unknown)");
-			}
-			else
-				table_buffer("%s:%i\t%s%s%s\t%s",(*sp->realname) ? sp->realname : sp->name,sp->port,
-					last,(sp->lastconnect) ? TEXT_AGO : "",cuur,maxontime);
-		}
-		table_send(from,2);
-		return;
-	}
-
-	addc = *server;
-	if (addc == '-' || addc == '+')
-	{
-		server++;
-		if (!*server)
-		{
-			usage(from);
-			return;
-		}
-	}
-	if (strlen(server) >= MAXHOSTLEN)
+	if ((cx.chop_end - server) >= MAXHOSTLEN)
 	{
 		to_user(from,TEXT_NAMETOOLONG);
 		return;
 	}
 
-	aport = chop(&rest);
-	pass = chop(&rest);
+	aport = "6667";
+	group = DEFAULTSTR;
+	pass  = EMPTYSTR;
+	do
+	{
+		if (*rest == COMMENT_CHAR)
+			break;
+		temp = chop(&rest);
+		if (temp == NULL)
+			break;
+
+		if (*temp >= '1' && *temp <= '9')
+			aport = temp;
+		else
+		if (*temp == '@' && ((cx.chop_end - temp) <= SERVERGROUPLEN))
+			group = temp + 1;
+		else
+		if (*temp == '"')
+		{
+			char *c;
+
+			temp++;
+			c = stringchr(temp,'"');
+			if (c && ((c - temp) <= PASSLEN))
+				pass = temp, *c = 0;
+		}
+		else
+			goto do_server_einval;
+	}
+	while(*rest);
+
 	iport = asc2int(aport);
 
-	if (aport && *aport == COMMENT_CHAR)
+	if (errno || iport < 1 || iport > 65534)
 	{
-		aport = pass = NULL;
-	}
-	else
-	if (pass && *pass == COMMENT_CHAR)
-	{
-		pass = NULL;
-	}
-
-	if (aport && (errno || iport < 1 || iport > 65534))
-	{
+do_server_einval:
 		usage(from);
 		return;
 	}
-	if (!aport)
-	{
-		iport = 0;
-	}
 
-	if (addc == '-')
+	if (add_or_sub == '-')
 	{
 		if (!serverlist)
 		{
@@ -1644,13 +1526,8 @@ void do_server(COMMAND_ARGS)
 		}
 		return;
 	}
-	sp = add_server(server,iport,pass);
-	if (!sp)
-	{
-		to_user(from,"Problem adding server: %s",server);
-		return;
-	}
-	if (addc || from == CoreUser.name)
+	sp = add_server(server,iport,pass,group); /* add_server has no failure mode */
+	if (add_or_sub == '+' || from == cx.CoreUser.name)
 		return;
 
 	current->nextserver = sp->ident;
@@ -1687,10 +1564,10 @@ void do_away(COMMAND_ARGS)
 		to_server("AWAY\n");
 		to_user(from,TEXT_NOLONGERAWAY);
 		current->away = FALSE;
-		current->activity = now;
+		current->activity = cx.now;
 		return;
 	}
-	to_server(AWAYFORM,rest,time2away(now));
+	to_server(AWAYFORM,rest,maketimestr(cx.now,TFMT_AWAY));
 	to_user(from,TEXT_NOWSETAWAY);
 	current->away = TRUE;
 }
@@ -1712,15 +1589,15 @@ void do_nick(COMMAND_ARGS)
 	char	*nick;
 	int	guid;
 
-	nick = chop(&rest);
-	if (!nick || !*nick)
+	if (!rest || !*rest)
 	{
 		usage(from);	/* usage for CurrentCmd->name */
 		return;
 	}
+	nick = chop(&rest);
 	guid = asc2int(nick);
 	backup = current;
-	if (!errno)
+	if (errno == 0) /* we got a number */
 	{
 		nick = chop(&rest);
 		for(current=botlist;current;current=current->next)
@@ -1731,7 +1608,7 @@ void do_nick(COMMAND_ARGS)
 				break;
 		}
 	}
-	if (!is_nick(nick))
+	if (is_nick(nick) == FALSE)
 	{
 		current = backup;
 		to_user(from,ERR_NICK,nick);
@@ -1745,35 +1622,33 @@ void do_nick(COMMAND_ARGS)
 		current = add_bot(guid,nick);
 		if (!sigmaster)
 			sigmaster = guid;
-		if (from == CoreUser.name)
+		if (from == cx.CoreUser.name)
 			return;
 	}
 	else
 	{
 		if (current->guid == 0)
 		{
-			Free((char**)&current->nick);
-			set_mallocdoer(do_nick);
-			current->nick = stringdup(nick);
-			current->guid = guid;
+			setbotnick(current,nick);
+			current->guid = guid; /* guid might be undefined? */
 		}
-		Free((char**)&current->wantnick);
-		set_mallocdoer(do_nick);
-		current->wantnick = stringdup(nick);
-		to_server("NICK %s\n",current->wantnick);
+		setbotwantnick(current,nick);
+		to_server("NICK %s\n",getbotwantnick(current));
 	}
 	current = backup;
 }
 
 void do_time(COMMAND_ARGS)
 {
-	to_user_q(from,"Current time: %s",time2away(now));
+	to_user_q(from,"Current time: %s",maketimestr(cx.now,TFMT_AWAY));
 }
 
 void do_upontime(COMMAND_ARGS)
 {
-	to_user_q(from,CurrentCmd->cmdarg,
-		idle2str(now - ((CurrentCmd->name == C_UPTIME) ? uptime : current->ontime),FALSE));
+	time_t	temp;
+
+	temp = ((CurrentCmd->name == C_UPTIME) ? uptime : current->ontime);
+	to_user_q(from,CurrentCmd->cmdarg,idle2str(temp,FALSE));
 }
 
 void do_msg(COMMAND_ARGS)

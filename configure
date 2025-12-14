@@ -24,6 +24,8 @@ compile=no
 install=no
 silentopt=no
 try_libmusl=no
+no_flto=no
+use_fnostrictalias=no
 
 # default optimization goal, speed = -O2, size = -Os
 optitype=size
@@ -103,7 +105,6 @@ do
           dyncmd )	ft_dyncmd=$yesno ;;
           greet )	ft_greet=$yesno ;;
           hostinfo )	ft_hostinfo=$yesno ;;
-          idwrap )	ft_idwrap=$yesno ;;
           ircd_ext )	ft_ircd_ext=$yesno ;;
 	  libmusl )	try_libmusl=$yesno ;;
           md5 )		ft_md5=$yesno ;;
@@ -154,7 +155,7 @@ do
   esac
 
   case "$feature" in
-    alias | botnet | bounce | chanban | ctcp | dccfile | debug | dynamode | dyncmd | greet | hostinfo | idwrap | ircd_ext | libmusl | md5 \
+    alias | botnet | bounce | chanban | ctcp | dccfile | debug | dynamode | dyncmd | greet | hostinfo | ircd_ext | libmusl | md5 \
     | netcfg | newbie | note | notify | perl | profiling | python | rawdns | redirect | seen | session | sha | stats | suppress | tcl \
     | telnet | toybox | trivia | uptime | urlcapture | web | wingate )
       case _"$optarg"_ in
@@ -206,8 +207,6 @@ do
         greet_no )			ft_greet=no ;;
         hostinfo_yes | hostinfo_ )	ft_hostinfo=yes ;;
         hostinfo_no )			ft_hostinfo=no ;;
-        idwrap_yes | idwrap_ )		ft_idwrap=yes ;;
-        idwrap_no )			ft_idwrap=no ;;
         ircd_ext_yes | ircd_ext_ )	ft_ircd_ext=yes ;;
         ircd_ext_no )			ft_ircd_ext=no ;;
 	libmusl_yes | libmusl_ )	try_libmusl=/usr/local/musl/bin/musl-gcc ;;
@@ -273,11 +272,10 @@ do
         dyncmd )       ft_dyncmd=no ;;
         greet )        ft_greet=no ;;
         hostinfo )     ft_hostinfo=no ;;
-        idwrap )       ft_idwrap=no ;;
         ircd_ext )     ft_ircd_ext=no ;;
-	libmusl )	try_libmusl=no ;;
+	libmusl )      try_libmusl=no ;;
         md5 )          ft_md5=no ;;
-	netcfg )	ft_netcfg=no ;;
+	netcfg )       ft_netcfg=no ;;
         newbie )       ft_newbie=no ;;
         note )         ft_note=no ;;
         notify )       ft_notify=no ;;
@@ -306,12 +304,15 @@ do
     --silence=options)	silentopt=yes ;;
     --md5=internal)	ft_md5=internal ;;
     --sha=internal)	ft_sha=internal ;;
+    --sha=internal512)	ft_sha=internal512 ;;
     --use-cpuflags)	cc_arch_opt=yes ;;
     --no-cpuflags)	cc_arch_opt=no ;;
     --use-optimize)	cc_optimize_opt=yes ;;
     --no-optimize)	cc_optimize_opt=no ;;
     --optimize=speed)	optitype=speed ;;
     --optimize=size)	optitype=size ;;
+    --use-nostrictalias) use_fnostrictalias=yes ;;
+    --no-nostrictalias) use_fnostrictalias=no ;;
     --use-gnudebug)	cc_g_opt=yes ;;
     --no-gnudebug)	cc_g_opt=no ;;
     --use-warnflag)	cc_wall_opt=yes ;;
@@ -320,6 +321,8 @@ do
     --no-pipeflag)	cc_pipe_opt=no ;;
     --use-ofp)		cc_ofp_opt=yes ;;
     --no-ofp)		cc_ofp_opt=no ;;
+    --use-flto)		no_flto=no ;;
+    --no-flto)		no_flto=yes ;;
     --default-yes)	ft_default=yes set_feature_defaults ;;
     --default-no)	ft_default=no set_feature_defaults ;;
     --help | -h)
@@ -338,6 +341,8 @@ Features and packages:
   --sha=internal		Use internal routines for SHA password hashes instead of system libraries
   --use-ofp			Try to use compiler flag -fomit-frame-pointer
   --no-ofp			Do not use compiler flag -fomit-frame-pointer
+  --use-flto			Try to compile with Link-Time Optimizatons
+  --no-flto			Dont use Link-Time Optimizations
   --with-alias			ALIAS support
   --with-botnet			Botnet support
   --with-bounce
@@ -557,7 +562,7 @@ cf_cflags=
 if [ -n "$CFLAGS" ]; then
   if $CC $CFLAGS -c -o $TESTO $TESTC 1> /dev/null 2> /dev/null && test -r $TESTO; then
     cf_cflags="$CFLAGS"
-    echo $ac_n "$CFLAGS "$ac_c
+    echo $ac_n "$CFLAGS (from environment CFLAGS) "$ac_c
   fi
 fi
 
@@ -589,7 +594,7 @@ if [ -z "$cf_cflags" -a -n "$cf_GNUCC" ]; then
       fi
     fi
   fi
-  if [ "$cc_wall_flag" = -Wall -a "$cf_GNUCC" = 33 ]; then
+  if [ "$use_fnostrictalias" = yes -a "$cc_wall_opt" = -Wall ]; then
     cc_fnostrictalias="-fno-strict-aliasing"
     echo $ac_n "-fno-strict-aliasing "$ac_c
   fi
@@ -627,11 +632,28 @@ if [ -z "$cf_cflags" -a -n "$cf_GNUCC" ]; then
   fi
 fi
 
+#
+#  test for -pipe flag
+#
 if [ -z "$cf_cflags" -a -z "$cc_pipe_opt" ]; then
   if $CC -pipe -c -o $TESTO $TESTC 1> /dev/null 2> /dev/null && test -r $TESTO; then
     cc_pipe_flag="-pipe"
     echo $ac_n "-pipe "$ac_c
   fi
+fi
+
+#
+#  test -flto (link-time optimizations)
+#
+if [ -z "$no_flto" -o "$no_flto" = no ]; then
+  if [ -z "$cf_cflags" ]; then
+    if $CC -flto -c -o $TESTO $TESTC 1> /dev/null 2> /dev/null && test -r $TESTO; then
+      cc_flto_flag="-flto"
+      echo $ac_n "-flto "$ac_c
+    fi
+  fi
+else
+  cc_flto_flag=
 fi
 
 oflag="-O2"
@@ -649,6 +671,14 @@ if [ -z "$cf_cflags" -a -z "$cc_optimize_opt" ]; then
       cc_optimize_flag="-O"
       echo $ac_n "-O "$ac_c
     fi
+  fi
+fi
+
+cc_omitprotect_flag=""
+if [ "$optitype" = size ]; then
+  if $CC $oflag -fcf-protection=none -o $TESTO $TESTC 1> /dev/null 2> /dev/null; then
+    cc_omitprotect_flag="-fcf-protection=none "
+    echo $ac_n "$cc_omitprotect_flag "$ac_c
   fi
 fi
 
@@ -678,6 +708,20 @@ fi
 rm -f $TESTO $TESTP
 
 #
+#  size of select fd_set
+#
+TESTC=config/fdset.c
+size_fdset=128
+echo $ac_n "checking size of select fd_set ... "$ac_c
+$CC -o $TESTP $TESTC 1> /dev/null 2> /dev/null
+if [ -x $TESTP ]; then
+  size_fdset=`$TESTP`
+fi
+echo $ac_t "$size_fdset bytes"
+
+rm -f $TESTP
+
+#
 #  32bit? 64bit?
 #
 
@@ -690,7 +734,11 @@ if [ -z "$ptr_size" ]; then
   if [ -x $TESTP ]; then
     ptr_size=`$TESTP`
   fi
-  echo $ac_t "$ptr_size"
+  if [ "$ptr_size" = 8 ]; then
+    echo $ac_t "64 bit"
+  else
+    echo $ac_t "$ptr_size"
+  fi
 fi
 
 case _"$ptr_size"_ in
@@ -798,6 +846,17 @@ else
   fi
 fi
 echo $ac_t "$has_inet_addr"
+if [ "$has_inet_addr" = no ]; then
+  echo "error: missing inet_addr(), cant proceed without it."
+  exit
+fi
+
+echo $ac_n "checking sizeof(sa_family_t) ... "$ac_c
+safamily=unknown
+if [ -x $TESTP ]; then
+  safamily=`$TESTP`
+fi
+echo $ac_t "$safamily"
 rm -f $TESTP
 
 #
@@ -853,20 +912,37 @@ if [ ! "$ft_sha" = no ]; then
   TESTC=config/pw.c
   echo $ac_n "checking for SHA in crypt() ... "$ac_c
   sha_internal=
+  sha_object=
   crypt_func='-DCRYPT_FUNC=crypt'
   CRYPT_FUNCTION='#define CRYPT_FUNC crypt'
+  if [ "$ft_sha" = internal512 ]; then
+    sha_internal=config/sha512.c
+    sha_object=config/sha512.o
+    crypt_func='-DCRYPT_FUNC=crypt_sha512'
+    CRYPT_FUNCTION='#define CRYPT_FUNC crypt_sha512'
+    $CC -o $TESTP $sha_internal -DTEST 1> /dev/null 2> /dev/null
+  fi
   if [ "$ft_sha" = internal ]; then
-    sha_internal=config/sha_internal.c
+    sha_internal=config/sha1.c
+    sha_object=config/sha1.o
     crypt_func='-DCRYPT_FUNC=sha_crypt'
     CRYPT_FUNCTION='#define CRYPT_FUNC sha_crypt'
   fi
-  $CC -o $TESTP $TESTC $sha_internal $crypt_func 1> /dev/null 2> /dev/null
+  #
   if [ ! -x $TESTP ]; then
+    $CC -o $TESTP $TESTC $sha_object $crypt_func 1> /dev/null 2> /dev/null
+  fi
+  #
+  if [ ! -x $TESTP ]; then
+    crypt_func='-DCRYPT_FUNC=crypt'
+    CRYPT_FUNCTION='#define CRYPT_FUNC crypt'
     libcrypt=-lcrypt
     has_sha=yes
     $CC -o $TESTP $TESTC $crypt_func $libcrypt 1> /dev/null 2> /dev/null
   fi
   if [ ! -x $TESTP ]; then
+    crypt_func='-DCRYPT_FUNC=crypt'
+    CRYPT_FUNCTION='#define CRYPT_FUNC crypt'
     libcrypt=/usr/lib/libcrypt.so
     has_sha=yes
     $CC -o $TESTP $TESTC $crypt_func $libcrypt 1> /dev/null 2> /dev/null
@@ -878,7 +954,9 @@ if [ ! "$ft_sha" = no ]; then
   if [ -x $TESTP ]; then
     pwhash=`$TESTP`
     case "$pwhash" in
+      SHA512 ) has_sha=internal512 ;;
       MD5 ) has_md5=yes ;;
+      SHA ) has_sha=yes ;;
       SHAMD5 )
         has_md5=yes
         has_sha=yes
@@ -887,9 +965,8 @@ if [ ! "$ft_sha" = no ]; then
   fi
   echo $ac_t "$has_sha"
   [ "$has_sha" = yes -a "$sha_internal" ] && has_sha=internal
-  rm -f $TESTP
+  rm -f $TESTP $sha_object
 fi
-
 #
 #  check for MD5 capabilities in libc/glibc/libcrypt
 #
@@ -898,13 +975,13 @@ if [ "$has_md5" = yes ]; then
 elif [ "$ft_md5" = no ]; then
   has_md5=notest
 elif [ ! "$ft_md5" = no ]; then
-  TESTC=config/pw.c
   echo $ac_n "checking for MD5 in crypt() ... "$ac_c
+  TESTC=config/pw.c
   md5_internal=
   crypt_func='-DCRYPT_FUNC=crypt'
   CRYPT_FUNCTION='#define CRYPT_FUNC crypt'
   if [ "$ft_md5" = internal ]; then
-    md5_internal=config/md5_internal.c
+    md5_internal=config/md5.c
     crypt_func='-DCRYPT_FUNC=md5_crypt'
     CRYPT_FUNCTION='#define CRYPT_FUNC md5_crypt'
   fi
@@ -1059,26 +1136,6 @@ echo $ac_t "$has_ldscript"
 rm -f $TESTP
 
 #
-#  idwrap
-#
-has_idwrap=no
-def_idwrap='#undef IDWRAP'
-IDWRAP_PATH='/* nothing */'
-
-if [ -r .use_idwrap -o "$ft_idwrap" = yes ]; then
-  echo $ac_n "checking for idwrap path ... "$ac_c
-  if test -z "$idwrappath"; then
-    idwrappath="/tmp/.ident/"
-  fi
-  if test -d $idwrappath; then
-    IDWRAP_PATH='"'"$idwrappath"'"'
-    has_idwrap="$IDWRAP_PATH"
-    def_idwrap='#define IDWRAP'
-  fi
-  echo $ac_t "$has_idwrap"
-fi
-
-#
 #
 #
 echo $ac_n "checking for objcopy ... "$ac_c
@@ -1107,7 +1164,11 @@ SHA_C=
 SHA_O=
 if [ "$ft_sha" = internal ]; then
   SHA_C=lib/sha1.c
-  SHA_O=lib/sha.o
+  SHA_O=lib/sha1.o
+fi
+if [ "$ft_sha" = internal512 ]; then
+  SHA_C=lib/sha512.c
+  SHA_O=lib/sha512.o
 fi
 
 out=echo
@@ -1306,7 +1367,7 @@ if [ "$has_sha" = no ]; then
 else
   test "$ft_sha" && $out "$ft_sha" && ans=$ft_sha
   test -z "$ft_sha" && read ans
-  test -z "$ans" -o "$ans" = y -o "$ans" = Y -o "$ans" = yes -o "$ans" = YES -o "$ans" = Yes -o "$ans" = internal && def_sha='#define SHACRYPT'
+  test -z "$ans" -o "$ans" = y -o "$ans" = Y -o "$ans" = yes -o "$ans" = YES -o "$ans" = Yes -o "$ans" = internal -o "$ans" = internal512 && def_sha='#define SHACRYPT'
 fi
 
 def_perl='#undef PERL'
@@ -1405,12 +1466,12 @@ test "$ft_uptime" && $out "$ft_uptime" && ans=$ft_uptime
 test -z "$ft_uptime" && read ans
 test -z "$ans" -o "$ans" = y -o "$ans" = Y -o "$ans" = yes -o "$ans" = YES -o "$ans" = Yes && def_uptime='#define UPTIME'
 
-def_urlcapture='#undef URLCAPTURE'
+def_urlcap='#undef URLCAPTURE'
 unset ans
 $out $ac_n "[ BETA ] URL capture support? ....................... [Y/n] "$ac_c
 test "$ft_urlcapture" && $out "$ft_urlcapture" && ans=$ft_urlcapture
 test -z "$ft_urlcapture" && read ans
-test -z "$ans" -o "$ans" = y -o "$ans" = Y -o "$ans" = yes -o "$ans" = YES -o "$ans" = Yes && def_urlcapture='#define URLCAPTURE'
+test -z "$ans" -o "$ans" = y -o "$ans" = Y -o "$ans" = yes -o "$ans" = YES -o "$ans" = Yes && def_urlcap='#define URLCAPTURE'
 
 def_wingate='#undef WINGATE'
 unset ans
@@ -1422,7 +1483,7 @@ test -z "$ans" -o "$ans" = y -o "$ans" = Y -o "$ans" = yes -o "$ans" = YES -o "$
 $out ''
 echo "Creating src/Makefile"
 
-O_FLAGS="$cc_optimize_flag $cc_arch_flag $cc_march_flag $cc_ofp_flag"
+O_FLAGS="$cc_optimize_flag $cc_arch_flag $cc_march_flag $cc_ofp_flag $cc_omitprotect_flag"
 W_FLAGS="$cc_wall_flag $cc_wshadow_flag $cc_fnostrictalias"
 libflags="$libcrypt $libtcl $libnsl $libsocket $libresolv $libpython $libperl"
 lflags="$cc_g_flag -o"
@@ -1430,7 +1491,7 @@ cprof="$cc_pg_flag $cc_pg_define"
 lprof="$cc_pg_flag $cc_pg_define $libpgdl"
 
 if [ -z "$cf_cflags" ]; then
-  cf_cflags='$(PIPEFLAG) $(GDBFLAG) $(WARNFLAG) $(OPTIMIZE)'
+  cf_cflags='$(PIPEFLAG) $(GDBFLAG) $(FLTO_FLAG) $(WARNFLAG) $(OPTIMIZE)'
 fi
 
 echo '# This file is generated from Makefile.in' > src/Makefile
@@ -1439,6 +1500,7 @@ s%@CC@%$CCshort%;
 s%@ldscript@%$ldscript%;
 s%@pipeflag@%$cc_pipe_flag%;
 s%@gdbflag@%$cc_g_flag%;
+s%@flto_flag@%$cc_flto_flag%;
 /@cprof@/      { s,@cprof@,$cprof,;         };
 /@lprof@/      { s,@lprof@,$lprof,;         };
 /@lflags@/     { s,@lflags@,$lflags,;       };
@@ -1482,7 +1544,6 @@ sed "
 s|@DEF_DYNAMODE@|$def_dynamode|;
    s|@DEF_GREET@|$def_greet|;
 s|@DEF_HOSTINFO@|$def_hostinfo|;
-  s|@DEF_IDWRAP@|$def_idwrap|;
 s|@DEF_IRCD_EXT@|$def_ircd_ext|;
      s|@DEF_MD5@|$def_md5|;
      s|@DEF_SHA@|$def_sha|;
@@ -1503,7 +1564,7 @@ s|@DEF_SUPPRESS@|$def_suppress|;
   s|@DEF_TOYBOX@|$def_toybox|;
   s|@DEF_TRIVIA@|$def_trivia|;
   s|@DEF_UPTIME@|$def_uptime|;
-s|@DEF_URLCAPTURE@|$def_urlcapture|;
+  s|@DEF_URLCAP@|$def_urlcap|;
      s|@DEF_WEB@|$def_web|;
  s|@DEF_WINGATE@|$def_wingate|;
 
@@ -1514,14 +1575,13 @@ s|@DEF_CRYPT_FUNCTION@|$CRYPT_FUNCTION|;
 s|@CRYPT_HAS_SHA@|$CRYPT_HAS_SHA|;
 s|@CRYPT_HAS_MD5@|$CRYPT_HAS_MD5|;
 s|@CRYPT_HAS_DES@|$CRYPT_HAS_DES|;
-s|@IDWRAP_PATH@|$IDWRAP_PATH|;
 s|@PTSIZE_DEFINE32@|$PTSIZE_DEFINE32|;
 s|@PTSIZE_DEFINE64@|$PTSIZE_DEFINE64|;
 s|@UNALIGNED_MEM@|$UNALIGNED_MEM|;
 " < src/config.h.in >> src/config.h
 
 save_myconfig() {
-  names="alias botnet bounce chanban ctcp dccfile debug dynamode dyncmd greet hostinfo idwrap ircd_ext libmusl md5
+  names="alias botnet bounce chanban ctcp dccfile debug dynamode dyncmd greet hostinfo ircd_ext libmusl md5
     netcfg newbie note notify perl profiling python rawdns redirect seen session sha stats suppress tcl
     telnet toybox trivia uptime urlcapture web wingate"
   echo "./configure \\" > ./myconfig
@@ -1539,6 +1599,7 @@ save_myconfig() {
   test "$silentopt" = yes && echo "--silence=options \\" >> ./myconfig
   test "$ft_md5" = internal && echo "--md5=internal \\" >> ./myconfig
   test "$ft_sha" = internal && echo "--sha=internal \\" >> ./myconfig
+  test "$ft_sha" = internal512 && echo "--sha=internal512 \\" >> ./myconfig
   test "$optitype" = speed && echo "--optimize=speed \\" >> ./myconfig
   test "$optitype" = size && echo "--optimize=size \\" >> ./myconfig
   test "$cc_ofp_opt" = yes && echo "--use-ofp \\" >> ./myconfig

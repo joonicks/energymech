@@ -38,10 +38,10 @@ typedef struct
 	int	regnr;
 	int	pid;
 	int	type;
-	uint32_t cookie;
+	uint32_t packets_sent;
 	uint32_t uptime;
 	uint32_t ontime;
-	uint32_t now;
+	uint32_t mytime;
 	uint32_t sysup;
 
 } PackStub;
@@ -51,10 +51,10 @@ typedef struct
 	int	regnr;
 	int	pid;
 	int	type;
-	uint32_t cookie;
+	uint32_t packets_sent;
 	uint32_t uptime;
 	uint32_t ontime;
-	uint32_t now;
+	uint32_t mytime;
 	uint32_t sysup;
 	char	string[512];
 
@@ -64,7 +64,7 @@ void init_uptime(void)
 {
 	struct	sockaddr_in sai;
 
-	uptimecookie = rand();
+	uptimepackets = 0;
 
 	if (!uptimehost)
 	{
@@ -94,9 +94,8 @@ void init_uptime(void)
 
 void send_uptime(int type)
 {
-	PackUp	upPack;
+	PackUp	*upPack;
 	struct	sockaddr_in sai;
-	struct	stat st;
 	Server	*sp;
 	const char *server,*nick;
 	int	sz;
@@ -109,7 +108,7 @@ void send_uptime(int type)
 	{
 		char	*host;
 
-		uptimelast = now + 10;
+		uptimelast = cx.now + 10;
 		if ((host = poll_rawdns(uptimehost)))
 		{
 			if ((uptimeip = inet_addr(host)) != -1)
@@ -128,37 +127,28 @@ void send_uptime(int type)
 	}
 #endif /* RAWDNS */
 
+	upPack = (PackUp*)&globaldata;
+
 	/*
 	 *  update the time when we last sent packet
 	 */
 	sz = (uptimelast + 1) & 7;
-	uptimelast = (now & ~7) + 21600 + sz;		/* 21600 seconds = 6 hours */
+	uptimelast = (cx.now & ~7) + 21600 + sz;		/* 21600 seconds = 6 hours */
 
-	uptimecookie  = (uptimecookie + 1) * 18457;
-	upPack.cookie = htonl(uptimecookie);
+	uptimepackets  = uptimepackets + 1;
+	upPack->packets_sent = htonl(uptimepackets);
 
-	upPack.now    = htonl(now);
-	upPack.regnr  = uptimeregnr;
-	upPack.type   = htonl(type);
-	upPack.uptime = htonl(uptime);
-	upPack.ontime = 0;			/* set a few lines down */
+	upPack->mytime = htonl(cx.now);
+	upPack->regnr  = uptimeregnr;
+	upPack->type   = htonl(type);
+	upPack->uptime = htonl(uptime);
+	upPack->ontime = 0;			/* set a few lines down */
 
 	/*
 	 *  callouts to other functions should be done last (think compiler optimizations)
 	 */
-	upPack.pid = htonl(getpid());
-
-	/*
-	 *  this trick for most systems gets the system uptime
-	 */
-	if (stat("/proc",&st) < 0)
-	{
-		upPack.sysup = 0;
-	}
-	else
-	{
-		upPack.sysup = htonl(st.st_ctime);
-	}
+	upPack->pid = htonl(getpid());
+	upPack->sysup = htonl(cx.system_uptime);
 
 	server = UNKNOWN;
 	nick   = BOTLOGIN;
@@ -168,8 +158,8 @@ void send_uptime(int type)
 	 */
 	if (botlist)
 	{
-		nick = botlist->nick;
-		upPack.ontime = htonl(botlist->ontime);
+		nick = getbotnick(botlist);
+		upPack->ontime = htonl(botlist->ontime);
 		if ((sp = find_server(botlist->server)))
 		{
 			server = (*sp->realname) ? sp->realname : sp->name;
@@ -190,12 +180,11 @@ void send_uptime(int type)
 	}
 #endif /* ! RAWDNS */
 
-	sz = sizeof(PackStub) + 3 + StrlenX(nick,server,VERSION,NULL);
-	if (sz > sizeof(PackUp))
-		return;
+	sz = sizeof(PackStub) + snprintf(upPack->string,256,"%s %s %s",nick,server,VERSION);
 
-	sprintf(upPack.string,"%s %s %s",nick,server,VERSION);
-
+#ifdef DEBUG
+	debug("(send_uptime) packets sent %i, my pid %i, my ident = \"%s\"\n",uptimepackets,ntohl(upPack->pid),upPack->string);
+#endif /* DEBUG */
 	/*
 	 *  udp sending...
 	 */
@@ -204,7 +193,7 @@ void send_uptime(int type)
 	sai.sin_addr.s_addr = uptimeip;
 	sai.sin_port = htons(uptimeport);
 
-	sendto(uptimesock,(void*)&upPack,sz,0,(struct sockaddr*)&sai,sizeof(sai));
+	sendto(uptimesock,(void*)upPack,sz,0,(struct sockaddr*)&sai,sizeof(sai));
 }
 
 void uptime_death(int type)
@@ -212,7 +201,7 @@ void uptime_death(int type)
 #ifdef DEBUG
 	debug("(uptime_death) sending death message\n");
 #endif /* DEBUG */
-	time(&now);
+	time(&cx.now);
 	uptimelast = 0;		/* avoid resolving the hostname */
 	send_uptime(type);
 	uptimeport = 0;		/* avoid sending more packets */
@@ -221,7 +210,8 @@ void uptime_death(int type)
 void process_uptime(void)
 {
 	struct	sockaddr_in sai;
-	int	res,sz;
+	unsigned int sz;
+	int	res;
 	struct
 	{
 		int	regnr;
@@ -238,7 +228,7 @@ void process_uptime(void)
 		res = recvfrom(uptimesock,(void*)&regPack,sizeof(regPack),0,(struct sockaddr*)&sai,&sz);
 		if (res == sizeof(regPack))
 		{
-			if (uptimecookie == ntohl(regPack.cookie))
+			if (uptimepackets == ntohl(regPack.cookie))
 			{
 				if (uptimeregnr == 0)
 					uptimeregnr = ntohl(regPack.regnr);
@@ -246,7 +236,7 @@ void process_uptime(void)
 		}
 	}
 
-	if (uptimelast < now)
+	if (uptimelast < cx.now)
 	{
 		send_uptime(UPTIME_BOTTYPE);
 	}

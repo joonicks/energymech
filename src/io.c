@@ -115,10 +115,6 @@ int SockConnect(char *host, int port, int use_vhost)
 {
 	struct  sockaddr_in sai;
 	int	s;
-#ifdef IDWRAP
-	char	*id,identfile[64];
-	int	t = FALSE;
-#endif /* IDWRAP */
 
 #ifdef DEBUG
 	debug("(SockConnect) %s %i%s\n",nullstr(host),port,(use_vhost) ? " [VHOST]" : "");
@@ -130,16 +126,7 @@ int SockConnect(char *host, int port, int use_vhost)
 	memset((char*)&sai,0,sizeof(sai));
 	sai.sin_family = AF_INET;
 
-	/*
-	 *  special case, BOUNCE feature may call SockConnect()
-	 *  to create the IDWRAP symlink, using special use_vhost value == 2
-	 */
-#if defined(BOUNCE) && defined(IDWRAP)
-	if ((use_vhost == TRUE)
-#else /* not ... */
-	if (use_vhost
-#endif /* ... */
-		&& ((current->vhost_type & VH_IPALIAS_FAIL) == 0)
+	if (use_vhost && ((current->vhost_type & VH_IPALIAS_FAIL) == 0)
 		&& current->setting[STR_VIRTUAL].str_var)
 	{
 		current->vhost_type |= VH_IPALIAS_BOTH;
@@ -151,25 +138,12 @@ int SockConnect(char *host, int port, int use_vhost)
 #ifdef WINGATE
 				use_vhost++;
 #endif /* WINGATE */
-#ifdef IDWRAP
-				t = TRUE;
-#endif /* IDWRAP */
 #ifdef DEBUG
 				debug("(SockConnect) IP Alias virtual host bound OK\n");
 #endif /* DEBUG */
 			}
 		}
 	}
-#ifdef IDWRAP
-	/*
-	 *  do a blank bind to get a port number
-	 */
-	if (!t)
-	{
-		sai.sin_addr.s_addr = INADDR_ANY;
-		bind(s,(struct sockaddr *)&sai,sizeof(sai));
-	}
-#endif /* IDWRAP */
 
 	memset((char*)&sai,0,sizeof(sai));
 	sai.sin_family = AF_INET;
@@ -204,29 +178,6 @@ int SockConnect(char *host, int port, int use_vhost)
 		/*
 		 *  Normal connect, no bounces...
 		 */
-#ifdef IDWRAP
-		if (use_vhost)
-		{
-			t = sizeof(sai);
-			if (getsockname(s,(struct sockaddr*)&sai,&t) == 0)
-			{
-				if (current->identfile)
-					Free((char**)&current->identfile);
-				sprintf(identfile,IDWRAP_PATH "%i.%i",ntohs(sai.sin_port),port);
-				id = current->setting[STR_IDENT].str_var;
-				if (symlink((id) ? id : BOTLOGIN,identfile) == 0)
-				{
-					set_mallocdoer(SockConnect);
-					current->identfile = Strdup(identfile);
-#ifdef DEBUG
-					debug("(SockConnect) symlink: %s -> %s\n",identfile,(id) ? id : BOTLOGIN);
-#endif /* DEBUG */
-				}
-			}
-			memset((char*)&sai,0,sizeof(sai));
-			sai.sin_family = AF_INET;
-		}
-#endif /* IDWRAP */
 		sai.sin_port = htons(port);
 		if ((sai.sin_addr.s_addr = get_ip(host)) == -1)
 		{
@@ -253,7 +204,8 @@ int SockConnect(char *host, int port, int use_vhost)
 int SockAccept(int sock)
 {
 	struct	sockaddr_in sai;
-	int	s,sz;
+	unsigned int sz;
+	int	s;
 
 	sz = sizeof(sai);
 	s = accept(sock,(struct sockaddr*)&sai,&sz);
@@ -303,18 +255,19 @@ int to_file(const int sock, const char *format, ...)
  *  Format a message and send it to the current bots server
  *  to_server needs a newline (\n) it wont manufacture it itself.
  */
-void to_server(char *format, ...)
+void to_server(const char *format, ...)
 {
 	va_list msg;
 #ifdef DEBUG
 	char	*line,*rest;
 #endif /* DEBUG */
+	int	sz;
 
 	if (current->sock == -1)
 		return;
 
 	va_start(msg,format);
-	vsprintf(globaldata,format,msg);
+	sz = vsprintf(globaldata,format,msg);
 	va_end(msg);
 
 	/*
@@ -323,7 +276,7 @@ void to_server(char *format, ...)
 	 */
 	current->sendq_time += 2;
 
-	if (write(current->sock,globaldata,strlen(globaldata)) < 0)
+	if (write(current->sock,globaldata,sz) < 0)
 	{
 #ifdef DEBUG
 		debug("[StS] {%i} errno = %i\n",current->sock,errno);
@@ -357,7 +310,7 @@ void to_user_q(const char *target, const char *format, ...)
 
 	if (STARTUP_ECHOTOCONSOLE)
 	{
-		int	n;
+		int	n __notused__;
 		n = write(1,message,strlen(message));
 		return;
 	}
@@ -497,6 +450,91 @@ void to_user(const char *target, const char *format, ...)
 #endif /* DEBUG */
 }
 
+Strp *output_table = NULL;
+
+void table_buffer(const char *format, ...)
+{
+	va_list	msg;
+
+	va_start(msg,format);
+	vsprintf(globaldata,format,msg);
+	va_end(msg);
+
+	set_mallocdoer(table_buffer);
+	append_strp(&output_table,globaldata);
+}
+
+void table_send(const char *from, const int space)
+{
+	char	message[MAXLEN];
+	Strp	*sp,*next;
+	char	*src,*o,*end;
+	int	i,u,g,x,columns[16];
+
+	memset(columns,0,sizeof(columns));
+
+	for(sp=output_table;sp;sp=sp->next)
+	{
+		u = i = 0;
+		src = o = sp->p;
+		while(*src)
+		{
+			/* Dont count control codes */
+			if (*src == '\037' || *src == '\002')
+				u++;
+			if (*src == '\t' || *src == '\r')
+			{
+				x = (src - o) - u;
+				if (x > columns[i])
+					columns[i] = x;
+				i++;
+				o = src+1;
+				u = 0;
+			}
+			src++;
+		}
+	}
+
+	for(sp=output_table;sp;sp=next)
+	{
+		next = sp->next;
+
+		o = message;
+		src = sp->p;
+		g = x = i = 0;
+		while(*src)
+		{
+			if (g)
+			{
+				end = src;
+				while(*end && *end != '\t' && *end != '\r')
+					end++;
+				g -= (end - src);
+				while(g-- > 0)
+					*(o++) = ' ';
+			}
+			if (*src == '\037' || *src == '\002')
+				x++;
+			if (*src == '\t' || *src == '\r')
+			{
+				if (*src == '\r')
+					g = columns[i+1];
+				src++;
+				x += (columns[i++] + space);
+				while(o < (message + x))
+					*(o++) = ' ';
+			}
+			else
+				*(o++) = *(src++);
+		}
+		*o = 0;
+		to_user(from,FMT_PLAIN,message);
+
+		Free((char**)&sp);
+	}
+	output_table = NULL;
+}
+
 #endif /* ifndef GENCMD_C */
 
 /*
@@ -507,7 +545,7 @@ void to_user(const char *target, const char *format, ...)
  *  2: If <rest> data is insufficient, try to read in more
  *  3: Try again to make a whole line
  */
-char *sockread(int s, char *rest, char *line)
+char *sockread(int socket, char *rest, char *output)
 {
 	char	*src,*dst,*rdst;
 	int	n;
@@ -515,7 +553,7 @@ char *sockread(int s, char *rest, char *line)
 	errno = EAGAIN;
 
 	src = rest;
-	dst = line;
+	dst = output;
 
 	while(*src)
 	{
@@ -525,20 +563,26 @@ char *sockread(int s, char *rest, char *line)
 			while(*src == '\n' || *src == '\r')
 				src++;
 			*dst = 0;
+#if !defined(GENCMD_C)
+			cx.rest_end = dst;
+#endif /* !defined(GENCMD_C) */
+
+			/* move remainder of rest to the beginning of the buffer */
+			/* src can be end of rest or globaldata */
 			dst = rest;
 			while(*src)
 				*(dst++) = *(src++);
 			*dst = 0;
+
 #if defined(DEBUG) && !defined(GENCMD_C)
-			debug("(in)  {%i} %s\n",s,line);
+			debug("(in)  {%i} %s\n",socket,output);
 #endif /* DEBUG */
-			return((*line) ? line : NULL);
+			return((*output) ? output : NULL);
 		}
 		*(dst++) = *(src++);
 	}
-	rdst = src;
 
-	n = read(s,globaldata,MSGLEN-2);
+	n = read(socket,globaldata,MSGLEN-2);
 	switch(n)
 	{
 	case 0:
@@ -547,14 +591,15 @@ char *sockread(int s, char *rest, char *line)
 		return(NULL);
 	}
 
+	rdst = src;
 	globaldata[n] = 0;
 	src = globaldata;
 
 	while(*src)
 	{
 		if (*src == '\r' || *src == '\n')
-			goto gotline;
-		if ((dst - line) >= (MSGLEN-2))
+			goto gotline; /* gotline will move the rest of globaldata to rest */
+		if ((dst - output) >= (MSGLEN-2))
 		{
 			/*
 			 *  line is longer than buffer, let the wheel spin
@@ -634,7 +679,7 @@ int killsock(int sock)
 	{
 		set_mallocdoer(killsock);
 		ks = (KillSock*)Calloc(sizeof(KillSock));
-		ks->time = now;
+		ks->time = cx.now;
 		ks->sock = sock;
 		ks->next = killsocks;
 		killsocks = ks;
@@ -686,7 +731,7 @@ int killsock(int sock)
 			if ((n == 0) || ((n == -1) && (errno != EAGAIN)))
 				remove_ks(ks);
 		}
-		if ((now - ks->time) > KILLSOCKTIMEOUT)
+		if ((cx.now - ks->time) > KILLSOCK_TIMEOUT)
 			remove_ks(ks);
 		ks = ksnext;
 	}

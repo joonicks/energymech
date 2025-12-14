@@ -8,6 +8,7 @@ src/config.h
 src/mcmd.h
 src/usercombo.h
 src/githash.h
+src/hashdata.cache
 trivia/*.index
 
 # compiled files
@@ -32,14 +33,21 @@ trivia/megatrivia.txt
 *.stats
 
 #  developer files
+dev/*
 .use_size
+.use_warn
 conf
 debug*
-src/musl.c
+src/benchmark*
 src/nostdlib
 src/x
 src/y
 src/z
+x
+y
+z
 randdata
 test.conf
 postfix.sh
+gmon.out
+

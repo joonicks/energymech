@@ -58,7 +58,7 @@ void shit_action(Chan *chan, ChanUser *cu)
 		send_mode(chan,90,QM_RAWMODE,'+','b',shit->mask);
 
 		fromnick = nickcpy(NULL,shit->from);
-		send_kick(chan,nick,"%s %s: %s",time2small(shit->time),fromnick,
+		send_kick(chan,nick,"%s %s: %s",maketimestr(shit->time,TFMT_DATE),fromnick,
 			(shit->reason) ? shit->reason : "GET THE HELL OUT!!!");
 		return;
 	}
@@ -140,7 +140,7 @@ Shit *add_shit(char *from, char *chan, char *mask, char *reason, int axs, int ex
 	shit = (Shit*)Calloc(sizeof(Shit) + StrlenX(from,chan,mask,reason,NULL));
 
 	shit->action = axs;
-	shit->time   = now;
+	shit->time   = cx.now;
 	shit->expire = expire;
 
 	shit->next = current->shitlist;
@@ -177,7 +177,7 @@ Shit *find_shit(const char *userhost, const char *channel)
 			}
 		}
 	}
-	if (save && save->expire < now)
+	if (save && save->expire < cx.now)
 	{
 		remove_shit(save);
 		save = NULL;
@@ -201,7 +201,7 @@ Shit *get_shituser(char *userhost, char *channel)
 	 */
 	if (!current->shitlist)
 		return(NULL);
-	if (!nickcmp(current->nick,userhost))
+	if (!nickcmp(getbotnick(current),userhost))
 		return(NULL);
 	for(chan=current->chanlist;chan;chan=chan->next)
 	{
@@ -332,10 +332,10 @@ void do_shit(COMMAND_ARGS)
 #ifdef DEBUG
 	debug("(do_shit) adding %s to %s (Level %i)\n",nuh,channel,shitlevel);
 #endif /* DEBUG */
-	add_shit(from,channel,nuh,rest,shitlevel,now + days);
+	add_shit(from,channel,nuh,rest,shitlevel,cx.now + days);
 
 	to_user(from,TEXT_HASSHITTED,nuh,channel);
-	to_user(from,TEXT_SHITEXPIRES,time2str(now + days));
+	to_user(from,TEXT_SHITEXPIRES,maketimestr(cx.now + days,TFMT_FULL));
 
 	check_shit();
 }
@@ -390,7 +390,7 @@ void do_shitlist(COMMAND_ARGS)
 	for(shit=current->shitlist;shit;shit=shit->next)
 	{
 		table_buffer(FMT_6XSTRTAB,shit->chan,shit->mask,shit_actions[shit->action],
-			nickcpy(NULL,shit->from),shit->reason,time2away(shit->expire));
+			nickcpy(NULL,shit->from),shit->reason,maketimestr(shit->expire,TFMT_AWAY));
 	}
 	table_send(from,2);
 }

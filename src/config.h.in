@@ -72,12 +72,6 @@
 @DEF_HOSTINFO@
 
 /*
- *  IDWRAP: support for idwrap ident spoofing
- */
-@DEF_IDWRAP@
-#define IDWRAP_PATH	@IDWRAP_PATH@
-
-/*
  *  IRCD_EXTENSIONS: support some special features of new ircds
  */
 @DEF_IRCD_EXT@
@@ -103,7 +97,7 @@
 @DEF_DCCFILE@
 #define DCC_PUBLICFILES		"public/"
 #define DCC_PUBLICINCOMING	DCC_PUBLICFILES "incoming/"
-#define DCC_FILETIMEOUT		90
+#define DCCFILE_TIMEOUT		90
 
 /*
  *  REDIRECT: send command output from certain commands to a different target
@@ -195,7 +189,7 @@
 /*
  *  URLCAPTURE: capture url's mentioned
  */
-@DEF_URLCAPTURE@
+@DEF_URLCAP@
 
 /*
  *  WEB: serving documents via HTTP
@@ -322,8 +316,8 @@
 
 #define AWAYFORM			"AWAY :%s (since %s)\n"
 
-#define KILLSOCKTIMEOUT			30
-#define WAITTIMEOUT			30
+#define KILLSOCK_TIMEOUT		30
+#define WAIT_TIMEOUT			30
 
 #define NICKFLOODTIME			120	/* 240 second window for floods ( 240 / 2 = 120 ) */
 
@@ -360,6 +354,9 @@
 
 #define NAMELEN				79
 #define NAMEBUF				NAMELEN+1
+
+#define SERVERGROUPBUF			16
+#define SERVERGROUPLEN			SERVERGROUPBUF-1
 
 #define MINPASSCHARS			4
 #define MAXPASSCHARS			50
@@ -400,6 +397,7 @@
 #define CBANG	0x040000		/* command may be prefixed with a bang (!)		*/
 #define ACCHAN  0x080000		/* needs an active channel				*/
 #define SUPRES	0x100000		/* command is not suitable to run on many bots at once, try to suppress it */
+#define NOARGF	0x200000		/* run a special function if no arguments are supplied	*/
 
 /*
  *  integer only version of RANDOM()
@@ -603,6 +601,13 @@ const char __mx_opts[] =	""
 #define OPT_COMMA	", "
 #undef	OPT_COREONLY
 #endif /* TRIVIA */
+
+#ifdef UPTIME
+			OPT_COMMA "uptime"
+#undef	OPT_COMMA
+#define OPT_COMMA	", "
+#undef	OPT_COREONLY
+#endif /* UPTIME */
 
 #ifdef WINGATES
 			OPT_COMMA "wingate"

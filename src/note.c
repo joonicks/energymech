@@ -34,7 +34,6 @@ int catch_note(char *from, char *to, char *rest)
 {
 	User	*u;
 	Note	*n,**pp;
-	Strp	*sp,**np;
 
 #ifdef DEBUG
 	debug("(catch_note) from = %s, to = %s, rest = %s\n",from,to,rest);
@@ -64,7 +63,7 @@ int catch_note(char *from, char *to, char *rest)
 			append_strp(&u->note,rest);
 			return(TRUE);
 		}
-		if ((now - n->start) > 120)
+		if ((cx.now - n->start) > 120)
 		{
 			*pp = n->next;
 			Free((char**)&n);
@@ -85,7 +84,6 @@ void do_note(COMMAND_ARGS)
 {
 	User	*u;
 	Note	*n;
-	Strp	*sp,**np;
 	char	header[MSGLEN];
 
 	/*
@@ -101,7 +99,7 @@ void do_note(COMMAND_ARGS)
 
 	set_mallocdoer(do_note);
 	n = Calloc(sizeof(Note) + StrlenX(from,to,u->name,NULL));
-	n->start = now;
+	n->start = cx.now;
 	n->next = notelist;
 	notelist = n;
 
@@ -112,7 +110,7 @@ void do_note(COMMAND_ARGS)
 	/*
 	 *  add a note header
 	 */
-	sprintf(header,"\001%s %s",from,time2str(now));
+	sprintf(header,"\001%s %s",from,maketimestr(cx.now,TFMT_FULL));
 	append_strp(&u->note,header);
 }
 

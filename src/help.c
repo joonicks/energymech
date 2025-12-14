@@ -145,7 +145,7 @@ help_loop:
 		return;
 	}
 
-	if (STRCHR(rest,'*'))
+	if (stringchr(rest,'*'))
 	{
 		line[0] = 0;
 		ci = 0;
@@ -229,6 +229,8 @@ void usage_command(char *to, const char *arg)
 	char	*pt;
 	int	i;
 
+	if (to == cx.CoreUser.name) /* dont send usage notices to config file */
+		return;
 	for(i=0;ulist[i].command;i++)
 	{
 		if (!stringcasecmp(arg,ulist[i].command))

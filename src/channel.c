@@ -40,13 +40,15 @@ void check_idlekick(void)
 
 	for(chan=current->chanlist;chan;chan=chan->next)
 	{
+		if (!chan->bot_is_op)
+			continue;
 		limit = chan->setting[INT_IKT].int_var;
-		timeout = (now - (60 * limit));
+		if (limit == 0)
+			continue;
+		timeout = (cx.now - (60 * limit));
 		for(cu=chan->users;cu;cu=cu->next)
 		{
 			cu->flags &= ~CU_KSWARN;	/* remove KS warnings */
-			if (!chan->bot_is_op || limit == 0)
-				continue;
 			if (cu->flags & CU_CHANOP)
 				continue;
 			if (timeout < cu->idletime)
@@ -207,9 +209,9 @@ int reverse_mode(char *from, Chan *chan, int m, int s)
 	mode = (char)m;
 	sign = (char)s;
 
-	if (STRCHR(ptr,mode) && (sign == '+'))
+	if (stringchr(ptr,mode) && (sign == '+'))
 		return(FALSE);
-	if (!STRCHR(ptr,mode) && (sign == '-'))
+	if (!stringchr(ptr,mode) && (sign == '-'))
 		return(FALSE);
 	if (get_useraccess(from,chan->name) >= ASSTLEVEL)
 	{
@@ -268,6 +270,12 @@ void chan_modestr(Chan *chan, char *dest)
 	}
 }
 
+char *get_nuh(const ChanUser *user)
+{
+	sprintf(nuh_buf,"%s!%s",user->nick,user->userhost);
+	return(nuh_buf);
+}
+
 char *find_nuh(char *nick)
 {
 	Chan	*chan;
@@ -279,6 +287,36 @@ char *find_nuh(char *nick)
 			return(get_nuh(cu));
 	}
 	return(NULL);
+}
+
+/*
+ *  NOTE! beware of conflicts in the use of nuh_buf, its also used by find_nuh()
+ */
+char *nick2uh(char *from, char *userhost)
+{
+	if (stringchr(userhost,'!') && stringchr(userhost,'@'))
+	{
+		stringcpy(nuh_buf,userhost);
+	}
+	else
+	if (!stringchr(userhost,'!') && !stringchr(userhost,'@'))
+	{
+		/* find_nuh() stores nickuserhost in nuh_buf */
+		if (find_nuh(userhost) == NULL)
+		{
+			if (from)
+				to_user(from,"No information found for %s",userhost);
+			return(NULL);
+		}
+	}
+	else
+	{
+		stringcpy(nuh_buf,"*!");
+		if (!stringchr(userhost,'@'))
+			stringcat(nuh_buf,"*@");
+		stringcat(nuh_buf,userhost);
+	}
+	return(nuh_buf);
 }
 
 Ban *make_ban(Ban **banlist, char *from, char *banmask, time_t when)
@@ -359,7 +397,7 @@ void channel_massmode(const Chan *chan, char *pattern, int filtmode, char mode, 
 	if ((pat = chop(&pattern)) == NULL)
 		return;
 
-	ispat   = (STRCHR(pat,'*')) ? TRUE : FALSE;
+	ispat   = (stringchr(pat,'*')) ? TRUE : FALSE;
 	maxmode = current->setting[INT_MODES].int_var;
 	mal     = chan->setting[INT_MAL].int_var;
 	*burst  = 0;
@@ -376,7 +414,7 @@ void channel_massmode(const Chan *chan, char *pattern, int filtmode, char mode, 
 			s = deopstring;
 			while(*s) s++;
 			debug("(...) deopstring "mx_pfmt" uh "mx_pfmt" ("mx_pfmt")\n",(mx_ptr)deopstring,(mx_ptr)uh,(mx_ptr)s);
-			s = STRCHR(deopstring,0);
+			s = stringchr(deopstring,0);
 			debug("(...) deopstring "mx_pfmt" uh "mx_pfmt" ("mx_pfmt")\n",(mx_ptr)deopstring,(mx_ptr)uh,(mx_ptr)s);
 		}
 #endif /* DEBUG */
@@ -427,7 +465,7 @@ void channel_massmode(const Chan *chan, char *pattern, int filtmode, char mode, 
 						/*
 						 *  never deop yourself, stupid bot
 						 */
-						if (nickcmp(pat,current->nick))
+						if (nickcmp(pat,getbotnick(current)))
 							willdo = TRUE;
 					}
 					else
@@ -453,7 +491,7 @@ void channel_massmode(const Chan *chan, char *pattern, int filtmode, char mode, 
 			cu = cu->next;
 			if (!cu && (pat = chop(&pattern)))
 			{
-				ispat = (STRCHR(pat,'*')) ? TRUE : FALSE;
+				ispat = (stringchr(pat,'*')) ? TRUE : FALSE;
 				cu = chan->users;
 			}
 		}
@@ -499,7 +537,7 @@ void channel_massunban(Chan *chan, char *pattern, time_t seconds)
 	{
 		if (!matches(pattern,ban->banstring) || !matches(ban->banstring,pattern))
 		{
-			if (!seconds || ((now - ban->time) > seconds))
+			if (!seconds || ((cx.now - ban->time) > seconds))
 			{
 				if (chan->setting[TOG_SHIT].int_var)
 				{
@@ -643,7 +681,7 @@ void make_chanuser(char *nick, char *userhost)
 	new = (ChanUser*)Calloc(sizeof(ChanUser) + strlen(userhost));
 	/* Calloc sets it all to zero */
 
-	new->idletime = now;
+	new->idletime = cx.now;
 	new->next = CurrentChan->users;
 	CurrentChan->users = new;
 	stringcpy(new->userhost,userhost);
@@ -659,12 +697,6 @@ void purge_chanusers(Chan *chan)
 {
 	while(chan->users)
 		remove_chanuser(chan,chan->users->nick);
-}
-
-char *get_nuh(const ChanUser *user)
-{
-	sprintf(nuh_buf,"%s!%s",user->nick,user->userhost);
-	return(nuh_buf);
 }
 
 /*
@@ -890,9 +922,10 @@ void do_mode(COMMAND_ARGS)
 	}
 	else
 	{
+		/* todo: is it really necessary to chop? */
 		target = chop(&rest);
 
-		if (!nickcmp(current->nick,target))
+		if (!nickcmp(target,getbotnick(current)))
 		{
 			to_server("MODE %s %s\n",target,rest);
 		}
@@ -972,7 +1005,7 @@ void do_cchan(COMMAND_ARGS)
 			to_user(from,ERR_CHAN,channel);
 		return;
 	}
-	to_user(from,"Current channel: %s",
+	to_user_q(from,"Current channel: %s",
 		(current->activechan) ? current->activechan->name : TEXT_NONE);
 }
 
@@ -1185,9 +1218,9 @@ void do_showidle(COMMAND_ARGS)
 	table_buffer(str_underline("Users on %s that are idle more than %i seconds"),chan->name,n);
 	for(cu=chan->users;cu;cu=cu->next)
 	{
-		if (n >= (now - cu->idletime))
+		if (n >= (cx.now - cu->idletime))
 			continue;
-		table_buffer("%s\r %s\t%s",idle2str((now - cu->idletime),TRUE),cu->nick,cu->userhost);
+		table_buffer("%s\r %s\t%s",idle2str(cu->idletime,TRUE),cu->nick,cu->userhost);
         }
 	table_send(from,1);
 }
@@ -1218,5 +1251,5 @@ void do_idle(COMMAND_ARGS)
 		to_user(from,TEXT_UNKNOWNUSER,rest);
 		return;
 	}
-	to_user(from,"%s has been idle for %s",rest,idle2str(now - cu2->idletime,TRUE));
+	to_user(from,"%s has been idle for %s",rest,idle2str(cu2->idletime,TRUE));
 }

@@ -77,26 +77,22 @@ void cfg_chan(char *rest)
 	addtouser(&cfgUser->chan,rest,TRUE);
 }
 
-LS struct
+struct
 {
 	char	modechar;
 	int	modeflag;
 
 } cfg_opt_flags[] =
+/* dont gatekeep these flags with ifdefs,
+   make userfiles compatible between different compiles */
 {
 { 'a',	COMBO_AOP	},
-#ifdef BOUNCE
 { 'b',	COMBO_BOUNCE	},
-#endif /* BOUNCE */
 { 'e',	COMBO_ECHO	},
-#ifdef BOTNET
 { 'L',	COMBO_NOSHARE	},
 { 'R',	COMBO_READONLY	},
-#endif /* BOTNET */
-#ifdef GREET
 { 'g',	COMBO_GREETFILE	},
 { 'r',	COMBO_RANDLINE	},
-#endif /* GREET */
 { 'v',	COMBO_AVOICE	},
 { 0,	0,		}};
 
@@ -148,7 +144,7 @@ void cfg_shit(char *rest)
 	 *  convert the expiry time
 	 */
 	expire = asc2int(chop(&rest));	/* asc2int() can handle NULLs */
-	if (errno || expire < now)
+	if (errno || expire < cx.now)
 		return;
 
 	/*
@@ -161,10 +157,10 @@ void cfg_shit(char *rest)
 	/*
 	 *  finally, add the sucker
 	 */
-	backup_now = now;
-	now = when;
+	backup_now = cx.now;
+	cx.now = when;
 	add_shit(from,channel,mask,rest,shitlevel,expire);
-	now = backup_now;
+	cx.now = backup_now;
 }
 
 void cfg_kicksay(char *rest)
@@ -173,7 +169,7 @@ void cfg_kicksay(char *rest)
 
 	backup = CurrentDCC;
 	CurrentDCC = (Client*)&CoreClient;
-	do_kicksay((char*)CoreUser.name,NULL,rest,0);
+	do_kicksay((char*)cx.CoreUser.name,NULL,rest,0);
 	CurrentDCC = backup;
 }
 
@@ -232,7 +228,7 @@ typedef struct CommandStruct
 
 } ConfCommand;
 
-LS const ConfCommand userlist_cmds[] =
+const ConfCommand userlist_cmds[] =
 {
 /*
  *  users
@@ -564,7 +560,9 @@ void mirror_user(User *user)
 {
 	Mech	*backup,*anybot;
 	User	*newuser,*olduser;
+#ifdef NOTE
 	Strp	*notes;
+#endif /* NOTE */
 
 #ifdef BOTNET
 	/* dont mirror noshare users */
@@ -593,7 +591,7 @@ void mirror_user(User *user)
 		}
 #ifdef DEBUG
 		debug("(mirror_user) mirroring user %s[%i] to local bot %s(%i)\n",
-			user->name,user->x.x.access,nullstr(anybot->nick),anybot->guid);
+			user->name,user->x.x.access,getbotnick(anybot),anybot->guid);
 #endif /* DEBUG */
 
 		current = anybot;
@@ -646,7 +644,7 @@ void mirror_userlist(void)
 	User	*user;
 
 #ifdef DEBUG
-	debug("(mirror_userlist) mirroring userlist of %s(%i)\n",nullstr(current->nick),current->guid);
+	debug("(mirror_userlist) mirroring userlist of %s(%i)\n",getbotnick(current),current->guid);
 #endif /* DEBUG */
 
 	for(user=current->userlist;user;user=user->next)
@@ -903,7 +901,7 @@ int is_bot(const char *userhost)
 
 	for(bot=botlist;bot;bot=bot->next)
 	{
-		if (!nickcmp(userhost,bot->nick))
+		if (!nickcmp(userhost,getbotnick(bot)))
 			return(TRUE);
 	}
 	return(FALSE);
@@ -1077,7 +1075,7 @@ void do_userlist(COMMAND_ARGS)
 			channel = rest;
 		}
 		else
-		if (STRCHR(rest,'*') != NULL)
+		if (stringchr(rest,'*') != NULL)
 		{
 			mask = rest;
 		}
@@ -1184,7 +1182,6 @@ void do_user(COMMAND_ARGS)
 	/*
 	 *  on_msg checks: CARGS
 	 */
-	Mech	*anybot;
 	User	*user;
 	Strp	*ump;
 	char	*handle,*pt,*mask,*nick,*chan,*anum,*pass,*encpass;

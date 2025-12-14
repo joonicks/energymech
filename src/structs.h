@@ -1,7 +1,7 @@
 /*
 
     EnergyMech, IRC bot software
-    Parts Copyright (c) 1997-2020 proton
+    Parts Copyright (c) 1997-2025 proton
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -21,35 +21,40 @@
 #ifndef STRUCTS_H
 #define STRUCTS_H 1
 
-typedef union usercombo
+typedef struct Strp
 {
-	struct
-	{
-		uint32_t access:8,		/* access level (0-200)		[0-255]	*/
-			prot:3,			/* protlevel (0-4) 		[0-7]	*/
-#ifdef BOTNET
-			noshare:1,		/* dont share this user over botnet	*/
-			readonly:1,		/* botnet cannot alter this user	*/
-#endif /* BOTNET */
-#ifdef GREET
-			greetfile:1,		/* greeting is filename			*/
-			randline:1,		/* grab random line from filename	*/
-#endif /* GREET */
-#ifdef BOUNCE
-			bounce:1,		/* user has access to bouncer		*/
-#endif /* BOUNCE */
-			echo:1,			/* partyline echo of own messages	*/
-			aop:1,			/* auto-opping				*/
-			avoice:1;		/* auto-voicing				*/
-	} x;
-	uint32_t	comboflags;
+	struct	Strp *next;
+	char	p[1];
 
-} usercombo;
+} Strp;
+
+typedef struct Mix16
+{
+	union
+	{
+		char string[16];
+		char *ptr;
+	} x;
+	int8_t	opt;
+
+} Mix16;
+
+typedef struct Mix64
+{
+	union
+	{
+		char string[64];
+		char *ptr;
+	} x;
+	int8_t	opt;
+
+} Mix64;
 
 typedef struct OnMsg
 {
 	const char	*name;
 	void		(*func)(char *, const char *, char *, const int);
+	void		(*noargfunc)(const char *);
 	uint32_t	defaultaccess:8,	/* defaultaccess */
 			dcc:1,
 			cc:1,
@@ -63,14 +68,13 @@ typedef struct OnMsg
 			lbuf:1,
 			cbang:1,
 			acchan:1,
-			supres:1; /* -- 21 bits */
+			supres:1, /* -- 21 bits */
+			noargf:1; /* -- 22 bits */
 	const char	*cmdarg;
 
 } OnMsg;
 
 typedef unsigned char OnMsg_access;
-
-#ifndef GENCMD_C
 
 typedef struct ircLink
 {
@@ -88,10 +92,6 @@ typedef struct ircLink
 	char		*nick;			/* which nick to speak to */
 	char		*handle;
 
-#ifdef IDWRAP
-	char		*idfile;
-#endif /* IDWRAP */
-
 	char		servmem[MSGLEN];
 	char		usermem[MSGLEN];
 
@@ -106,12 +106,7 @@ typedef struct
 
 typedef struct DEFstruct
 {
-	union
-	{
-		int	id;
-		void	*func;
-
-	} v;
+	int		id;
 	char		*idstr;
 
 } DEFstruct;
@@ -120,6 +115,7 @@ typedef struct Alias
 {
 	struct		Alias *next;
 
+	int		hash;
 	char		*format;
 	char		alias[1];
 
@@ -206,18 +202,11 @@ typedef struct Setting
 			char	**strptr;
 
 	} v;
-	char		*name;
+	char		name[16];
 	int		max;
-	void		(*func)(const struct Setting *);
+	void		(*onchangefunc)(const struct Setting *);
 
 } Setting;
-
-typedef struct Strp
-{
-	struct		Strp *next;
-	char		p[1];
-
-} Strp;
 
 typedef struct KickSay
 {
@@ -252,6 +241,28 @@ typedef struct Shit
 
 } Shit;
 
+typedef union usercombo
+{
+	struct
+	{
+		/* dont gatekeep these flags with ifdefs,
+		   make userfiles compatible between different compiles */
+		uint32_t access:8,		/* access level (0-200)		[0-255]	*/
+			prot:3,			/* protlevel (0-4) 		[0-7]	*/
+			noshare:1,		/* dont share this user over botnet	*/
+			readonly:1,		/* botnet cannot alter this user	*/
+			greetfile:1,		/* greeting is filename			*/
+			randline:1,		/* grab random line from filename	*/
+			bounce:1,		/* user has access to bouncer		*/
+			echo:1,			/* partyline echo of own messages	*/
+			aop:1,			/* auto-opping				*/
+			avoice:1;		/* auto-voicing				*/
+	} x;
+	uint32_t	comboflags;
+
+} usercombo;
+
+#ifndef GENCMD_C
 
 /*
  *  this struct is put to use in global.h
@@ -491,33 +502,32 @@ typedef struct Spy
 
 } Spy;
 
+typedef struct sockaddr_in sai_v4;
+typedef struct sockaddr_in6 sai_v6;
+
 typedef struct Server
 {
 	struct		Server *next;
 
 	int		ident;
 	int		usenum;
-	int		servergroup;
 	int		port;
 	int		err;
 	time_t		lastconnect;
 	time_t		lastattempt;
 	time_t		maxontime;
 
+	char		ipv;
+	union {
+		sai_v4	ipv4;
+		sai_v6	ipv6;
+	} resolved;
 	char		realname[NAMEBUF];
 	char		name[NAMEBUF];
-	char		pass[PASSLEN];
+	char		pass[PASSBUF];
+	char		group[SERVERGROUPBUF];
 
 } Server;
-
-typedef struct ServerGroup
-{
-	struct		ServerGroup *next;
-
-	int		servergroup;
-	char		name[1];
-
-} ServerGroup;
 
 typedef struct FileMon
 {
@@ -535,6 +545,7 @@ typedef struct Mech
 	uint16_t	guid;			/* globally uniqe ID		*/
 	int		connect;
 	int		sock;
+	char		ipv;			/* ip version			*/
 	struct in_addr	ip;			/* for DCC			*/
 	int		server;			/* ident of my current server	*/
 	int		nextserver;
@@ -553,9 +564,10 @@ typedef struct Mech
 	/*
 	 *  Basic bot information
 	 */
-	char		*nick;			/* current nickname		*/
-	char		*wantnick;		/* wanted nickname		*/
-	char		*userhost;
+	Mix16		nick;
+	Mix16		wantnick;
+	Mix64		userhost;
+
 	int		vhost_type;
 
 	uint32_t	reset:1,
@@ -582,32 +594,30 @@ typedef struct Mech
 #endif /* NOTIFY */
 
 	time_t		lastreset;		/* last time bot was reset		*/
+	time_t		ontime;			/* how long the bot has been connected	*/
 	time_t		lastantiidle;		/* avoid showing large idle times	*/
+	time_t		activity;		/* Away timer (AAWAY)			*/
 	time_t		lastrejoin;		/* last time channels were reset	*/
 #ifdef CHANBAN
 	time_t		lastchanban;		/* last time a chanban check was run	*/
 #endif /* CHANBAN */
-
 	time_t		conntry;		/* when connect try started		*/
 						/* re-used for server activity once connected */
 	int		heartbeat;		/* handle server timeout stuff		*/
-	time_t		activity;		/* Away timer (AAWAY)			*/
-
-	time_t		ontime;			/* how long the bot has been connected	*/
 
 #ifdef IRCD_EXTENSIONS
 	int		ircx_flags;
 #endif /* IRCD_EXTENSIONS */
+
+#ifdef DEBUG
+	char		*inject;
+#endif /* DEBUG */
 
 	/*
 	 *  Buffers for do_die() command.
 	 */
 	char		*signoff;
 	char		*from;
-
-#ifdef IDWRAP
-	char		*identfile;
-#endif /* IDWRAP */
 
 	/* big buffers at the end */
 	UniVar		setting[SIZE_VARS];	/* global vars + channel defaults */
@@ -698,8 +708,8 @@ typedef struct BotNet
 	{
 	uint32_t	pta:1,		/* plain text auth	*/
 			sha:1,		/* SHA */
-			md5:1;		/* MD5 */
-
+			md5:1,		/* MD5 */
+			links_complete; /* All links shared to this bot */
 	} opt;
 
 	Mech		*controller;
@@ -711,7 +721,6 @@ typedef struct BotNet
 	time_t		when;
 
 	struct		BotInfo *botinfo;
-	int		list_complete;
 
 	char		sockdata[MSGLEN];
 

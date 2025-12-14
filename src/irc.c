@@ -40,7 +40,7 @@ void make_ireq(int t, const char *from, const char *nick)
 	ir = (IReq*)Calloc(sizeof(IReq) + StrlenX(from,nick,NULL)); /* can not use Strlen2() if 2nd arg might be NULL, StrlenX() handles NULLs. */
 
 	ir->t = t;
-	ir->when = now;
+	ir->when = cx.now;
 
 	pt = stringcat(ir->from,from) + 1;
 	if (nick)

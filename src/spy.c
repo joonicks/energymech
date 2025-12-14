@@ -1,7 +1,7 @@
 /*
 
     EnergyMech, IRC bot software
-    Parts Copyright (c) 1997-2024 proton
+    Parts Copyright (c) 1997-2025 proton
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -34,7 +34,7 @@
 
 #ifdef DEBUG
 
-LS const char SPY_DEFS[][12] =
+const char SPY_DEFS[][12] =
 {
 	"SPY_FILE",
 	"SPY_CHANNEL",
@@ -50,27 +50,10 @@ LS const char SPY_DEFS[][12] =
 
 #endif /* DEBUG */
 
-static int basepos(char c)
-{
-/*
- -lcrypt converts to [a-zA-Z0-9./]
- included sha1 converts to hex
- included md5 converts to [./0-9A-Za-z]
-*/
-	if (c >= 'a' && c <= 'z')
-		return(c - 'a');
-	if (c >= 'A' && c <= 'Z')
-		return(c - 'A' + 26);
-	if (c >= '0' && c <= '9')
-		return(c - '0' + 52);
-	if (c == '.')
-		return(62);
-	if (c == '/')
-		return(63);
-	return(0);
-}
 #if defined(SHACRYPT) || defined(MD5CRYPT)
+
 char *CRYPT_FUNC(const char *, const char *);
+
 #endif
 
 void send_spy(const char *src, const char *format, ...)
@@ -79,83 +62,95 @@ void send_spy(const char *src, const char *format, ...)
 	Mech	*backup;
 	Spy	*spy;
 	va_list	msg;
-	const char *tempsrc;
+	const char *spysrc;
 	const char *printmsg;
-	char	tempdata[MAXLEN],*rnd,*dst,*end;
-	int	fd,a,b,c,d;
-	int	printed = FALSE;
+	char	tempdata[MAXLEN];
+	int	fd;
 
-	if (src == SPYSTR_RAWIRC)
-	{
-		tempsrc = printmsg = format;
-		printed = TRUE;
-		format = FMT_PLAIN;
-	}
-	else
-	if (src == SPYSTR_STATUS)
-	{
-		tempsrc = time2medium(now);
-	}
-	else
-	{
-		tempsrc = src;
-	}
+	printmsg = (src == SPYSTR_RAWIRC) ? format : NULL;
 
 #ifdef DEBUG
+	if (src != SPYSTR_RAWIRC) /* too much debug spam */
 	debug("(send_spy) src <%s> format = '%s', current = '%s' (%i)\n",src,format,
-		(current == NULL) ? "<NULL>" : nullstr(current->nick),(current == NULL) ? -1 : current->guid);
+		(current == NULL) ? "<NULL>" : getbotnick(current),(current == NULL) ? -1 : current->guid);
 #endif /* DEBUG */
 
 	for(spy=current->spylist;spy;spy=spy->next)
 	{
+		/*
+		 *  Dont support RANDSRC unless there is a good hashing function to
+		 *  create high quality randomness.
+		 */
+#if defined(SHACRYPT) || defined(MD5CRYPT)
 		if (spy->t_src == SPY_RANDSRC)
 		{
+			char	mysalt[16],mydata[128];
+			char	*rnd,*dst,*end;
+
 			if (src != SPYSTR_RAWIRC)
 				continue;
+			if (spy->data.delay > cx.now)
+				continue;
 			/* dont use four-char server messages such as "PING :..." */
-			if (tempsrc[5] == ':')
-#ifdef DEBUG
-			{
-				debug("(send_spy) RANDSRC: skipping four-char server message\n");
-#endif /* DEBUG */
+			if (format[5] == ':')
 				continue;
-#ifdef DEBUG
-			}
-#endif /* DEBUG */
+			/* create delay until next */
+			spy->data.delay = cx.now + 20 + RANDOM(0,29); /* make it unpredictable which messages will be sourced */
 
-			if (spy->data.delay > now)
-				continue;
-			spy->data.delay = now + 10 + RANDOM(0,9); /* make it unpredictable which messages will be sourced */
-
-/*
- $6$ for sha512, $1$ for MD5
-     MD5     | 22 characters
-     SHA-512 | 86 characters
-*/
+			sprintf(mysalt,
 #ifdef SHACRYPT
-			sprintf(tempdata,"$6$%04x",(uint32_t)(now & 0xFFFF));
-			rnd = CRYPT_FUNC(tempsrc,tempdata);
+				"$6$%04x",
+#else
+				"$1$%04x",
 #endif /* SHACRYPT */
+				(uint32_t)(cx.now & 0xFFFF));
 
-#if !defined(SHACRYPT) && defined(MD5CRYPT)
-			sprintf(tempdata,"$1$%04x",(uint32_t)(now & 0xFFFF));
-			rnd = CRYPT_FUNC(tempsrc,tempdata);
-#endif /* !SHACRYPT && MD5CRYPT */
+			/* SHA512 internal returns NULL if strlen(format) > 256 */
+			stringcpy_n(mydata,format,120);
+
+			rnd = CRYPT_FUNC(mydata,mysalt);
 
 			dst = tempdata;
 			end = STREND(rnd);
-#if defined(SHACRYPT) || defined(MD5CRYPT)
 			rnd += 8; /* skip salt */
-#endif
-			while(rnd < (end - 3))
+
+			while(rnd < (end - 4))
 			{
+				union WordtoBytes
+				{
+					uint32_t m;
+					uint8_t b[4];
+				} m32;
+				uint32_t n, o, p;
+				int	a,b,c,d;
+
+				m32.m = *((uint32_t*)rnd);
+
+				/*
+				 *  branchless bit operations to do 4 bytes at a time
+				 *  if input is not base64, the output is undefined
+				 */
+				n = (((m32.m - 0x3a3a3a3a) & 0x80808080) >> 7) * 7;
+				o = (((m32.m - 0x5b5b5b5b) & 0x80808080) >> 7) * 6;
+				p = (((m32.m - 0x7b7b7b7b) & 0x80808080) >> 7) * 6;
+
+				m32.m = m32.m - 0x41414141 + n + o + p;
+
+				a = m32.b[0];
+				b = m32.b[1];
+				c = m32.b[2];
+				d = m32.b[3];
+
+				/*
+					|..aaaaaa|..bbbbbb|..cccccc|..dddddd|
+					|        |aaaaaa..|bbbbbb..|cccccc..|
+							  |	   |  ddddDD|
+							  |    ddDD|dd
+							DD|dddd    |
+				*/
 				/* base64 to bin, 4 chars to 3 */
-				a = basepos(rnd[0]);
-				b = basepos(rnd[1]);
 				dst[0] = (a << 2) | (b >> 4);		/* aaaaaabb */
-				c = basepos(rnd[2]);
 				dst[1] = (b << 4) | (c >> 2);		/* bbbbcccc */
-				d = basepos(rnd[3]);
 				dst[2] = (c << 6) | (d);		/* ccdddddd */
 				dst += 3;
 				rnd += 4;
@@ -167,14 +162,14 @@ void send_spy(const char *src, const char *format, ...)
 #endif /* DEBUG */
 				if ((fd = open(spy->dest,O_WRONLY|O_CREAT|O_APPEND,NEWFILEMODE)) >= 0)
 				{
-					int	n;
-
+					int n __notused__;
 					n = write(fd,tempdata,dst - tempdata);
 					close(fd);
 				}
 			}
 			continue;
 		}
+#endif /* defined(SHACRYPT) || defined(MD5CRYPT) */
 
 		if ((*src == '#' || *src == '*') && spy->t_src == SPY_CHANNEL)
 		{
@@ -184,7 +179,6 @@ void send_spy(const char *src, const char *format, ...)
 				continue;
 			if (find_chanuser(chan,CurrentNick) == NULL)
 				continue;
-			tempsrc = spy->src;
 		}
 		else
 		/*
@@ -193,18 +187,25 @@ void send_spy(const char *src, const char *format, ...)
 		if (spy->src != src)
 			continue;
 
-		if (!printed)
+		if (spy->t_src == SPY_STATUS)
 		{
-			printed = TRUE;
+			spysrc = maketimestr(cx.now,TFMT_CLOCK);
+		}
+		else
+			spysrc = spy->src;
+
+		if (printmsg == NULL)
+		{
 			va_start(msg,format);
 			vsprintf(tempdata,format,msg);
 			va_end(msg);
 			printmsg = tempdata;
 		}
+
 		switch(spy->t_dest)
 		{
 		case SPY_DCC:
-			to_file(spy->data.dcc->sock,"[%s] %s\n",tempsrc,printmsg);
+			to_file(spy->data.dcc->sock,"[%s] %s\n",spysrc,printmsg);
 			break;
 		case SPY_CHANNEL:
 			if (spy->data.destbot >= 0)
@@ -214,7 +215,7 @@ void send_spy(const char *src, const char *format, ...)
 				{
 					if (current->guid == spy->data.destbot)
 					{
-						to_server("PRIVMSG %s :[%s] %s\n",spy->dest,tempsrc,printmsg);
+						to_server("PRIVMSG %s :[%s] %s\n",spy->dest,spysrc,printmsg);
 						break;
 					}
 				}
@@ -222,13 +223,13 @@ void send_spy(const char *src, const char *format, ...)
 			}
 			else
 			{
-				to_user(spy->dest,"[%s] %s",tempsrc,printmsg);
+				to_user(spy->dest,"[%s] %s",spysrc,printmsg);
 			}
 			break;
 		case SPY_FILE:
 			if ((fd = open(spy->dest,O_WRONLY|O_CREAT|O_APPEND,NEWFILEMODE)) >= 0)
 			{
-				to_file(fd,"[%s] %s\n",logtime(now),printmsg);
+				to_file(fd,"[%s] %s\n",maketimestr(cx.now,TFMT_LOG),printmsg);
 				close(fd);
 			}
 		}
@@ -325,7 +326,7 @@ int begin_redirect(char *from, char *args)
 
 	if (!args)
 		return(0);
-	pt = STRCHR(args,'>');
+	pt = stringchr(args,'>');
 	if (pt)
 	{
 		*pt = 0;
@@ -427,7 +428,7 @@ void send_redirect(char *message)
 			Mech	*backup;
 
 			/* PM<targetguid> <targetuserhost> <source> <message> */
-			sprintf(tempdata,"%i %s %s %s",redirect.guid,redirect.to,current->nick,message);
+			sprintf(tempdata,"%i %s %s %s",redirect.guid,redirect.to,getbotnick(current),message);
 			backup = current;
 			partyMessage(NULL,tempdata);
 			current = backup;
@@ -462,10 +463,10 @@ void end_redirect(void)
 
 #ifdef URLCAPTURE
 
-char *urlhost(const char *url)
+void urlhost(const char *url)
 {
 	char	copy[strlen(url)];
-	const char *end,*beg,*dst;
+	const char *end,*beg;
 	int	n = 0;
 
 	beg = end = url;
@@ -493,7 +494,7 @@ char *urlhost(const char *url)
 
 void urlcapture(const char *rest)
 {
-	Strp	*sp,*nx;
+	Strp	*sp;
 	char	*dest,url[MSGLEN];
 	int	n;
 
@@ -538,7 +539,7 @@ void stats_loghour(Chan *chan, char *filename, int hour)
 	if (!(stats = chan->stats))
 		return;
 
-	when = (now - (now % 3600));
+	when = (cx.now - (cx.now % 3600));
 
 	if ((fd = open(filename,O_WRONLY|O_APPEND|O_CREAT,NEWFILEMODE)) >= 0)
 	{
@@ -567,16 +568,16 @@ void stats_plusminususer(Chan *chan, int plusminus)
 			stats->users++;
 		stats->userpeak = stats->users;
 		stats->userlow = stats->users;
-		stats->lastuser = now;
+		stats->lastuser = cx.now;
 		stats->flags = CSTAT_PARTIAL;
 	}
 
 	/*
 	 *  add (number of users until now * seconds since last user entered/left)
 	 */
-	stats->userseconds += stats->users * (now - stats->lastuser);
+	stats->userseconds += stats->users * (cx.now - stats->lastuser);
 
-	stats->lastuser = now;
+	stats->lastuser = cx.now;
 	stats->users += plusminus;	/* can be both negative (-1), zero (0) and positive (+1) */
 
 	if (stats->userpeak < stats->users)
@@ -769,7 +770,7 @@ spy_dest_ok:
 	debug("(do_spy) src = `%s'; t_src = %i (%s); dest = `%s'; t_dest = %i (%s), CurrentDCC "mx_pfmt"\n",
 		src,t_src,SPY_DEFS[t_src-1],nullstr(dest),t_dest,SPY_DEFS[t_dest-1],CurrentDCC);
 	if (guid >= 0)
-		debug("(do_spy) spying from remote bot guid %i (%s), channel %s\n",guid,(destbot) ? destbot->nick : "unknown",src);
+		debug("(do_spy) spying from remote bot guid %i (%s), channel %s\n",guid,(destbot) ? getbotnick(destbot) : "unknown",src);
 #endif /* DEBUG */
 
 	if (t_dest == SPY_DCC)
@@ -1028,8 +1029,7 @@ void do_info(COMMAND_ARGS)
 {
 	ChanStats *stats;
 	Chan	*chan;
-	char	*p;
-	char	text[MSGLEN];
+	char	modes[128];
 	uint32_t avg;
 
 	if (current->chanlist == NULL)
@@ -1037,39 +1037,34 @@ void do_info(COMMAND_ARGS)
 		to_user(from,ERR_NOCHANNELS);
 		return;
 	}
-	to_user(from,"\037channel\037                            "
-		"\037average\037 \037peak\037 \037low\037");
+	table_buffer(str_underline("Channel") "\t" str_underline("Statistics") "\t");
+
 	for(chan=current->chanlist;chan;chan=chan->next)
 	{
-		*(p = text) = 0;
-		p = stringcat(p,chan->name);
-		if (chan == current->activechan)
-			p = stringcat(p," (current)");
-		if ((stats = chan->stats))
+		stats = chan->stats;
+		if (stats == NULL)
 		{
-			if (stats && stats->flags == CSTAT_PARTIAL)
-				p = stringcat(p," (partial)");
-			while(p < text+35)
-				*(p++) = ' ';
-			if (stats->LHuserseconds > 0)
-			{
-				avg = stats->LHuserseconds / (60*60);
-			}
-			else
-			{
-				avg = (stats->userpeak + stats->userlow) / 2;
-			}
-			sprintf(p,"%-7u %-4i %i",avg,stats->userpeak,stats->userlow);
-			to_user(from,FMT_PLAIN,text);
-			sprintf(text,"Messages: %i   Notices: %i   Joins: %i   Parts: %i   Kicks: %i   Quits: %i",
-				stats->privmsg,stats->notice,stats->joins,stats->parts,stats->kicks,stats->quits);
+			table_buffer("%s (no current data)",chan->name);
+			continue;
 		}
+
+		if (stats->LHuserseconds > 0)
+			avg = stats->LHuserseconds / (60*60);
 		else
-		{
-			stringcpy(p," (no current data)");
-		}
-		to_user(from,FMT_PLAIN,text);
+			avg = (stats->userpeak + stats->userlow) / 2;
+
+		chan_modestr(chan,modes);
+
+		table_buffer("%s%s%s\tUsers:\tAvg\t%u\tPeak\t%i\tLow\t%i",
+			chan->name,(chan == current->activechan) ? " (current)" : EMPTYSTR,
+			(stats->flags == CSTAT_PARTIAL) ? " (partial)" : EMPTYSTR,
+			avg,stats->userpeak,stats->userlow);
+		table_buffer("Modes: %s\tMessages:\t\t%i\tNotices:\t%i\tJoins:\t%i",modes,
+			stats->privmsg,stats->notice,stats->joins);
+		table_buffer("\tParts:\t\t%i\tKicks:\t%i\tQuits:\t%i",
+			stats->parts,stats->kicks,stats->quits);
 	}
+	table_send(from,2);
 }
 
 #endif /* STATS */

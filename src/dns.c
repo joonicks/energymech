@@ -59,9 +59,6 @@ typedef struct dnsRType
 
 #define MAX_QUESTIONS		16
 
-LS int dnssock = -1;
-LS int dnsserver = 0;
-
 #ifdef DEBUG
 char *type_textlist[] =
 { NULL, "A", "NS", "MD", "MF", "CNAME", "SOA", "MB", "MG", "MR", "NULL", "WKS", "PTR", "HINFO", "MINFO", "MX", "TXT", };
@@ -233,7 +230,7 @@ void parse_query(int psz, dnsQuery *query)
 	dnsList	*dns;
 	const char *src,*rtyp;
 	char	token[64],token2[64];
-	int	sz,n;
+	int	n,pick;
 
 	src = (const char*)query;
 
@@ -243,7 +240,7 @@ void parse_query(int psz, dnsQuery *query)
 	token[16] = 0;
 	n = ntohs(query->flags);
 	debug("(parse_query) %i: flags = %i { %s %i %s%s%s%s%s }\n",
-		sz,n,token,
+		psz,n,token,
 		(n&15), /* result code */
 		(n&32768)  ? "QR 1 (Answer) ":"QR 0 (Question) ",
 		(n&1024) ? "AA ":"",
@@ -292,7 +289,7 @@ void parse_query(int psz, dnsQuery *query)
 #endif /* DEBUG */
 			if (dns->cname)
 				Free((char**)&dns->cname);
-			dns->when = now + 30;
+			dns->when = cx.now + 30;
 			set_mallocdoer(parse_query);
 			dns->cname = stringdup(token2);
 		}
@@ -305,7 +302,7 @@ void parse_query(int psz, dnsQuery *query)
 			if (dns->auth && !stringcasecmp(dns->auth->hostname,token))
 			{
 				dns->auth->ip.s_addr = ip->s_addr;
-				dns->when = now + 60;
+				dns->when = cx.now + 60;
 #ifdef DEBUG
 				debug("(parse_query) a auth: %s = %s\n",token,inet_ntoa(*ip));
 #endif /* DEBUG */
@@ -314,7 +311,7 @@ void parse_query(int psz, dnsQuery *query)
 			if (!stringcasecmp(dns->host,token) || (dns->cname && !stringcasecmp(dns->cname,token)))
 			{
 				dns->ip.s_addr = ip->s_addr;
-				dns->when = now + 3600;
+				dns->when = cx.now + 3600;
 #ifdef DEBUG
 				debug("(parse_query) a: %s = %s\n",token,inet_ntoa(*ip));
 #endif /* DEBUG */
@@ -336,10 +333,10 @@ void parse_query(int psz, dnsQuery *query)
 	}
 
 	n = ntohs(query->authorities);
-	sz = (n > 1) ? RANDOM(1,n) : 1;
+	pick = (n > 1) ? RANDOM(1,n) : 1;
 #ifdef DEBUG
 	if (n)
-		debug("(parse_query) auth: select %i count %i\n",sz,n);
+		debug("(parse_query) auth: select %i count %i\n",pick,n);
 #endif /* DEBUG */
 	while(n)
 	{
@@ -352,7 +349,7 @@ void parse_query(int psz, dnsQuery *query)
 			dnsAuthority *da;
 
 			get_dns_token(src,(const char *)query,token2,psz);
-			if (sz == n)
+			if (pick == n)
 			{
 				if (dns->auth == NULL)
 				{
@@ -377,7 +374,7 @@ void parse_query(int psz, dnsQuery *query)
 				}
 			}
 #ifdef DEBUG
-			debug("(parse_query) authorities: %s = %s%s\n",token,token2,(sz==n) ? MATCH_ALL : "");
+			debug("(parse_query) authorities: %s = %s%s\n",token,token2,(pick==n) ? MATCH_ALL : "");
 #endif /* DEBUG */
 		}
 #ifdef DEBUG
@@ -511,12 +508,14 @@ void parse_query(int psz, dnsQuery *query)
 	}
 	if (src)
 	{
+		int	sz;
+
 		dns->id = rand();
 #ifdef DEBUG
 		debug("(parse_query) %i: asking %s who is `%s'\n",dns->id,inet_ntoa(sai.sin_addr),src);
 #endif /* DEBUG */
 		sz = make_query(packet,src);
-		dns->when = now + 60;
+		dns->when = cx.now + 60;
 		sai.sin_family = AF_INET;
 		sai.sin_port = htons(53);
 		((dnsQuery*)packet)->qid = htons(dns->id);
@@ -532,13 +531,15 @@ void parse_query(int psz, dnsQuery *query)
 		Free((char**)&dns->auth2);
 	if (src == NULL && dns->ip.s_addr == 0 && dns->cname && dns->host && dns->auth == NULL && dns->auth2 == NULL)
 	{
+		int	sz;
+
 		dns->id = rand();
 		sai.sin_addr.s_addr = (ia_ns[dnsserver].s_addr == 0) ? ia_default.s_addr : ia_ns[dnsserver].s_addr;
 #ifdef DEBUG
 		debug("(parse_query) %i: asking %s who is `%s' (CNAME question)\n",dns->id,inet_ntoa(sai.sin_addr),dns->cname);
 #endif /* DEBUG */
 		sz = make_query(packet,dns->cname);
-		dns->when = now + 60;
+		dns->when = cx.now + 60;
 		sai.sin_family = AF_INET;
 		sai.sin_port = htons(53);
 		((dnsQuery*)packet)->qid = htons(dns->id);
@@ -571,7 +572,7 @@ void rawdns(const char *hostname)
 	item = (dnsList*)Calloc(sizeof(dnsList) + strlen(hostname));
 	stringcpy(item->host,hostname);
 	item->id = ntohs(query->qid);
-	item->when = now + 30;
+	item->when = cx.now + 30;
 	item->next = dnslist;
 	dnslist = item;
 
@@ -610,7 +611,7 @@ restart:
 	pdns = &dnslist;
 	while(*pdns)
 	{
-		if ((*pdns)->when < now)
+		if ((*pdns)->when < cx.now)
 		{
 			dns = *pdns;
 			if (dns->cname)
@@ -640,22 +641,18 @@ restart:
 void process_rawdns(void)
 {
 	struct	sockaddr_in sai;
+	unsigned int sz;
 	char	packet[512];
-	int	sz,n;
+	int	n;
 
-	if (dnssock == -1)
+	sz = sizeof(sai);
+	n = recvfrom(dnssock,packet,512,0,(struct sockaddr*)&sai,&sz);
+	if (n < sizeof(dnsQuery))
 		return;
-	if (FD_ISSET(dnssock,&read_fds))
-	{
-		sz = sizeof(sai);
-		n = recvfrom(dnssock,packet,512,0,(struct sockaddr*)&sai,&sz);
-		if (n < sizeof(dnsQuery))
-			return;
 #ifdef DEBUG
-		debug("(process_rawdns) packet from: %s (%i bytes)\n",inet_ntoa(sai.sin_addr),n);
+	debug("(process_rawdns) packet from: %s (%i bytes)\n",inet_ntoa(sai.sin_addr),n);
 #endif /* DEBUG */
-		parse_query(n,(dnsQuery*)packet);
-	}
+	parse_query(n,(dnsQuery*)packet);
 }
 
 char *poll_rawdns(char *hostname)
@@ -675,7 +672,7 @@ char *poll_rawdns(char *hostname)
 	return(NULL);
 }
 
-LS int backup_debug;
+int backup_debug;
 
 int read_dnsroot(char *line)
 {
@@ -855,7 +852,7 @@ void do_dns(COMMAND_ARGS)
 	uint32_t ip;
 
 	/* to date, all hostnames contain atleast one dot */
-	if ((STRCHR(rest,'.')))
+	if ((stringchr(rest,'.')))
 	{
 		host = rest;
 	}

@@ -44,7 +44,7 @@
 
 #define NF_OPTIONS	7
 
-LS const char notify_opt[NF_OPTIONS][10] =
+const char notify_opt[NF_OPTIONS][10] =
 {
 "-ALL",
 "-NOMATCH",
@@ -53,9 +53,9 @@ LS const char notify_opt[NF_OPTIONS][10] =
 "-SEEN",
 };
 
-LS Notify **endoflist;
-LS int lock_ison = FALSE;
-LS int nf_header;
+Notify **endoflist;
+int lock_ison = FALSE;
+int nf_header;
 
 void purge_notify(void)
 {
@@ -142,11 +142,11 @@ void send_ison(void)
 	 *  dont send nicks to ISON too often
 	 */
 	period = current->setting[INT_ISONDELAY].int_var;
-	x = now - current->lastnotify;
+	x = cx.now - current->lastnotify;
 	if ((x < period) || (lock_ison && (x < 600)))
 		return;
 
-	current->lastnotify = now;
+	current->lastnotify = cx.now;
 
 	/*
 	 *  the nature of the code makes it so that the first NULL is
@@ -206,7 +206,7 @@ void catch_ison(char *rest)
 		{
 			if (!nickcmp(nf->nick,nick))
 			{
-				nf->checked = now;
+				nf->checked = cx.now;
 				/*
 				 *  /whois user to get user@host + realname
 				 */
@@ -228,14 +228,14 @@ void catch_ison(char *rest)
 	{
 		if (nf->checked == 1)
 		{
-			nf->checked = now;
+			nf->checked = cx.now;
 			if (nf->status >= NF_WHOIS)
 			{
 				/*
 				 *  close the log entry for this online period
 				 */
 				if (nf->log && nf->log->signon && !nf->log->signoff)
-					nf->log->signoff = now;
+					nf->log->signoff = cx.now;
 				/*
 				 *  announce that the user is offline if its a mask match
 				 */
@@ -264,7 +264,7 @@ void catch_whois(char *nick, char *userhost, char *realname)
 			 */
 			set_mallocdoer(catch_whois);
 			nlog = (nfLog*)Calloc(sizeof(nfLog) + Strlen2(userhost,realname)); // realname is never NULL
-			nlog->signon = now;
+			nlog->signon = cx.now;
 			nlog->next = nf->log;
 			nf->log = nlog;
 			nlog->realname = stringcat(nlog->userhost,userhost) + 1;
@@ -390,7 +390,7 @@ void write_notifylog(void)
 		for(nlog=nf->log;nlog;nlog=nlog->next)
 		{
 			to_file(fd,"%s %lu %lu %s :%s\n",nf->nick,nlog->signon,
-				(nlog->signoff) ? nlog->signoff : now,
+				(nlog->signoff) ? nlog->signoff : cx.now,
 				nlog->userhost,nlog->realname);
 		}
 	}
@@ -466,7 +466,7 @@ int notify_callback(char *rest)
 	{
 		nf->mask = dst + 1;
 		dst = stringcat(nf->mask,rest);
-		if (STRCHR(nf->mask,' '))
+		if (stringchr(nf->mask,' '))
 			nf->endofmask = dst;
 	}
 	if (src)
@@ -530,7 +530,7 @@ void nfshow_brief(Notify *nf)
 	if (nf->log && nf->log->signoff)
 	{
 		s = mem;
-		when = now - nf->log->signoff;
+		when = cx.now - nf->log->signoff;
 		d = when / 86400;
 		h = (when -= d * 86400) / 3600;
 		m = (when -= h * 3600) / 60;
@@ -565,7 +565,7 @@ void nfshow_full(Notify *nf)
 		for(nlog=nf->log;nlog;nlog=nlog->next)
 		{
 			opt = mem;
-			s = time2away(nlog->signon);
+			s = maketimestr(nlog->signon,TFMT_AWAY);
 			if (s[1] == ':')
 				*(opt++) = ' ';
 			*opt = 0;
@@ -576,7 +576,7 @@ void nfshow_full(Notify *nf)
 			opt = stringcat(opt," -- ");
 			if (nlog->signoff)
 			{
-				s = time2away(nlog->signoff);
+				s = maketimestr(nlog->signoff,TFMT_AWAY);
 				if (s[1] == ':')
 					*(opt++) = ' ';
 				*opt = 0;
@@ -654,7 +654,7 @@ int write_seenlist(void)
 
 	for(seen=seenlist;seen;seen=seen->next)
 	{
-		if ((seen->when - now) > (86400 * SEEN_TIME))
+		if ((seen->when - cx.now) > (86400 * SEEN_TIME))
 			continue;
 		else
 		{
@@ -696,7 +696,7 @@ int read_seenlist_callback(char *rest)
 	pa = chop(&rest);
 	pb = rest;
 
-	if ((now - when) < (SEEN_TIME * 86400))
+	if ((cx.now - when) < (SEEN_TIME * 86400))
 	{
 		/* if (pa && !*pa)
 			pa = NULL; chop() doesnt return empty strings */
@@ -826,12 +826,10 @@ void do_seen(COMMAND_ARGS)
 {
 	Seen	*seen;
 	char	ago[35];		/* enought for "36500 days, 23 hours and 59 minutes" (100 years) */
-	const char *chan;
 	char	*fmt,*n,*u,*c1,*c2,*c3;
 	time_t	when;
 	int	d,h,m,mul;
 
-	chan = get_channel(to,&rest);
 	mul = get_maxaccess(from);
 
 	if (!*rest)
@@ -847,7 +845,7 @@ void do_seen(COMMAND_ARGS)
 		return;
 	}
 
-	if (!nickcmp(n,current->nick))
+	if (!nickcmp(n,getbotnick(current)))
 	{
 		fmt = "%s is me you dweeb!";
 	}
@@ -870,7 +868,7 @@ void do_seen(COMMAND_ARGS)
 		}
 		else
 		{
-			when = now - seen->when;
+			when = cx.now - seen->when;
 			d = when / 86400;
 			h = (when -= d * 86400) / 3600;
 			m = (when -= h * 3600) / 60;
@@ -985,7 +983,7 @@ void do_notify(COMMAND_ARGS)
 #ifdef DEBUG
 		debug("(do_notify) dumping errnames\n");
 #endif /* DEBUG */
-		to_user(from,"User%s not found: %s",(STRCHR(message,',')) ? "s" : "",message);
+		to_user(from,"User%s not found: %s",(stringchr(message,',')) ? "s" : "",message);
 	}
 
 	if (nf_header)
