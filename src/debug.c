@@ -1,7 +1,7 @@
 /*
 
     EnergyMech, IRC bot software
-    Copyright (c) 1997-2024 proton
+    Copyright (c) 1997-2025 proton
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -130,14 +130,14 @@ struct
 {	SockConnect,			"SockConnect"			CORE_SE },
 {	add_bot,			"add_bot"			CFG1_SE },
 {	add_server,			"add_server"			CFG1_SE },
-{	add_shit,			"add_shit"			},
-{	add_user,			"add_user"			},
+{	add_shit,			"add_shit"			CFG1_SE },
+{	add_user,			"add_user"			CFG1_SE },
 {	addtouser,			"addtouser"			CORE_SE },
 {	cfg_opt,			"cfg_opt"			CFG1_SE },
 {	cfg_pass,			"cfg_pass"			CFG1_SE },
 {	cfg_user,			"cfg_user"			CFG1_SE },
-{	change_authnick,		"change_authnick"		},
-{	ctcp_dcc,			"ctcp_dcc"			},
+{	change_authnick,		"change_authnick"		CORE_SE },
+{	ctcp_dcc,			"ctcp_dcc"			CORE_SE },
 {	copy_vars,			"copy_vars"			CFG1_SE },
 {	dcc_chat,			"dcc_chat"			CMD1_SE },
 {	do_die,				"do_die"			RARE_SE },
@@ -146,10 +146,10 @@ struct
 {	do_set,				"do_set"			CMD1_SE },
 {	do_spy,				"do_spy"			CMD1_SE },
 {	join_channel,			"join_channel"			CFG1_SE },
-{	killsock,			"killsock"			},
-{	make_auth,			"make_auth"			},
-{	make_ban,			"make_ban"			},
-{	make_chanuser,			"make_chanuser"			},
+{	killsock,			"killsock"			CORE_SE },
+{	make_auth,			"make_auth"			CMD1_SE },
+{	make_ban,			"make_ban"			CMD1_SE },
+{	make_chanuser,			"make_chanuser"			CORE_SE },
 {	make_ireq,			"make_ireq"			CMD1_SE },
 {	make_strp,			"make_strp"			CORE_SE },
 {	mirror_user,			"mirror_user"			CORE_SE },
@@ -158,45 +158,45 @@ struct
 {	on_mode,			"on_mode"			CORE_SE },
 {	on_msg,				"on_msg"			CORE_SE },
 {	on_nick,			"on_nick"			CORE_SE },
-{	parse_311,			"parse_311"			},
+{	parse_311,			"parse_311"			CORE_SE },
 {	randstring_getline,		"randstring_getline"		CMD1_SE },
-{	readcfgfile,			"readcfgfile"			},
+{	readcfgfile,			"readcfgfile"			INIT_SE },
 {	recover_client,			"recover_client"		INIT_SE },
-{	reverse_topic,			"reverse_topic"			},
-{	to_user,			"to_user"			},
-{	to_user_q,			"to_user_q"			},
-{	send_kick,			"send_kick"			},
-{	send_mode,			"send_mode"			},
+{	reverse_topic,			"reverse_topic"			CORE_SE },
+{	to_user,			"to_user"			CORE_SE },
+{	to_user_q,			"to_user_q"			CMD1_SE },
+{	send_kick,			"send_kick"			CORE_SE },
+{	send_mode,			"send_mode"			CORE_SE },
 {	set_str_varc,			"set_str_varc"			CFG1_SE },
 {	set_mix16,			"set_mix16"			CORE_SE },
 {	set_mix64,			"set_mix64"			CORE_SE },
 {	sig_hup,			"sig_hup"			RARE_SE },
-{	table_buffer,			"table_buffer"			},
+{	table_buffer,			"table_buffer"			CMD1_SE },
 #ifdef ALIAS
-{	do_alias,			"do_alias"			},
+{	do_alias,			"do_alias"			CMD1_SE },
 #endif /* ALIAS */
 #ifdef BOTNET
-{	botnet_newsock,			"botnet_newsock"		},
-{	connect_to_bot,			"connect_to_bot"		},
-{	do_link,			"do_link"			},
-{	make_botinfo,			"make_botinfo"			},
+{	botnet_newsock,			"botnet_newsock"		CORE_SE },
+{	connect_to_bot,			"connect_to_bot"		CORE_SE },
+{	do_link,			"do_link"			CMD1_SE },
+{	make_botinfo,			"make_botinfo"			CORE_SE },
 #endif /* BOTNET */
 #ifdef BOUNCE
 {	bounce_parse,			"bounce_parse"			},
-{	process_bounce,			"process_bounce"		},
+{	process_bounce,			"process_bounce"		CORE_SE },
 #endif /* BOUNCE */
 #ifdef CHANBAN
-{	process_chanbans,		"process_chanbans"		},
+{	process_chanbans,		"process_chanbans"		CORE_SE },
 #endif /* CHANBAN */
 #ifdef GREET
-{	cfg_greet,			"cfg_greet"			},
-{	do_greet,			"do_greet"			},
+{	cfg_greet,			"cfg_greet"			CFG1_SE },
+{	do_greet,			"do_greet"			CMD1_SE },
 #endif /* GREET */
 #ifdef HOSTINFO
 {	monitor_fs,			"monitor_fs"			},
 #endif /* HOSTINFO */
 #ifdef NOTE
-{	catch_note,			"catch_note"			},
+{	catch_note,			"catch_note"			CMD1_SE },
 {	do_note,			"do_note"			CMD1_SE },
 #endif /* NOTE */
 #ifdef NOTIFY
@@ -211,8 +211,8 @@ struct
 {	python_parse_jump,		"python_parse_jump"		},
 #endif /* PYTHON */
 #ifdef RAWDNS
-{	rawdns,				"rawdns"			},
-{	parse_query,			"parse_query"			},
+{	rawdns,				"rawdns"			CORE_SE },
+{	parse_query,			"parse_query"			CORE_SE },
 {	read_dnsroot,			"read_dnsroot"			CFG1_SE },
 #endif /* RAWDNS */
 #ifdef REDIRECT
@@ -222,7 +222,7 @@ struct
 {	make_seen,			"make_seen"			},
 #endif /* SEEN */
 #ifdef STATS
-{	stats_plusminususer,		"stats_plusminususer"		},
+{	stats_plusminususer,		"stats_plusminususer"		CORE_SE },
 #endif /* STATS */
 #ifdef TCL
 {	tcl_hook,			"tcl_hook"			},
@@ -230,7 +230,7 @@ struct
 {	tcl_parse_jump,			"tcl_parse_jump"		},
 #endif /* TCL */
 #ifdef TELNET
-{	check_telnet,			"check_telnet"			},
+{	check_telnet,			"check_telnet"			CMD1_SE },
 #endif /* TELNET */
 #ifdef TOYBOX
 {	read_charset_callback,		"read_charset_callback"		CMD1_SE },
