@@ -67,15 +67,11 @@
 #endif
 
 #ifdef __GNUC__
-#define __vattr(x)		__attribute__ (( x ))
 #define __page(x)		__attribute__ (( __sect(x) ))
 #define __attr(x,y)		__attribute__ (( __sect(x), y ))
-#define __att2(x,y,z)		__attribute__ (( __sect(x), y, z ))
 #else
-#define __vattr(x)		/* nothing */
 #define __page(x)		/* nothing */
 #define __attr(x,y)		/* nothing */
-#define __att2(x,y,z)		/* nothing */
 #endif
 
 #define CORE_SEG	".text.a"
@@ -89,31 +85,15 @@
 
 #define set_mallocdoer(x)	mallocdoer = x;
 
-#define mechexit(x,y)				\
-{						\
-	if (debug_on_exit)			\
-		wrap_debug();			\
-	if (do_exec)				\
-		mech_exec();			\
-	y(x);					\
-}
-
 #else /* not DEBUG */
 
 #define set_mallocdoer(x)
-
-#define mechexit(x,y)				\
-{						\
-	if (do_exec)				\
-		mech_exec();			\
-	y(x);					\
-}
 
 #endif /* DEBUG */
 
 /* alias.c */
 
-void afmt(char *, const char *, const char *)				__page(CORE_SEG);
+void alias_reformat(char *, const char *, const char *)			__page(CORE_SEG);
 void do_alias(COMMAND_ARGS)						__page(CMD1_SEG);
 void do_unalias(COMMAND_ARGS)						__page(CMD1_SEG);
 
@@ -160,11 +140,11 @@ void chan_modestr(Chan *, char *)					__page(CORE_SEG);
 char *get_nuh(const ChanUser *)						__page(CORE_SEG);
 char *find_nuh(char *)							__page(CORE_SEG);
 char *nick2uh(char *, char *)						__page(CORE_SEG);
-Ban *make_ban(Ban **, char *, char *, time_t);
-void delete_ban(Chan *, char *);
-void delete_modemask(Chan *, char *, int);
-void channel_massmode(const Chan *, char *, int, char, char);
-void channel_massunban(Chan *, char *, time_t);
+Ban *make_ban(Ban **, char *, char *, time_t)				__page(CMD1_SEG);
+void delete_ban(Chan *, char *)						__page(CMD1_SEG);
+void delete_modemask(Chan *, char *, int)				__page(CMD1_SEG);
+void channel_massmode(const Chan *, char *, int, char, char)		__page(CORE_SEG);
+void channel_massunban(Chan *, char *, time_t)				__page(CORE_SEG);
 ChanUser *find_chanuser(Chan *, const char *)				__page(CORE_SEG);
 ChanUser *find_chanbot(Chan *, const char *)				__page(CORE_SEG);
 void remove_chanuser(Chan *, const char *)				__page(CORE_SEG);
@@ -248,24 +228,24 @@ void do_send(COMMAND_ARGS)						__page(CMD1_SEG);
 
 /* debug.c */
 
-void strflags(char *dst, const DEFstruct *flagsstruct, int flags);
-const char *strdef(const DEFstruct *dtab, int num);
-const char *funcdef(const DEFstruct *dtab, void *func);
-void memreset(void);
-void memtouch(const void *addr);
-const char *proc_lookup(void *addr, int size);
-char *atime(time_t when);
-void debug_server(Server *sp, char *pad);
-void debug_settings(UniVar *setting, int type);
-void debug_memory(void);
-void debug_botinfo(BotInfo *binfo);
-void debug_botnet(void);
-void debug_core(void);
-void debug_rawdns(void);
-char *uint32tobin(int limit, uint32_t x);
-void debug_scripthook(void);
-void run_debug(void);
-int wrap_debug(void);
+void strflags(char *dst, const DEFstruct *flagsstruct, int flags)	__page(CMD1_SEG);
+const char *strdef(const DEFstruct *dtab, int num)			__page(CMD1_SEG);
+const char *funcdef(const DEFstruct *dtab, void *func)			__page(CMD1_SEG);
+void memreset(void)							__page(CMD1_SEG);
+void memtouch(const void *addr)						__page(CMD1_SEG);
+const char *proc_lookup(void *addr, int size)				__page(CMD1_SEG);
+char *atime(time_t when)						__page(CMD1_SEG);
+void debug_server(Server *sp, char *pad)				__page(CMD1_SEG);
+void debug_settings(UniVar *setting, int type)				__page(CMD1_SEG);
+void debug_memory(void)							__page(CMD1_SEG);
+void debug_botinfo(BotInfo *binfo)					__page(CMD1_SEG);
+void debug_botnet(void)							__page(CMD1_SEG);
+void debug_core(void)							__page(CMD1_SEG);
+void debug_rawdns(void)							__page(CMD1_SEG);
+char *uint32tobin(int limit, uint32_t x)				__page(CMD1_SEG);
+void debug_scripthook(void)						__page(CMD1_SEG);
+void run_debug(void)							__page(CMD1_SEG);
+int wrap_debug(void)							__page(CMD1_SEG);
 void do_crash(COMMAND_ARGS)						__page(RARE_SEG);
 void do_debug(COMMAND_ARGS)						__page(CMD1_SEG);
 void do_inject(COMMAND_ARGS)						__page(CMD1_SEG);
@@ -274,18 +254,18 @@ void debug(char *format, ...)						__page(CORE_SEG);
 /* dns.c */
 
 void init_rawdns(void)							__page(CFG1_SEG);
-struct in_addr dnsroot_lookup(const char *hostname);
-const char *get_dns_token(const char *src, const char *packet, char *dst, int sz);
-int make_query(char *packet, const char *hostname);
-struct in_addr *get_stored_ip(const char *ipdata);
-void dns_hook(char *host, char * resolved);
-void parse_query(int psz, dnsQuery *query);
+struct in_addr dnsroot_lookup(const char *hostname)			__page(CORE_SEG);
+const char *get_dns_token(const char *src, const char *packet, char *dst, int sz) __page(CORE_SEG);
+int make_query(char *packet, const char *hostname)			__page(CORE_SEG);
+struct in_addr *get_stored_ip(const char *ipdata)			__page(CORE_SEG);
+void dns_hook(char *host, char * resolved)				__page(CORE_SEG);
+void parse_query(int psz, dnsQuery *query)				__page(CORE_SEG);
 void rawdns(const char *hostname)					__page(CORE_SEG);
 void select_rawdns(void)						__page(CORE_SEG);
 void process_rawdns(void)						__page(CORE_SEG);
 char *poll_rawdns(char *hostname)					__page(CORE_SEG);
 int read_dnsroot(char *line)						__page(CFG1_SEG);
-uint32_t rawdns_get_ip(const char *host);
+uint32_t rawdns_get_ip(const char *host)				__page(CORE_SEG);
 void do_dnsroot(COMMAND_ARGS)						__page(CMD1_SEG);
 void do_dnsserver(COMMAND_ARGS)						__page(CMD1_SEG);
 void do_dns(COMMAND_ARGS)						__page(CMD1_SEG);
@@ -362,8 +342,8 @@ void table_buffer(const char *, ...)					__page(CMD1_SEG);
 void table_send(const char *, const int)				__page(CMD1_SEG);
 char *sockread(int, char *, char *)					__page(CORE_SEG);
 void readline(int, int (*)(char *))					__page(CMD1_SEG);
-void remove_ks(KillSock *);
-int killsock(int);
+void remove_ks(KillSock *)						__page(CORE_SEG);
+int killsock(int)							__page(CORE_SEG);
 void do_clearqueue(COMMAND_ARGS)					__page(CMD1_SEG);
 
 /* irc.c */
@@ -400,7 +380,7 @@ char *tolowercat(char *, const char *)					__page(CORE_SEG);
 
 /* main.c */
 
-void mech_exec(void)							__page(RARE_SEG);
+void mech_exec(void)							__attr(RARE_SEG, __noreturn__);
 int randstring_count(char *line)					__page(CMD1_SEG);
 int randstring_getline(char *line)					__page(CMD1_SEG);
 char *randstring(const char *)						__page(CORE_SEG);
@@ -431,17 +411,17 @@ void mainloop(void)							__attr(CORE_SEG, __noreturn__);
 
 /* net.c */
 
-Mech *get_netbot(void);
-void reset_linkable(int guid);
-void botnet_deaduplink(BotNet *bn);
-NetCfg *find_netcfg(int guid);
-BotInfo *make_botinfo(int guid, int hops, char *nuh, char *server, char *version);
-void botnet_relay(BotNet *source, char *format, ...);
-void botnet_refreshbotinfo(void);
+Mech *get_netbot(void)							__page(CORE_SEG);
+void reset_linkable(int guid)						__page(CORE_SEG);
+void botnet_deaduplink(BotNet *bn)					__page(CORE_SEG);
+NetCfg *find_netcfg(int guid)						__page(CORE_SEG);
+BotInfo *make_botinfo(int guid, int hops, char *nuh, char *server, char *version) __page(CORE_SEG);
+void botnet_relay(BotNet *source, char *format, ...)			__page(CORE_SEG);
+void botnet_refreshbotinfo(void)					__page(CORE_SEG);
 void botnet_binfo_relay(BotNet *source, BotInfo *binfo);
 void botnet_binfo_tofile(int sock, BotInfo *binfo);
 void botnet_dumplinklist(BotNet *bn);
-int connect_to_bot(NetCfg *cfg);
+int connect_to_bot(NetCfg *cfg)						__page(CORE_SEG);
 void check_botjoin(Chan *chan, ChanUser *cu);
 void check_botinfo(BotInfo *binfo, const char *channel);
 void basicAuth(BotNet *bn, char *rest);
@@ -459,7 +439,7 @@ void ushareUser(BotNet *bn, char *rest);
 void ushareTick(BotNet *bn, char *rest);
 void ushareDelete(BotNet *bn, char *rest);
 void parse_botnet(BotNet *bn, char *rest);
-void botnet_newsock(void);
+void botnet_newsock(void)						__page(CORE_SEG);
 void select_botnet(void)						__page(CORE_SEG);
 void process_botnet(void)						__page(CORE_SEG);
 void do_link_noargs(const char *)					__page(CMD1_SEG);
@@ -575,18 +555,18 @@ void screwban_format(char *)						__page(CORE_SEG);
 void deop_ban(Chan *, ChanUser *, char *)				__page(CORE_SEG);
 void deop_siteban(Chan *, ChanUser *)					__page(CORE_SEG);
 void deop_screwban(Chan *, ChanUser *)					__page(CORE_SEG);
-void send_kick(Chan *chan, const char *nick, const char *format, ...);
-void push_kicks(Chan *chan);
-void unmode_chanuser(Chan *chan, ChanUser *cu);
-void send_mode(Chan *chan, int pri, int type, char plusminus, char modeflag, void *data);
-int mode_effect(Chan *chan, qMode *mode);
-void push_modes(Chan *chan, int lowpri);
-void update_modes(Chan *chan);
-int check_mass(Chan *chan, ChanUser *doer, int type);
-void mass_action(Chan *chan, ChanUser *doer);
-void prot_action(Chan *chan, char *from, ChanUser *doer, char *target, ChanUser *victim);
-void process_chanbans(void);
-void chanban_action(char *, char *, Shit *);
+void send_kick(Chan *chan, const char *nick, const char *format, ...)	__page(CORE_SEG);
+void push_kicks(Chan *chan)						__page(CORE_SEG);
+void unmode_chanuser(Chan *chan, ChanUser *cu)				__page(CORE_SEG);
+void send_mode(Chan *chan, int pri, int type, char plusminus, char modeflag, void *data) __page(CORE_SEG);
+int mode_effect(Chan *chan, qMode *mode)				__page(CORE_SEG);
+void push_modes(Chan *chan, int lowpri)					__page(CORE_SEG);
+void update_modes(Chan *chan)						__page(CORE_SEG);
+int check_mass(Chan *chan, ChanUser *doer, int type)			__page(CORE_SEG);
+void mass_action(Chan *chan, ChanUser *doer)				__page(CORE_SEG);
+void prot_action(Chan *chan, char *from, ChanUser *doer, char *target, ChanUser *victim) __page(CORE_SEG);
+void process_chanbans(void)						__page(CORE_SEG);
+void chanban_action(char *, char *, Shit *)				__page(CORE_SEG);
 void check_dynamode(Chan *)						__page(CORE_SEG);
 void do_opdeopme(COMMAND_ARGS)						__page(CMD1_SEG);
 void do_opvoice(COMMAND_ARGS)						__page(CMD1_SEG);
@@ -644,7 +624,7 @@ void shit_action(Chan *chan, ChanUser *cu);
 void check_shit(void);
 void remove_shit(Shit *shit);
 void purge_shitlist(void);
-Shit *add_shit(char *from, char *chan, char *mask, char *reason, int axs, int expire);
+Shit *add_shit(char *from, char *chan, char *mask, char *reason, int axs, int expire) __page(CFG1_SEG);
 Shit *find_shit(const char *userhost, const char *channel);
 Shit *get_shituser(char *userhost, char *channel);
 int get_shitaction(const char *userhost, const char *chan);
@@ -806,9 +786,9 @@ void web_raw(WebSock *, char *);
 void web_botstatus(WebSock *, char *);
 void web_debug(WebSock *, char *);
 void web_404(WebSock *, char *);
-void parse_web(WebSock *, char *);
-void select_web(void);
-void process_web(void);
+void parse_web(WebSock *, char *)					__page(CORE_SEG);
+void select_web(void)							__page(CORE_SEG);
+void process_web(void)							__page(CORE_SEG);
 
 #endif /* H_H */
 
