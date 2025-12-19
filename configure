@@ -415,6 +415,28 @@ else
   ac_t=
 fi
 
+cat <<'__LOGO__'
+Configuring for compilation of ...
+,-----------------------------------------------------------------.
+|   ,-----; ,------,     ,-----; ,-------,    ,----,     ,  ,-.   |
+|  /  ,---' |   ,.  \   /  ,---' |   ,--, \  /  ,-. \   /|  |  \  |
+| |   |___  |   | \  \ |   |___  |   |__|  ;|   | `~'  / |  |   | |
+| |   ,--'  |   |  |  ||   ,--'  |   |--; < |   | ,--./   `-'   | |
+| |   |__,-,|   |  |  ||   |__,-,|   |  |  ||   | \  |\___.     | |
+| |        ||   |  |  ||        ||   |  |  ||   `~'  |     \    | |
+| |        ||   |  | / |        ||   |  | / |        |      |   | |
+| `~~~~~`\/ `---'  `/  `~~~~~`\/ `---'  `/  `/~~~~~~'       |,--' |
+|          ,---,    ,---,  ,-----;   ,----.    ,-.  ,--.          |
+|          |    \  /    | /  ,---'  /  ,--'   /  |  |  |          |
+|          |     \/     ||   |___  |   |     |   |__|  |          |
+|          |   |\  /|   ||   ,--'  |   |     |   ,--.  |          |
+|          |   | \/ |   ||   |__,-,|   |   /||   |  |  |          |
+|          |   |    |   ||        ||   `--' ||   |  |  |          |
+|          |   |    |   ||        ||        ||   |  | /           |
+|          `---'    `---'`~~~~~`\/ `\___/~~~'`---'  `/            |
+`-----------------------------------------------------------------'
+__LOGO__
+
 echo $ac_n "checking system type ... "$ac_c
 
 cf_ERR=yes
@@ -904,6 +926,24 @@ echo $ac_t "$has_socket"
 rm -f $TESTP
 
 #
+#  I has prctl() ?
+#
+
+USE_PRCTL='#undef USE_PRCTL'
+has_prctl=no
+TESTC=config/prctl.c
+
+echo $ac_n "checking for prctl() ... "$ac_c
+
+$CC -o $TESTP $TESTC 1> /dev/null 2> /dev/null
+if [ -x $TESTP ]; then
+  has_prctl=yes
+  USE_PRCTL='#define USE_PRCTL 1'
+fi
+echo $ac_t "$has_prctl"
+rm -f $TESTP
+
+#
 #  check for SHA capabilities in libc/glibc/libcrypt
 #
 has_sha=no
@@ -1236,7 +1276,7 @@ test -z "$ans" -o "$ans" = y -o "$ans" = Y -o "$ans" = yes -o "$ans" = YES -o "$
 
 def_suppress='#undef SUPPRESS'
 unset ans
-$out $ac_n "[ ALPHA] Command duplication suppression? ........... [Y/n] "$ac_c
+$out $ac_n "[ BETA ] Command duplication suppression? ........... [Y/n] "$ac_c
 test "$ft_suppress" && $out "$ft_suppress" && ans=$ft_suppress
 test -z "$ft_suppress" && read ans
 test -z "$ans" -o "$ans" = y -o "$ans" = Y -o "$ans" = yes -o "$ans" = YES -o "$ans" = Yes && def_suppress='#define SUPPRESS'
@@ -1475,7 +1515,7 @@ test -z "$ans" -o "$ans" = y -o "$ans" = Y -o "$ans" = yes -o "$ans" = YES -o "$
 
 def_wingate='#undef WINGATE'
 unset ans
-$out $ac_n "[STABLE] WinGate support? ........................... [Y/n] "$ac_c
+$out $ac_n "[LEGACY] WinGate support? ........................... [Y/n] "$ac_c
 test "$ft_wingate" && $out "$ft_wingate" && ans=$ft_wingate
 test -z "$ft_wingate" && read ans
 test -z "$ans" -o "$ans" = y -o "$ans" = Y -o "$ans" = yes -o "$ans" = YES -o "$ans" = Yes && def_wingate='#define WINGATE'
@@ -1578,6 +1618,7 @@ s|@CRYPT_HAS_DES@|$CRYPT_HAS_DES|;
 s|@PTSIZE_DEFINE32@|$PTSIZE_DEFINE32|;
 s|@PTSIZE_DEFINE64@|$PTSIZE_DEFINE64|;
 s|@UNALIGNED_MEM@|$UNALIGNED_MEM|;
+s|@USE_PRCTL@|$USE_PRCTL|;
 " < src/config.h.in >> src/config.h
 
 save_myconfig() {

@@ -414,7 +414,6 @@ void do_reset(COMMAND_ARGS)
 
 	mechresetenv = (*env) ? env : NULL;
 
-	do_exec = TRUE;
 	mech_exec();
 	/* NOT REACHED */
 }

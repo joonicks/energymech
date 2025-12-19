@@ -30,7 +30,7 @@ void *Calloc(int size)
 	void	*tmp;
 
 	if ((tmp = (void*)calloc(size,1)) == NULL)
-		exit(1);
+		exit(1); /* 1 calctest calloc error */
 	return((void*)tmp);
 }
 #endif /* TEST */

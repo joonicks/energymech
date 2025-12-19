@@ -96,6 +96,10 @@ void mech_exec(void)
 	char	*argv[5],*envp[2];
 	int	i;
 
+	respawn++;
+	if (respawn > 10)
+		exit(99);		/* 99 no endless crash loops */
+
 	argv[1] = argv[2] = argv[3] = argv[4] = NULL;
 
 	if (respawn)
@@ -115,7 +119,11 @@ void mech_exec(void)
 
 #ifdef DEBUG
 	if (debug_on_exit)
+	{
+		time(&cx.now);
+		wrap_debug();
 		argv[i++] = "-X";
+	}
 #endif /* DEBUG */
 
 	envp[0] = mechresetenv;
@@ -134,14 +142,12 @@ void mech_exec(void)
 #endif /* SIGPROF */
 #endif /* __profiling__ */
 
-	execve(executable,argv,envp);
+	i = execve(executable,argv,envp);
 
 #ifdef DEBUG
-	debug("execve() failed!\n");
-	if (debug_on_exit)
-		run_debug();
+	debug("(mech_exec) execve() FAILED! returned %i, errno = %i\n",i,errno);
 #endif /* DEBUG */
-	exit(1);
+	exit(23); /* 23 mech_exec execve failed */
 }
 
 int r_ct;
@@ -325,6 +331,7 @@ void sig_usr2(int crap)
 
 	debug("(sigusr2)\n");
 	signal(SIGUSR2,sig_usr2);
+
 	run_debug();
 }
 
@@ -420,11 +427,8 @@ void sig_abrt(int crap)
  */
 void sig_bus(int crap)
 {
-	time(&cx.now);
-
-	respawn++;
-	if (respawn > 10)
-		mechexit(1,exit);
+	if (do_exec)
+		mech_exec();
 
 #ifdef DEBUG
 	debug("(sigbus)\n");
@@ -471,16 +475,8 @@ void sig_segv(int sig, siginfo_t *si, void *context)
 	debug("(sigsegv) sig_segv() = "mx_pfmt"\n",(mx_ptr)sig_segv);
 	debug("(sigsegv) do_crash() = "mx_pfmt"\n",(mx_ptr)do_crash);
 
-	if (debug_on_exit)
-	{
-		time(&cx.now);
-		run_debug();
-		debug_on_exit = FALSE;
-	}
-
-	respawn++;
-	if (respawn > 10)
-		mechexit(1,exit);
+	if (do_exec)
+		mech_exec();
 
 	do_exec = TRUE;
 	sig_suicide(TEXT_SIGSEGV /* comma */ UP_CALL(UPTIME_SIGSEGV));
@@ -493,19 +489,9 @@ void sig_segv(int signum)
 {
 	startup = STARTUP_SIGSEGV;
 
-#ifdef DEBUG
-	if (debug_on_exit)
-	{
-		run_debug();
-		debug_on_exit = FALSE;
-	}
-#endif /* DEBUG */
+	if (do_exec)
+		mech_exec();
 
-	respawn++;
-	if (respawn > 10)
-		mechexit(1,exit);
-
-	do_exec = TRUE;
 	sig_suicide(TEXT_SIGSEGV /* comma */ UP_CALL(UPTIME_SIGSEGV));
 	/* NOT REACHED */
 }
@@ -518,7 +504,7 @@ void sig_segv(int signum)
 void sig_term(int signum)
 {
 #ifdef __profiling__
-	exit(0);
+	exit(0); /* 0 sigterm profiling exit */
 #endif /* __profiling__ */
 
 #ifdef DEBUG
@@ -939,7 +925,7 @@ void parse_commandline(int argc, char **argv, char **envp)
 	if ((getuid() == 0) || (geteuid() == 0))
 	{
 		to_file(1,"init: Do NOT run EnergyMech as root!\n");
-		_exit(1);
+		exit(11); /* 11 dont run mech as root */
 	}
 
 	stat("..",&st);
@@ -994,7 +980,7 @@ void parse_commandline(int argc, char **argv, char **envp)
 	if (!*argv || !**argv)
 	{
 		to_file(1,bad_exe);
-		_exit(1);
+		exit(13); /* 13 bad executable name or bad arguments */
 	}
 	if ((opt = stringchr(*argv,' ')) != NULL)
 	{
@@ -1003,7 +989,7 @@ void parse_commandline(int argc, char **argv, char **envp)
 		if (errno)
 		{
 			to_file(1,bad_exe);
-			_exit(1);
+			exit(13); /* 13 bad executable name or bad arguments */
 		}
 	}
 
@@ -1048,7 +1034,7 @@ void parse_commandline(int argc, char **argv, char **envp)
 			}
 			else
 				to_file(1,"error: Missing argument for -e <command string>\n");
-			_exit(0);
+			exit(0); /* 0 normal exit after -e command execution */
 		case 'f':
 			if (opt[2] != 0)
 			{
@@ -1060,7 +1046,7 @@ void parse_commandline(int argc, char **argv, char **envp)
 				if(!*argv)
 				{
 					to_file(1,ERR_MISSINGCONF);
-					_exit(0);
+					exit(16); /* 16 missing filename after -f */
 				}
 				configfile = *argv;
 				argc--;
@@ -1085,14 +1071,14 @@ void parse_commandline(int argc, char **argv, char **envp)
 				TEXT_XSWITCH
 #endif /* DEBUG */
 				  );
-			_exit(0);
+			exit(0); /* 0 normal exit after -h */
 		case 'p':
 			++argv;
 			if (*argv)
 				to_file(1,"%s\n",makepass(*argv));
 			else
 				to_file(1,"error: Missing argument for -p <string>\n");
-			_exit(0);
+			exit(0); /* 0 normal exit after -p */
 		case 't':
 			startup = STARTUP_TESTRUN;
 			break;
@@ -1106,7 +1092,7 @@ void parse_commandline(int argc, char **argv, char **envp)
 #endif /* DEBUG */
 		default:
 			to_file(1,ERR_UNKNOWNOPT,opt);
-			_exit(1);
+			exit(8); /* 8 unknown option */
 		}
 	}
 
@@ -1116,6 +1102,9 @@ void parse_commandline(int argc, char **argv, char **envp)
 		to_file(1,"Compiled on " GENDATE "\n");
 		to_file(1,TEXT_HDR_FEAT,__mx_opts);
 	}
+
+	if (versiononly)
+		exit(0);	/* 0 normal exit after -v */
 
 #ifdef NEWBIE
 #ifdef SESSION
@@ -1129,7 +1118,7 @@ void parse_commandline(int argc, char **argv, char **envp)
 		if ((st.st_mode & (S_IWGRP|S_IWOTH)) != 0)
 		{
 			to_file(1,"error: configfile is writeable by others, exiting...\n");
-			_exit(0);
+			exit(24); /* 24 config file is world writeable */
 		}
 		if ((st.st_mode & (S_IRGRP|S_IROTH)) != 0)
 			to_file(1,"warning: configfile is readable by others\n");
@@ -1139,13 +1128,10 @@ void parse_commandline(int argc, char **argv, char **envp)
 		if ((st.st_mode & (S_IWGRP|S_IWOTH)) != 0)
 		{
 			to_file(1,"error: energymech home directory is writeable by others, exiting...\n");
-			_exit(0);
+			exit(25); /* 25 energymech home directory is world writeable */
 		}
 	}
 #endif /* NEWBIE */
-
-	if (versiononly)
-		_exit(0);	/* _exit() here because we dont want a profile file to be written */
 
 #ifdef __linux__
 	signal(SIGCHLD,SIG_IGN);
@@ -1187,7 +1173,7 @@ void parse_commandline(int argc, char **argv, char **envp)
 	if (spawning_lamer > 4)
 	{
 		to_file(1,"init: I refuse to run more than 4 bots!\n");
-		_exit(1);
+		exit(18); /* 18 luser trying to spawn too many bots */
 	}
 #endif /* I_HAVE_A_LEGITIMATE_NEED_FOR_MORE_THAN_4_BOTS */
 
@@ -1204,7 +1190,7 @@ void parse_commandline(int argc, char **argv, char **envp)
 				if ((st.st_mode & (S_IWGRP|S_IWOTH)) != 0)
 				{
 					to_file(1,"error: userfile(%s) is writeable by others, exiting...\n",opt);
-					_exit(0);
+					exit(26); /* 26 userfile is world writeable */
 				}
 				if ((st.st_mode & (S_IRGRP|S_IROTH)) != 0)
 					to_file(1,"warning: userfile(%s) is readable by others\n",opt);
@@ -1222,7 +1208,7 @@ void parse_commandline(int argc, char **argv, char **envp)
 	}
 	if (n)
 	{
-		_exit(1);
+		exit(10); /* 10 bots are missing userlist */
 	}
 #endif /* NEWBIE */
 
@@ -1249,11 +1235,9 @@ void parse_commandline(int argc, char **argv, char **envp)
 		case 0:
 			break;
 		default:
-#ifdef DEBUG
-			debug_on_exit = FALSE;
-#endif /* DEBUG */
+			exit(0); /* 0 normal fork parent exit */
 		case -1:
-			mechexit(0,_exit);
+			exit(3); /* 3 problem with fork */
 		}
 		setsid();
 	}
@@ -1312,7 +1296,7 @@ void parse_commandline(int argc, char **argv, char **envp)
 			run_debug();
 #endif /* DEBUG */
 		to_file(1,"init: test run completed, exiting...\n");
-		_exit(0);
+		exit(0); /* 0 normal exit after -t */
 	}
 	startup = STARTUP_RUNNING;
 #ifdef DEBUG
@@ -1320,12 +1304,17 @@ void parse_commandline(int argc, char **argv, char **envp)
 #endif
 }
 
+#include <sys/prctl.h>
+
 /*
  *  Make main short and sweet, reduce stack data
  *  Main(), we love it and cant live without it
  */
 int main(int argc, char **argv, char **envp)
 {
+#ifdef USE_PRCTL
+	prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0);
+#endif /* USE_PRCTL */
 	parse_commandline(argc, argv, envp);
 	mainloop();
 }

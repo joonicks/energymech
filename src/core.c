@@ -69,7 +69,7 @@ void readcfgfile(void)
 		if ((in = open(configfile,O_RDONLY)) < 0)
 		{
 			to_file(1,"init: Couldn't open the file %s\n",configfile);
-			mechexit(1,exit);
+			exit(51); /* 51 couldnt open config file */
 		}
 	}
 
@@ -88,7 +88,7 @@ void readcfgfile(void)
 	if (!current->guid)
 	{
 		to_file(1,"init: Error: No bots in the configfile\n");
-		mechexit(1,exit);
+		exit(17); /* 17 no bots in the config file */
 	}
 
 	if ((current) && (current->chanlist == NULL))
@@ -453,7 +453,7 @@ void signoff(char *from, char *reason)
 			/* killsock() sleeps 1 second in select() */
 			;
 
-		mechexit(0,exit);
+		exit(0); /* 0 signoff found no remaining bots */
 	}
 
 #ifdef DEBUG
@@ -1290,8 +1290,8 @@ void do_core(COMMAND_ARGS)
 	table_buffer(TEXT_BOTFEATURES,__mx_opts);
 #ifdef DEBUG
 	extra = EMPTYSTR;
-	if (debugfile && dodebug)
-		extra = debugfile;
+	if (dodebug)
+		extra = (debugfile) ? debugfile : "stdout";
 #ifdef __profiling__
 	table_buffer("Debug\t%s%s, Compiled with Profiling",
 #else
@@ -1324,7 +1324,7 @@ void do_die(COMMAND_ARGS)
 		if (!uptime)
 		{
 			to_file(1,"init: %s\n",rest);
-			_exit(0);
+			exit(0); /* 0 noob didnt edit the config file */
 		}
 	}
 

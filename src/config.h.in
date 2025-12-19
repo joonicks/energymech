@@ -202,6 +202,11 @@
 @DEF_WINGATE@
 
 /*
+ *  Use prctl() to restrict what hackers can do
+ */
+@USE_PRCTL@
+
+/*
  *  FASTNICK: faster nick regain if the nick is seen when released
  *  Enables code that is potentially dangerous if an attacker aquires
  *  the nick that the bot wants
