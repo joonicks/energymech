@@ -119,6 +119,7 @@ static const char *getsortedcommand(int pass, int *idxout)
 
 void make_mcmd(int mode)
 {
+	time_t	hashupdate,now;
 	const char *cmdstr;
 	char	tmp[257];
 	int	i,j,cmdidx,pass,fd,h;
@@ -135,6 +136,7 @@ void make_mcmd(int mode)
 		fd = 1;
 	}
 
+	time(&hashupdate);
 	collis = 0;
 	pass = __command_hash_9;
 	cmdcount = 0;
@@ -345,8 +347,13 @@ void make_mcmd(int mode)
 				write(cachefd,hashdata,sizeof(hashdata));
 				close(cachefd);
 			}
-			to_file(2,"gencmd: Hash options tried: %8i, Collisions %4i, Best hash option so far %4i collisions%c",
-				mx,collis,mincoll,(collis == 0) ? '\n' : '\r');
+			time(&now);
+			if (collis == mincoll || hashupdate < now)
+			{
+				hashupdate = now + 5;
+				to_file(2,"gencmd: Hash options tried: %8i, Collisions %4i, Best hash option so far %4i collisions%c",
+					mx,collis,mincoll,(collis == 0) ? '\n' : '\r');
+			}
 			mx++;
 			collis = 0;
 		}
