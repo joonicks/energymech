@@ -8,8 +8,17 @@ on:
 
 jobs:
   build:
+    strategy:
+      matrix:
+        include:
+          - name: ubuntu-x64
+            runs-on: ubuntu-latest
+            arch: x64
+          - name: ubuntu-arm64
+            runs-on: ubuntu-24.04-arm64
+            arch: arm64
 
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.runs-on }}
 
     steps:
     - uses: actions/checkout@v4
@@ -17,6 +26,6 @@ jobs:
       run: ./configure --default-yes
     - name: make
       run: make
-    - name: make check
-      run: make check
+    - name: make test
+      run: make test
 
