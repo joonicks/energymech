@@ -30,9 +30,6 @@
 #include "h.h"
 #include "text.h"
 
-char timebuf[64];		/* max format lentgh == 20+1 */
-char idlestr[64];		/* max format lentgh == 24+1 */
-
 const char monlist[12][4] = { "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" };
 const char daylist[7][4] = { "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat" };
 
@@ -89,7 +86,7 @@ void *Calloc(int size)
 	if ((mmep->area = (void*)calloc(size+4,1)) == NULL)
 	{
 		run_debug();
-		exit(1);
+		exit(34); /* 34 calloc fail (debug version)*/
 	}
 	mmep->size = size;
 	mmep->when = cx.now;
@@ -125,10 +122,9 @@ void Free(char **mem)
 		{
 			if (mp->next == NULL)
 			{
-				debug("(Free) PANIC: Free(0x"mx_pfmt"); Unregistered memory block\n",(mx_ptr)src);
+				debug("(Free) Free(0x"mx_pfmt"); Unregistered memory block\n",(mx_ptr)src);
 				run_debug();
-				/*exit(1);*/
-				/* overreacting. just ignore it and accept the leak.  */
+				/* just ignore it and accept the leak.  */
 				return;
 			}
 			mp = mp->next;
@@ -151,7 +147,7 @@ void *Calloc(int size)
 	void	*tmp;
 
 	if ((tmp = (void*)calloc(size,1)) == NULL)
-		exit(1);
+		exit(55); /* 55 calloc fail (non debug version) */
 	return((void*)tmp);
 }
 
@@ -353,7 +349,7 @@ char *maketimestr(time_t when, int format)
 	int	option;
 
 	btime = localtime(&when);
-	dest = timebuf;
+	dest = cx.timebuffer;
 
 	do
 	{
@@ -397,54 +393,54 @@ char *maketimestr(time_t when, int format)
 		}
 	}
 	while(format);
-	return(timebuf);
+	return(cx.timebuffer);
 }
 
 char *idle2str(time_t when, int small)
 {
-	char	*dst;
-	int	n,z[4];
+	char	*dest;
+	int	n,r,z[4];
 
 	when = cx.now - when;
 
 	z[0] = when / 86400;
-	z[1] = (when -= z[0] * 86400) / 3600;
-	z[2] = (when -= z[1] * 3600) / 60;
-	z[3] = when % 60;
+	r    = when % 86400;
 
-#ifdef DEBUG
-	{
-	struct	tm *btime;
-	btime = localtime(&when);
-	debug("(idle2str) days %i, hours %i, minutes %i, seconds %i\n"
-	      "(idle2str) d %i, h %i, m %i, s %i\n",
-		z[0],z[1],z[2],z[3],
-		btime->tm_yday,btime->tm_hour,btime->tm_min,btime->tm_sec);
-	}
-#endif /* DEBUG*/
+	z[1] = r / 3600;
+	r    = r % 3600;
+
+	z[2] = r / 60;
+	z[3] = r % 60;
+
+	dest = cx.timebuffer;
+	*dest = 0;
 
 	/* 32 : "9999 days, 24 hours, 59 minutes" */
 	/* xx : "24 hours, 59 minutes" */
 	/* xx : "59 minutes, 59 seconds" */
 	/* xx : "59 seconds" */
-	if (small)
-	{
-		const char *f[] = {"day","hour","minute","second"};
+	const char *f[] = {"day","hour","minute","second"};
 
-		*idlestr = 0;
-		for(n=0;n<4;n++)
+	n = 0;
+	do
+	{
+		if (*cx.timebuffer || z[n])
 		{
-			if (*idlestr || z[n])
-			{
-				dst = STREND(idlestr);
-				sprintf(dst,"%s%i %s%s",(*idlestr) ? ", " : "",z[n],f[n],(z[n]==1) ? "" : "s");
-			}
+			dest += sprintf(dest,", %i %s%s",z[n],f[n],(z[n]==1) ? "" : "s");
 		}
+		if (!small)
+		{
+			/* 18+1 : "9999 days 99:99:99" */
+			sprintf(dest," %02i:%02i:%02i",z[1],z[2],z[3]);
+			if (!z[0])
+				return(cx.timebuffer+1);
+			break;
+		}
+		n++;
 	}
-	else
-		/* 18+1 (up to 9999 days) */
-		sprintf(idlestr,"%i day%s %02i:%02i:%02i",z[0],EXTRA_CHAR(z[0]),z[1],z[2],z[3]);
-	return(idlestr);
+	while(n<4);
+
+	return(cx.timebuffer+2);
 }
 
 #ifndef TEST
@@ -908,10 +904,11 @@ void teststring(void)
 
 int main(int argc, char **argv, char **envp)
 {
-	char	mybuffer[64];
+	char	times[5][128];
 	struct stat st;
 	time_t	when;
-	int	r;
+	char	*str,*xpect;
+	int	r,t;
 
 	dodebug = 1;
         stat("../..",&st);
@@ -942,17 +939,48 @@ int main(int argc, char **argv, char **envp)
 		debug("testpath %s -> result %s\n",argv[1],(r) ? "TRUE" : "FALSE");
 	}
 
-	time(&cx.now);
+	cx.now = /* years */ (30+25) * 31536000 + /* days */ (5 * 86400) + /* hours */ 17 * 3600 + /* minutes */ 28 * 60 + /* seconds */ 1;
 
 	for(r=0;r<10;r++)
 	{
 	when = cx.now - (int[]){100000,888,534569,999999,99,9000,84600,7777777,56565656+3600,78987654}[r];
-	debug("\nmaketimestr %s\n",maketimestr(when,TFMT_LOG));
-	debug("maketimestr %s\n",maketimestr(when,TFMT_FULL));
-	debug("maketimestr %s\n",maketimestr(when,TFMT_AWAY));
-	debug("maketimestr %s\n",maketimestr(when,TFMT_CLOCK));
-	debug("maketimestr %s\n",maketimestr(when,TFMT_DATE));
+	strcpy(times[0],maketimestr(when,TFMT_LOG));
+	strcpy(times[1],maketimestr(when,TFMT_FULL));
+	strcpy(times[2],maketimestr(when,TFMT_AWAY));
+	strcpy(times[3],maketimestr(when,TFMT_CLOCK));
+	strcpy(times[4],maketimestr(when,TFMT_DATE));
+	debug("maketimestr LOG %s FULL %s AWAY %s CLOCK %s DATE %s\n",times[0],times[1],times[2],times[3],times[4]);
 	}
+
+	t = /* days */ (5 * 86400) + /* hours */ 17 * 3600 + /* minutes */ 28 * 60 + /* seconds */ 1;
+
+	str = idle2str(cx.now - t,1);
+	xpect = "5 days, 17 hours, 28 minutes, 1 second";
+	debug("idle2str %s == expected \"%s\" %s\n",str,xpect,strcmp(str,xpect) ? "FAIL" : "OK");
+
+	str = idle2str(cx.now - t,0);
+	xpect = "5 days 17:28:01";
+	debug("idle2str %s == expected \"%s\" %s\n",str,xpect,strcmp(str,xpect) ? "FAIL" : "OK");
+
+	t = /* days */ (1 * 86400) + /* hours */ 1 * 3600 + /* minutes */ 1 * 60 + /* seconds */ 1;
+
+	str = idle2str(cx.now - t,1);
+	xpect = "1 day, 1 hour, 1 minute, 1 second";
+	debug("idle2str %s == expected \"%s\" %s\n",str,xpect,strcmp(str,xpect) ? "FAIL" : "OK");
+
+	str = idle2str(cx.now - t,0);
+	xpect = "1 day 01:01:01";
+	debug("idle2str %s == expected \"%s\" %s\n",str,xpect,strcmp(str,xpect) ? "FAIL" : "OK");
+
+	t = /* days */ (0 * 86400) + /* hours */ 19 * 3600 + /* minutes */ 18 * 60 + /* seconds */ 17;
+
+	str = idle2str(cx.now - t,1);
+	xpect = "19 hours, 18 minutes, 17 seconds";
+	debug("idle2str %s == expected \"%s\" %s\n",str,xpect,strcmp(str,xpect) ? "FAIL" : "OK");
+
+	str = idle2str(cx.now - t,0);
+	xpect = "19:18:17";
+	debug("idle2str %s == expected \"%s\" %s\n",str,xpect,strcmp(str,xpect) ? "FAIL" : "OK");
 }
 
 #endif /* TEST */

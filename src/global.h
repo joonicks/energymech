@@ -56,6 +56,7 @@ struct CoreData		/* Collect core data all in one place */
 	int	short_tv;
 	User	CoreUser;
 	User	LocalBot;
+	char	timebuffer[64];
 };
 
 BEG struct CoreData cx;
@@ -65,8 +66,8 @@ BEG struct CoreData cx;
 #define DEFAULTCMDCHAR			'-'
 #define MECHUSERLOGIN			"v3.energymech.net"
 
-BEG const char VERSION[]		MDEF("3.5.dev" GITHASH);
-BEG const char SRCDATE[]		MDEF("November 20th, 2025");
+BEG const char VERSION[]		MDEF("3.6.dev" GITHASH);
+BEG const char SRCDATE[]		MDEF("December 14th, 2025");
 #ifdef __CYGWIN__
 BEG const char BOTCLASS[]		MDEF("WinMech");
 #else /* ! CYGWIN */
