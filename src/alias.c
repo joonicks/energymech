@@ -41,7 +41,7 @@ void run_debug(void) {}
 
 void testcase(const char *test, const char *expect)
 {
-	afmt(result,test,alias_test_input);
+	alias_reformat(result,test,alias_test_input);
 	if (strcmp(result,expect) == 0)
 		debug("testcase SUCCESS: test \"%s\" -> got \"%s\"\n",test,expect);
 	else
@@ -75,13 +75,13 @@ int main(int argc, char **argv, char **envp)
 		testcase("cmd $~","cmd noob");
 		testcase("cmd $~1234567890","cmd noob1234567890");
 		testcase("cmd $one $two","cmd $one $two");
-		exit(0);
+		exit(0); /*0 aliastest concluded */
 	}
 	debug("input = %s\n",alias_test_input);
 	debug("format = %s\n",format);
-	afmt(result,format,alias_test_input);
+	alias_reformat(result,format,alias_test_input);
 	debug("result = %s\n",result);
-	exit(0);
+	exit(0); /* 0 custom aliastest concluded */
 }
 
 #endif /* TEST */
@@ -97,7 +97,7 @@ int main(int argc, char **argv, char **envp)
 #define startnum	n[0]
 #define endnum		n[1]
 
-void afmt(char *output, const char *src, const char *input)
+void alias_reformat(char *output, const char *src, const char *input)
 {
 	const char *argstart,*argend;
 	int	spc,n[3];

@@ -486,7 +486,7 @@ recheck_alias:
 		if (command_hash == alias->hash && stringcasecmp(alias->alias,command) == 0)
 		{
 			unchop(command,rest);
-			afmt(amem,alias->format,command);
+			alias_reformat(amem,alias->format,command);
 #ifdef DEBUG
 			debug("(on_msg) [ALIAS] %s --> %s\n",command,amem);
 #endif /* DEBUG */
