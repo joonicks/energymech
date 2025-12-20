@@ -1421,12 +1421,13 @@ int wrap_debug(void)
 
 	debug("(wrap_debug) init...\n");
 
-	backup_dodebug = dodebug;
-	backup_fd = debug_fd;
-
 	sprintf(fname,"debug.%lu",cx.now);
 	if ((fd = open(fname,O_WRONLY|O_CREAT|O_TRUNC,NEWFILEMODE)) < 0)
 		return(0);
+
+	backup_dodebug = dodebug;
+	backup_fd = debug_fd;
+
 	debug_fd = fd;
 	dodebug = TRUE;
 

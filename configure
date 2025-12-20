@@ -876,7 +876,7 @@ fi
 echo $ac_n "checking sizeof(sa_family_t) ... "$ac_c
 safamily=unknown
 if [ -x $TESTP ]; then
-  safamily=`$TESTP`
+  safamily=`$TESTP safamily`
 fi
 echo $ac_t "$safamily"
 rm -f $TESTP
@@ -1165,10 +1165,10 @@ TESTC=config/ldtest.c
 
 echo $ac_n "checking for friendly ld ... "$ac_c
 
-$CC -o $TESTP $TESTC -Wl,-T,src/ld/elf64-x86-64 1> /dev/null 2> /dev/null
+$CC -o $TESTP $TESTC -T src/ld/mini 1> /dev/null 2> /dev/null
 if [ -x $TESTP ]; then
   if [ `$TESTP` = "yes" ]; then
-    ldscript='-Wl,-T,ld/elf64-x86-64'
+    ldscript='-T ld/mini'
     has_ldscript=yes
   fi
 fi

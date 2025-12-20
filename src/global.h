@@ -42,20 +42,20 @@
 struct CoreData		/* Collect core data all in one place */
 {
 	time_t	now;
-	time_t	system_uptime;
 	Mech	*current;
 	char	*from;
 	char	*to;
 	char	*rest;
 	char	*rest_end;
 	char	*chop_end;
-	sai_v4	myip4;			/* where to reach me by ipv4 */
-	sai_v6	myip6;			/* where to reach me by ipv4 */
 	int	socksmodified;
 	int	hisock;
 	int	short_tv;
 	User	CoreUser;
 	User	LocalBot;
+	sai_v4	myip4;			/* where to reach me by ipv4 */
+	sai_v6	myip6;			/* where to reach me by ipv4 */
+	time_t	system_uptime;
 	char	timebuffer[64];
 };
 

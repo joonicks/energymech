@@ -74,12 +74,12 @@
 #define __attr(x,y)		/* nothing */
 #endif
 
-#define CORE_SEG	".text.a"
-#define CFG1_SEG	".text.b"
-#define CMD1_SEG	".text.c"
-#define INIT_SEG	".text.d"
-#define RARE_SEG	".text.e"
-#define DBUG_SEG	".text.f"
+#define RARE_SEG	".text.a"
+#define INIT_SEG	".text.b"
+#define CFG1_SEG	".text.c"
+#define CORE_SEG	".text.d"
+#define DBUG_SEG	".text.e"
+#define CMD1_SEG	".text.f"
 
 #ifdef DEBUG
 
@@ -228,7 +228,7 @@ void do_send(COMMAND_ARGS)						__page(CMD1_SEG);
 
 /* debug.c */
 
-void strflags(char *dst, const DEFstruct *flagsstruct, int flags)	__page(CMD1_SEG);
+void strflags(char *dst, const DEFstruct *flagsstruct, int flags)	__page(DBUG_SEG);
 const char *strdef(const DEFstruct *dtab, int num)			__page(CMD1_SEG);
 const char *funcdef(const DEFstruct *dtab, void *func)			__page(CMD1_SEG);
 void memreset(void)							__page(CMD1_SEG);
@@ -249,7 +249,7 @@ int wrap_debug(void)							__page(CMD1_SEG);
 void do_crash(COMMAND_ARGS)						__page(RARE_SEG);
 void do_debug(COMMAND_ARGS)						__page(CMD1_SEG);
 void do_inject(COMMAND_ARGS)						__page(CMD1_SEG);
-void debug(char *format, ...)						__page(CORE_SEG);
+void debug(char *format, ...)						__page(DBUG_SEG);
 
 /* dns.c */
 
