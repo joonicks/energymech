@@ -399,7 +399,7 @@ void sig_int(int)							__page(RARE_SEG);		/* rare */
 void sig_ill(int)							__page(RARE_SEG);
 void sig_abrt(int)							__page(RARE_SEG);
 void sig_bus(int)							__attr(RARE_SEG, __noreturn__);
-#if defined(__linux__) && defined(__x86_64__) && defined(DEBUG) && !defined(__STRICT_ANSI__)
+#if defined(__linux__) && defined(DEBUG) && !defined(__STRICT_ANSI__)
 void sig_segv(int, siginfo_t *, void *)					__attr(RARE_SEG, __noreturn__);
 #else
 void sig_segv(int)							__attr(RARE_SEG, __noreturn__);
