@@ -455,17 +455,17 @@ void sig_segv(int sig, siginfo_t *si, void *context)
 	ip = (char*)crashcontext->uc_mcontext.gregs[16];
 	sp = (char*)crashcontext->uc_mcontext.gregs[15];
 #elif defined(__i386__)
-	void *ip = (void*)crashcontext->uc_mcontext.gregs[REG_EIP];
-	void *sp = (void*)crashcontext->uc_mcontext.gregs[REG_ESP];
+	ip = (void*)crashcontext->uc_mcontext.gregs[REG_EIP];
+	sp = (void*)crashcontext->uc_mcontext.gregs[REG_ESP];
 #elif defined(__aarch64__)
-	void *ip = (void*)uc->uc_mcontext.pc;
-	void *sp = (void*)uc->uc_mcontext.sp;
+	ip = (void*)crashcontext->uc_mcontext.pc;
+	sp = (void*)crashcontext->uc_mcontext.sp;
 #elif defined(__arm__)
-	void *pc = (void*)uc->uc_mcontext.arm_pc;
-	void *sp = (void*)uc->uc_mcontext.arm_sp;
+	ip = (void*)crashcontext->uc_mcontext.arm_pc;
+	sp = (void*)crashcontext->uc_mcontext.arm_sp;
 #elif defined(__mips__)
-	void *pc = (void*)uc->uc_mcontext.pc;
-	void *sp = (void*)uc->uc_mcontext.gregs[29];
+	ip = (void*)crashcontext->uc_mcontext.pc;
+	sp = (void*)crashcontext->uc_mcontext.gregs[29];
 #else
 #error "sig_segv(): Unsupported architecture"
 #endif
