@@ -346,6 +346,7 @@ char *maketimestr(time_t when, int format)
 {
 	struct	tm *btime;
 	char	*dest,*f,ampm;
+	unsigned char a,b;
 	int	option;
 
 	btime = localtime(&when);
@@ -381,7 +382,6 @@ char *maketimestr(time_t when, int format)
 			dest += sprintf(dest,"%i",btime->tm_year+1900);
 			break;
 		case 7:/* am/pm */
-			unsigned char a,b;
 			a = ((unsigned char)btime->tm_hour - 1);
 			a >>= 7;
 			b = ((unsigned char)btime->tm_hour - 12);
